@@ -1,0 +1,38 @@
+{
+  "name": "@orb/db",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Prisma schema, generated client, and shared types for the ADFI database",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo",
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:reset": "prisma migrate reset",
+    "db:seed": "dotenv -e ../../.env.local -- prisma db seed",
+    "db:studio": "dotenv -e ../../.env.local -- prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  },
+  "devDependencies": {
+    "@orb/config": "workspace:*",
+    "@types/node": "^20.17.0",
+    "dotenv-cli": "^7.4.4",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

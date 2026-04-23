@@ -1,0 +1,10 @@
+{
+  "extends": "@orb/config/tsconfig/base.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "types": ["node"],
+    "jsx": "preserve"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@orb/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .expo .turbo"
+  },
+  "dependencies": {
+    "@orb/api": "workspace:*",
+    "@orb/ui": "workspace:*",
+    "@react-native-async-storage/async-storage": "2.1.2",
+    "@supabase/supabase-js": "^2.48.0",
+    "@tanstack/react-query": "^5.60.0",
+    "@trpc/client": "^11.0.0",
+    "@trpc/react-query": "^11.0.0",
+    "superjson": "^2.2.1",
+    "expo": "~52.0.0",
+    "expo-constants": "~17.0.0",
+    "expo-linking": "~7.0.0",
+    "expo-router": "~4.0.0",
+    "expo-splash-screen": "~0.29.0",
+    "expo-status-bar": "~2.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.9",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-screens": "~4.4.0",
+    "react-native-url-polyfill": "^2.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "@orb/config": "workspace:*",
+    "@types/react": "^18.3.0",
+    "typescript": "^5.6.3"
+  }
+}

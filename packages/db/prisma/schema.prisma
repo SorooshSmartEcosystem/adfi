@@ -1,0 +1,387 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =============================================================
+// Users — the core identity table (backed by Supabase auth)
+// =============================================================
+model User {
+  id                    String    @id @default(uuid()) @db.Uuid
+  phone                 String?   @unique
+  email                 String?   @unique
+  businessDescription   String?   @map("business_description")
+  goal                  Goal?
+  brandVoice            Json?     @map("brand_voice")
+  onboardedAt           DateTime? @map("onboarded_at")
+  trialEndsAt           DateTime? @map("trial_ends_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  deletedAt             DateTime? @map("deleted_at")
+
+  subscriptions         Subscription[]
+  phoneNumbers          PhoneNumber[]
+  agentContext          AgentContext?
+  connectedAccounts     ConnectedAccount[]
+  contentDrafts         ContentDraft[]
+  contentPosts          ContentPost[]
+  messages              Message[]
+  calls                 Call[]
+  appointments          Appointment[]
+  competitors           Competitor[]
+  findings              Finding[]
+  agentEvents           AgentEvent[]
+
+  @@map("users")
+}
+
+enum Goal {
+  MORE_CUSTOMERS
+  MORE_REPEAT_BUYERS
+  MORE_VISIBILITY
+}
+
+// =============================================================
+// Subscriptions — Stripe billing state mirrored into our DB
+// =============================================================
+model Subscription {
+  id                     String             @id @default(uuid()) @db.Uuid
+  userId                 String             @map("user_id") @db.Uuid
+  stripeCustomerId       String             @map("stripe_customer_id")
+  stripeSubscriptionId   String             @unique @map("stripe_subscription_id")
+  plan                   Plan
+  status                 SubscriptionStatus
+  currentPeriodEnd       DateTime           @map("current_period_end")
+  cancelAtPeriodEnd      Boolean            @default(false) @map("cancel_at_period_end")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  user                   User               @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([stripeCustomerId])
+  @@map("subscriptions")
+}
+
+enum Plan {
+  SOLO
+  TEAM
+  STUDIO
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+// =============================================================
+// PhoneNumbers — the ORB number assigned to each user
+// =============================================================
+model PhoneNumber {
+  id           String              @id @default(uuid()) @db.Uuid
+  userId       String              @map("user_id") @db.Uuid
+  number       String              @unique
+  twilioSid    String              @unique @map("twilio_sid")
+  status       PhoneNumberStatus   @default(ACTIVE)
+  releasedAt   DateTime?           @map("released_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  user         User                @relation(fields: [userId], references: [id])
+
+  @@map("phone_numbers")
+}
+
+enum PhoneNumberStatus {
+  ACTIVE
+  SUSPENDED
+  RELEASED
+}
+
+// =============================================================
+// AgentContext — per-user memory shared across all 6 agents
+// =============================================================
+model AgentContext {
+  userId             String    @id @map("user_id") @db.Uuid
+  strategistOutput   Json?     @map("strategist_output")
+  scoutWatching      Json?     @map("scout_watching")
+  pulseSignals       Json?     @map("pulse_signals")
+  voiceFingerprint   Json?     @map("voice_fingerprint")
+  lastRefreshedAt    DateTime? @map("last_refreshed_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  user               User      @relation(fields: [userId], references: [id])
+
+  @@map("agent_context")
+}
+
+// =============================================================
+// ConnectedAccounts — OAuth connections (Instagram, etc.)
+// =============================================================
+model ConnectedAccount {
+  id               String            @id @default(uuid()) @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  provider         Provider
+  externalId       String            @map("external_id")
+  encryptedToken   String            @map("encrypted_token")
+  encryptedRefresh String?           @map("encrypted_refresh")
+  scope            String?
+  expiresAt        DateTime?         @map("expires_at")
+  disconnectedAt   DateTime?         @map("disconnected_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userId], references: [id])
+
+  @@unique([userId, provider])
+  @@map("connected_accounts")
+}
+
+enum Provider {
+  INSTAGRAM
+  FACEBOOK
+  LINKEDIN
+  GOOGLE_CALENDAR
+}
+
+// =============================================================
+// ContentDrafts — Echo's output before publishing
+// =============================================================
+model ContentDraft {
+  id             String         @id @default(uuid()) @db.Uuid
+  userId         String         @map("user_id") @db.Uuid
+  platform       Platform
+  status         DraftStatus    @default(DRAFT)
+  content        Json           // { caption, slides?, hashtags, media_refs }
+  scheduledFor   DateTime?      @map("scheduled_for")
+  voiceMatchScore Decimal?      @map("voice_match_score") @db.Decimal(4, 3)
+  approvedAt     DateTime?      @map("approved_at")
+  rejectedAt     DateTime?      @map("rejected_at")
+  rejectionReason String?       @map("rejection_reason")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  user           User           @relation(fields: [userId], references: [id])
+  posts          ContentPost[]
+
+  @@index([userId, status])
+  @@index([scheduledFor])
+  @@map("content_drafts")
+}
+
+enum Platform {
+  INSTAGRAM
+  FACEBOOK
+  LINKEDIN
+  EMAIL
+  PINTEREST
+}
+
+enum DraftStatus {
+  DRAFT
+  AWAITING_PHOTOS
+  AWAITING_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+  FAILED
+}
+
+// =============================================================
+// ContentPosts — actually published content + metrics
+// =============================================================
+model ContentPost {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  draftId      String       @map("draft_id") @db.Uuid
+  platform     Platform
+  externalId   String       @map("external_id")
+  permalink    String?
+  metrics      Json?        // { reach, likes, saves, comments, shares }
+  publishedAt  DateTime     @map("published_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id])
+  draft        ContentDraft @relation(fields: [draftId], references: [id])
+
+  @@index([userId, publishedAt])
+  @@map("content_posts")
+}
+
+// =============================================================
+// Messages — unified inbox (SMS, IG DMs, email)
+// =============================================================
+model Message {
+  id            String          @id @default(uuid()) @db.Uuid
+  userId        String          @map("user_id") @db.Uuid
+  threadId      String          @map("thread_id") @db.Uuid
+  channel       MessageChannel
+  fromAddress   String          @map("from_address")
+  direction     Direction
+  body          String          @db.Text
+  handledBy     String?         @map("handled_by") // "signal" | "user" | null
+  metadata      Json?
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  user          User            @relation(fields: [userId], references: [id])
+
+  @@index([userId, threadId])
+  @@index([userId, createdAt])
+  @@map("messages")
+}
+
+enum MessageChannel {
+  SMS
+  INSTAGRAM_DM
+  EMAIL
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+// =============================================================
+// Calls — Signal's call log
+// =============================================================
+model Call {
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  fromNumber        String        @map("from_number")
+  durationSeconds   Int           @map("duration_seconds")
+  transcriptUrl     String?       @map("transcript_url")
+  extractedIntent   Json?         @map("extracted_intent") // { category, summary, value_estimate }
+  estimatedValueCents Int?        @map("estimated_value_cents")
+  recoveredStatus   CallStatus    @map("recovered_status")
+  startedAt         DateTime      @map("started_at")
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  user              User          @relation(fields: [userId], references: [id])
+  appointments      Appointment[]
+
+  @@index([userId, startedAt])
+  @@map("calls")
+}
+
+enum CallStatus {
+  MISSED_AND_RECOVERED
+  MISSED_NO_RESPONSE
+  ANSWERED_BY_SIGNAL
+  ANSWERED_BY_USER
+}
+
+// =============================================================
+// Appointments — bookings made by Signal or user
+// =============================================================
+model Appointment {
+  id                    String              @id @default(uuid()) @db.Uuid
+  userId                String              @map("user_id") @db.Uuid
+  callId                String?             @map("call_id") @db.Uuid
+  customerName          String              @map("customer_name")
+  customerPhone         String?             @map("customer_phone")
+  customerEmail         String?             @map("customer_email")
+  scheduledFor          DateTime            @map("scheduled_for")
+  estimatedValueCents   Int?                @map("estimated_value_cents")
+  status                AppointmentStatus   @default(CONFIRMED)
+  notes                 String?             @db.Text
+  externalCalendarId    String?             @map("external_calendar_id")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  user                  User                @relation(fields: [userId], references: [id])
+  call                  Call?               @relation(fields: [callId], references: [id])
+
+  @@index([userId, scheduledFor])
+  @@map("appointments")
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  COMPLETED
+  NO_SHOW
+  CANCELED
+}
+
+// =============================================================
+// Competitors — rivals Scout is tracking for this user
+// =============================================================
+model Competitor {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  name             String
+  handle           String?
+  platform         Platform
+  recentActivity   Json?     @map("recent_activity")
+  lastCheckedAt    DateTime? @map("last_checked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user             User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("competitors")
+}
+
+// =============================================================
+// Findings — things any agent has surfaced for the user
+// =============================================================
+model Finding {
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @map("user_id") @db.Uuid
+  agent           Agent
+  severity        FindingSeverity
+  summary         String          @db.Text
+  payload         Json?
+  acknowledged    Boolean         @default(false)
+  acknowledgedAt  DateTime?       @map("acknowledged_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  user            User            @relation(fields: [userId], references: [id])
+
+  @@index([userId, acknowledged])
+  @@index([userId, createdAt])
+  @@map("findings")
+}
+
+enum Agent {
+  STRATEGIST
+  SCOUT
+  PULSE
+  ADS
+  ECHO
+  SIGNAL
+}
+
+enum FindingSeverity {
+  INFO
+  NEEDS_ATTENTION
+  URGENT
+}
+
+// =============================================================
+// AgentEvents — append-only log of agent activity
+// =============================================================
+model AgentEvent {
+  id           String     @id @default(uuid()) @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  agent        Agent
+  eventType    String     @map("event_type")
+  payload      Json?
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([agent, createdAt])
+  @@map("agent_events")
+}

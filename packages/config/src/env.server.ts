@@ -27,7 +27,7 @@ const schema = z.object({
   ANTHROPIC_API_KEY: z.string().startsWith("sk-ant-"),
   ANTHROPIC_MODEL_OPUS: z.string().default("claude-opus-4-7"),
   ANTHROPIC_MODEL_SONNET: z.string().default("claude-sonnet-4-6"),
-  ANTHROPIC_MODEL_HAIKU: z.string().default("claude-haiku-4-5-20251001"),
+  ANTHROPIC_MODEL_HAIKU: z.string().default("claude-haiku-4-5"),
 
   META_APP_ID: z.string().min(1),
   META_APP_SECRET: z.string().min(1),
@@ -40,6 +40,8 @@ const schema = z.object({
   SENTRY_AUTH_TOKEN: z.string().optional(),
 
   TOKEN_ENCRYPTION_KEY: z.string().min(32),
+
+  CRON_SECRET: z.string().min(16).optional(),
 
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   DISABLE_WEBHOOKS: z.enum(["0", "1"]).default("0"),

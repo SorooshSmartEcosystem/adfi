@@ -1,0 +1,36 @@
+{
+  "name": "@orb/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "tRPC routers, context, and procedure builders for ADFI",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.88.0",
+    "@orb/auth": "workspace:*",
+    "@orb/db": "workspace:*",
+    "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.48.0",
+    "@trpc/server": "^11.0.0",
+    "superjson": "^2.2.1",
+    "twilio": "^5.4.0",
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.5"
+  },
+  "peerDependencies": {
+    "next": ">=15"
+  },
+  "devDependencies": {
+    "@orb/config": "workspace:*",
+    "@types/node": "^20.17.0",
+    "next": "^15.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

@@ -15,3 +15,4 @@ Thumbs.db
 .expo/
 web-build/
 *.tsbuildinfo
+.turbo/

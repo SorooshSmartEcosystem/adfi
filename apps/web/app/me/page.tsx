@@ -91,12 +91,21 @@ export default async function MePage() {
               </div>
             </div>
 
-            {home.phoneStatus.active && (
+            {home.phoneStatus.active ? (
               <div className="pt-md border-t border-border2">
                 <p className="text-xs font-mono text-ink3">my number</p>
                 <p className="text-md font-mono text-ink">
                   {home.phoneStatus.number}
                 </p>
+              </div>
+            ) : (
+              <div className="pt-md border-t border-border2">
+                <Link
+                  href="/onboarding/phone"
+                  className="text-sm text-ink font-mono underline"
+                >
+                  get my number →
+                </Link>
               </div>
             )}
 

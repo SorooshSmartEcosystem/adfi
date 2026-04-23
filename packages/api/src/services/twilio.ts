@@ -40,3 +40,39 @@ export function validateTwilioSignature(args: {
   if (!authToken) return false;
   return validateRequest(authToken, args.signature, args.url, args.params);
 }
+
+// Buys a local phone number and configures its inbound SMS webhook to the
+// ADFI Signal handler. Voice URL is left default until Vapi is wired.
+export async function provisionNumber(args: {
+  webhookBaseUrl: string;
+  country?: string;
+  areaCode?: number;
+}): Promise<{ number: string; twilioSid: string }> {
+  const c = twilio();
+  const country = args.country ?? "US";
+
+  const available = await c.availablePhoneNumbers(country).local.list({
+    limit: 1,
+    ...(args.areaCode ? { areaCode: args.areaCode } : {}),
+  });
+
+  if (available.length === 0) {
+    throw new Error(`No local numbers available in ${country}`);
+  }
+
+  const candidate = available[0];
+  if (!candidate?.phoneNumber) {
+    throw new Error("Twilio returned a candidate with no phone number");
+  }
+
+  const purchased = await c.incomingPhoneNumbers.create({
+    phoneNumber: candidate.phoneNumber,
+    smsUrl: `${args.webhookBaseUrl}/api/webhooks/twilio/sms`,
+    smsMethod: "POST",
+  });
+
+  return {
+    number: purchased.phoneNumber,
+    twilioSid: purchased.sid,
+  };
+}

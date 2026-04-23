@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { Agent, Goal, Plan, type Prisma } from "@orb/db";
+import { Agent, Goal, PhoneNumberStatus, Plan, type Prisma } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import { runStrategist } from "../agents/strategist";
+import { provisionNumber } from "../services/twilio";
 
 export const onboardingRouter = router({
   saveBusinessDescription: authedProc
@@ -98,8 +99,42 @@ export const onboardingRouter = router({
       throw OrbError.EXTERNAL_API("Stripe");
     }),
 
-  provisionPhone: authedProc.input(z.void()).mutation(() => {
-    throw OrbError.EXTERNAL_API("Twilio");
+  provisionPhone: authedProc.input(z.void()).mutation(async ({ ctx }) => {
+    const existing = await ctx.db.phoneNumber.findFirst({
+      where: {
+        userId: ctx.user.id,
+        status: PhoneNumberStatus.ACTIVE,
+      },
+    });
+    if (existing) {
+      return { number: existing.number };
+    }
+
+    const webhookBaseUrl =
+      process.env.NEXT_PUBLIC_WEB_URL ??
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+
+    if (!webhookBaseUrl) {
+      throw OrbError.VALIDATION(
+        "NEXT_PUBLIC_WEB_URL or VERCEL_URL must be set to provision a number",
+      );
+    }
+
+    try {
+      const provisioned = await provisionNumber({ webhookBaseUrl });
+      await ctx.db.phoneNumber.create({
+        data: {
+          userId: ctx.user.id,
+          number: provisioned.number,
+          twilioSid: provisioned.twilioSid,
+          status: PhoneNumberStatus.ACTIVE,
+        },
+      });
+      return { number: provisioned.number };
+    } catch (error) {
+      console.error("Phone provisioning failed:", error);
+      throw OrbError.EXTERNAL_API("Twilio");
+    }
   }),
 
   connectInstagram: authedProc

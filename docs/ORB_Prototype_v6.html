@@ -1,0 +1,2912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORB · Full Prototype</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    background: #1a1817;
+    color: #111;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px 0;
+    gap: 20px;
+  }
+
+  .mono { font-family: "SF Mono", "JetBrains Mono", "Courier New", monospace; }
+
+  /* Device frame */
+  .device {
+    width: 380px;
+    height: 780px;
+    background: #111;
+    border-radius: 56px;
+    padding: 10px;
+    box-shadow: 0 0 0 2px #2a2a2a inset, 0 20px 60px rgba(0,0,0,0.4);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .screen-area {
+    width: 100%;
+    height: 100%;
+    background: #FAFAF7;
+    border-radius: 46px;
+    overflow: hidden;
+    position: relative;
+    transition: background 0.3s ease;
+  }
+  .screen-area.dark {
+    background: linear-gradient(180deg, #2a2520 0%, #1a1715 50%, #0d0c0b 100%);
+  }
+  .notch {
+    position: absolute; top: 10px; left: 50%;
+    transform: translateX(-50%);
+    width: 110px; height: 28px;
+    background: #111; border-radius: 20px;
+    z-index: 100;
+  }
+  .home-bar {
+    position: absolute; bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    width: 130px; height: 5px;
+    background: #2a2a2a; border-radius: 3px;
+  }
+  .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 30px 0;
+    font-size: 14px; font-weight: 500;
+    font-family: "SF Mono", "JetBrains Mono", monospace;
+    color: #111;
+    position: relative; z-index: 10;
+  }
+  .status-bar.dark { color: white; }
+
+  .content {
+    height: calc(100% - 32px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Nav pills */
+  .nav-wrap {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 380px;
+    padding: 0 10px;
+  }
+  .nav-pill {
+    background: transparent;
+    border: 0.5px solid rgba(255,255,255,0.2);
+    padding: 5px 11px;
+    color: rgba(255,255,255,0.6);
+    cursor: pointer;
+    border-radius: 100px;
+    font-family: "SF Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+  }
+  .nav-pill:hover { border-color: rgba(255,255,255,0.4); color: white; }
+  .nav-pill.active { background: white; color: #111; border-color: white; }
+
+  .section-label {
+    color: rgba(255,255,255,0.4);
+    font-family: "SF Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-top: 6px;
+    text-align: center;
+  }
+
+  /* ORB elements */
+  .orb-lg { width: 140px; height: 140px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #333 0%, #111 60%); animation: float 4s ease-in-out infinite; }
+  .orb-md { width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #333 0%, #111 60%); animation: float 3s ease-in-out infinite; }
+  .orb-sm { width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #333 0%, #111 60%); cursor: pointer; transition: transform 0.15s; }
+  .orb-sm:hover { transform: scale(1.1); }
+  .orb-thinking { width: 115px; height: 115px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #333 0%, #111 60%); position: relative; animation: breathe 2s ease-in-out infinite; }
+  .orb-thinking::after { content: ''; position: absolute; inset: -12px; border-radius: 50%; border: 0.5px solid #111; opacity: 0.2; animation: ripple 2s ease-out infinite; }
+
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+  @keyframes ripple { 0% { transform: scale(1); opacity: 0.3; } 100% { transform: scale(1.4); opacity: 0; } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes wave { 0%, 100% { height: 8px; } 50% { height: 28px; } }
+  @keyframes sheetup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; } }
+  .dots::after { content: ''; animation: dots 1.5s steps(4) infinite; }
+
+  /* Shared UI */
+  .chip { font-size: 11px; color: #666; font-family: "SF Mono", monospace; background: white; border: 0.5px solid #E5E3DB; padding: 5px 10px; border-radius: 100px; display: inline-block; cursor: pointer; transition: all 0.15s; }
+  .chip:hover { border-color: #999; }
+  .chip.active { background: #111; color: white; border-color: #111; }
+
+  .pbtn { background: #111; color: white; border: none; padding: 14px; border-radius: 14px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: "SF Mono", monospace; letter-spacing: 0.02em; transition: opacity 0.15s; width: 100%; }
+  .pbtn:hover { opacity: 0.88; }
+  .pbtn:active { opacity: 0.75; }
+  .pbtn.secondary { background: white; color: #111; border: 0.5px solid #E5E3DB; }
+  .pbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pbtn.danger { background: #C84A3E; }
+
+  textarea { width: 100%; padding: 14px; border: 0.5px solid #E5E3DB; border-radius: 14px; background: white; font-size: 13px; color: #111; line-height: 1.5; font-family: inherit; resize: none; outline: none; box-sizing: border-box; }
+  textarea:focus { border-color: #111; }
+
+  .agent-row { background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.15s; }
+  .agent-row.hired { background: #111; border-color: #111; color: white; }
+  .agent-row.hired .a-role { color: rgba(255,255,255,0.6); }
+  .agent-row.hired .a-check { color: white; }
+  .agent-row:active { transform: scale(0.99); }
+  .a-dot { width: 9px; height: 9px; border-radius: 50%; background: #D5D2C5; flex-shrink: 0; }
+  .agent-row.hired .a-dot { background: #7CE896; }
+
+  .flow-row { background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 12px 14px; cursor: pointer; transition: all 0.15s; }
+  .flow-row:hover { border-color: #999; }
+  .flow-row:active { background: #F2EFE5; }
+
+  .metric-tile { background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; }
+
+  /* Sheets */
+  .sheet-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 40; animation: fade 0.2s ease-out; }
+  .sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #FAFAF7; border-radius: 28px 28px 0 0; padding: 14px 24px 24px; box-shadow: 0 -10px 40px rgba(0,0,0,0.08); max-height: 85%; overflow-y: auto; animation: sheetup 0.25s ease-out; z-index: 50; }
+  .drag-h { width: 36px; height: 4px; background: #D5D2C5; border-radius: 2px; margin: 0 auto 16px; }
+
+  .suggest-chip { background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 11px 14px; font-size: 13px; color: #111; cursor: pointer; transition: all 0.15s; }
+  .suggest-chip:hover { border-color: #111; }
+  .suggest-chip:active { background: #F2EFE5; }
+
+  .msg-bubble { max-width: 80%; padding: 10px 13px; border-radius: 16px; }
+  .msg-bubble.them { background: #F2EFE5; align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg-bubble.us { background: #111; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+
+  .msg-row { background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 12px 14px; cursor: pointer; transition: all 0.15s; }
+  .msg-row:hover { border-color: #999; }
+  .msg-row.amber { background: #FFF9ED; border-color: #F0D98C; }
+
+  .appt-row { background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; }
+  .appt-row:hover { border-color: #999; }
+
+  .setting-row { padding: 14px 16px; border-bottom: 0.5px solid #EEEBE0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.15s; }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-row:hover { background: #F8F6EE; }
+  .setting-row.nonclick { cursor: default; }
+  .setting-row.nonclick:hover { background: transparent; }
+
+  .toggle-sw { width: 42px; height: 24px; border-radius: 12px; background: #D5D2C5; position: relative; transition: background 0.2s; cursor: pointer; flex-shrink: 0; }
+  .toggle-sw.on { background: #111; }
+  .toggle-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: white; transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .toggle-sw.on::after { transform: translateX(18px); }
+
+  .wave-bar { width: 3px; background: #111; border-radius: 2px; animation: wave 0.9s ease-in-out infinite; }
+
+  .finding { padding: 12px 14px; border-bottom: 0.5px solid #EEEBE0; cursor: pointer; transition: all 0.15s; }
+  .finding:last-child { border-bottom: none; }
+  .finding:hover { background: #F8F6EE; }
+
+  .bar { flex: 1; background: #E5E3DB; border-radius: 3px 3px 0 0; transition: height 0.4s ease; }
+  .bar.active { background: #111; }
+
+  .notif-btn { flex: 1; background: rgba(255,255,255,0.1); color: white; border: 0.5px solid rgba(255,255,255,0.12); padding: 9px 10px; border-radius: 10px; font-size: 11px; font-weight: 500; font-family: "SF Mono", monospace; cursor: pointer; transition: all 0.15s; }
+  .notif-btn:hover { background: rgba(255,255,255,0.18); }
+  .notif-btn.secondary { background: transparent; border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 10px 18px; border-radius: 100px; font-size: 12px; font-family: "SF Mono", monospace; z-index: 999; animation: fade 0.2s ease; }
+
+  /* Info panel */
+  .info-panel { position: fixed; top: 16px; right: 16px; width: 280px; background: rgba(30,28,26,0.95); backdrop-filter: blur(20px); border: 0.5px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 14px 16px; color: white; font-size: 12px; line-height: 1.5; z-index: 500; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .info-panel.hidden { display: none; }
+  .info-panel h3 { font-size: 11px; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); font-family: "SF Mono", monospace; margin-bottom: 8px; font-weight: 500; }
+  .info-panel h2 { font-size: 14px; margin-bottom: 8px; font-weight: 500; }
+  .info-panel p { color: rgba(255,255,255,0.75); margin-bottom: 8px; }
+  .info-panel ul { list-style: none; padding: 0; }
+  .info-panel li { color: rgba(255,255,255,0.75); padding: 4px 0; font-size: 11px; border-top: 0.5px solid rgba(255,255,255,0.08); }
+  .info-panel li:first-child { border-top: none; }
+  .info-panel li strong { color: white; font-weight: 500; }
+
+  .info-toggle { position: fixed; top: 16px; right: 16px; background: rgba(30,28,26,0.95); color: white; border: 0.5px solid rgba(255,255,255,0.12); border-radius: 100px; padding: 8px 14px; font-size: 11px; font-family: "SF Mono", monospace; cursor: pointer; z-index: 501; backdrop-filter: blur(20px); }
+
+  /* Hide scrollbars inside screen */
+  .content *::-webkit-scrollbar { display: none; }
+  .content * { scrollbar-width: none; }
+
+  /* Nav toggle button (only visible on small screens) */
+  .nav-toggle-mobile {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 600;
+    background: #111;
+    color: white;
+    border: 0.5px solid rgba(255,255,255,0.15);
+    border-radius: 100px;
+    padding: 12px 18px;
+    font-family: "SF Mono", monospace;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    transition: transform 0.15s;
+  }
+  .nav-toggle-mobile:active { transform: scale(0.95); }
+
+  .mobile-nav-sheet {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 70vh;
+    background: #1a1817;
+    border-radius: 20px 20px 0 0;
+    padding: 16px 20px 30px;
+    z-index: 700;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.25s ease;
+    box-shadow: 0 -20px 60px rgba(0,0,0,0.5);
+  }
+  .mobile-nav-sheet.open { transform: translateY(0); }
+
+  .mobile-nav-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 699;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+  .mobile-nav-backdrop.open { opacity: 1; }
+
+  .mobile-nav-handle {
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  /* Responsive breakpoints */
+  @media (max-width: 820px) {
+    body {
+      justify-content: flex-start;
+      padding: 0;
+      gap: 0;
+    }
+    .device {
+      width: 100vw;
+      max-width: 380px;
+      height: 100vh;
+      max-height: 780px;
+      border-radius: 0;
+      padding: 0;
+      box-shadow: none;
+    }
+    .screen-area {
+      border-radius: 0;
+    }
+    .notch { display: none; }
+    .home-bar { display: none; }
+    .section-label { display: none; }
+    .nav-wrap { display: none !important; }
+    .info-panel { display: none !important; }
+    .info-toggle { display: none !important; }
+    .nav-toggle-mobile { display: block; }
+  }
+
+  @media (max-width: 420px) {
+    .device {
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      max-height: none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<button class="info-toggle" onclick="toggleInfo()">ⓘ screen info</button>
+<div class="info-panel hidden" id="info-panel"></div>
+
+<button class="nav-toggle-mobile" onclick="toggleMobileNav()">☰ menu</button>
+<div class="mobile-nav-backdrop" id="mobile-nav-backdrop" onclick="toggleMobileNav()"></div>
+<div class="mobile-nav-sheet" id="mobile-nav-sheet">
+  <div class="mobile-nav-handle"></div>
+  <div id="mobile-nav-content"></div>
+</div>
+
+<div class="device">
+  <div class="notch"></div>
+  <div class="screen-area" id="screen-area">
+    <div class="status-bar" id="status-bar"><span>9:41</span><span style="font-size: 12px;">● ● ●</span></div>
+    <div class="content" id="content"></div>
+  </div>
+  <div class="home-bar"></div>
+</div>
+
+<div class="section-label" id="section-label">ORB · prototype · 12 screens</div>
+
+<div class="nav-wrap" id="nav-wrap"></div>
+<div class="nav-wrap" id="nav-wrap-2" style="margin-top: -12px;"></div>
+
+<script>
+// =============================================
+// STATE
+// =============================================
+const state = {
+  route: 'splash',
+  brief: '',
+  hired: new Set(['strategist', 'signal', 'echo']),
+  sheet: null,
+  sheetData: null,
+  briefInput: '',
+  assignedAgents: new Set(['strategist', 'signal', 'echo']),
+  channel: 'all',
+  selectedAgent: 'scout',
+  echoView: 'calendar',
+  infoOpen: false,
+  tickerInterval: null,
+  onboardStep: 1,
+  selectedGoal: null,
+  igConnected: false,
+  analysisRun: false,
+  cardEntered: false,
+  phoneProvisioned: false,
+  phoneNumber: '+1 (416) 555-0172',
+  carrierHelpOpen: false,
+  selectedCarrier: null,
+  homeState: 'steady',
+  selectedPlan: 'team',
+  toggles: {
+    ig: true, meta: true, gmail: false,
+    pushDaily: true, pushWeekly: true,
+    record: true, autoconfirm: true
+  }
+};
+
+// =============================================
+// DATA
+// =============================================
+const agents = [
+  { id: 'strategist', name: 'strategist', role: 'business structure · ICP + voice', tier: 'starter' },
+  { id: 'scout', name: 'scout', role: 'competitor intel · weekly sweeps', tier: 'team' },
+  { id: 'pulse', name: 'pulse', role: 'market + news · external signals', tier: 'team' },
+  { id: 'ads', name: 'ads', role: 'paid campaigns · drafts + optimizes', tier: 'studio', coming: true },
+  { id: 'echo', name: 'echo', role: 'content · creates + analyzes social', tier: 'team' },
+  { id: 'signal', name: 'signal', role: 'calls · sms · appointments', tier: 'starter' },
+  { id: 'site', name: 'site', role: 'builds + updates your website', tier: 'studio', coming: true }
+];
+
+const flows = [
+  { id: 'f1', agent: 'signal', task: 'texting back missed call · $850 lead', progress: 68, status: 'running' },
+  { id: 'f2', agent: 'echo', task: 'drafting tue ig carousel · 10 years of clay', progress: 80, status: 'running' },
+  { id: 'f3', agent: 'ads', task: 'drafted 3 spring campaign variants', progress: 100, status: 'done' },
+  { id: 'f4', agent: 'scout', task: 'east fork dropped prices 15%', progress: 100, status: 'alert' },
+  { id: 'f5', agent: 'strategist', task: 'prepping brief for thu 11am call', progress: 40, status: 'running' }
+];
+
+const agentDetails = {
+  scout: { role: 'competitor intel · weekly sweeps', now: 'analyzing 4 competitor instagram feeds', progress: 72, findings: [
+    { t: 'east fork dropped prices 15%', sub: 'mon · pricing shift' },
+    { t: 'heath launched seasonal collection', sub: 'sun · product' },
+    { t: '2 new rivals spotted on instagram', sub: 'sat · discovery' }
+  ]},
+  signal: { role: 'calls · sms · appointments', now: 'texting back missed call', progress: 68, findings: [
+    { t: 'booked thu 11am design call', sub: 'just now · $850 lead' },
+    { t: 'handled 23 messages today', sub: 'across 4 channels' },
+    { t: '7 of 9 missed calls recovered', sub: 'this week' }
+  ]},
+  strategist: { role: 'business structure · ICP', now: 'prepping thu 11am call brief', progress: 40, findings: [
+    { t: 'brand voice locked in', sub: 'warm · crafted · specific' },
+    { t: 'ICP refined: designers 30-55', sub: 'toronto + gta' },
+    { t: 'pricing structure documented', sub: '3 tiers · custom logic' }
+  ]},
+  ads: { role: 'paid campaigns', now: 'waiting for brief approval', progress: 100, findings: [
+    { t: '3 spring campaign variants drafted', sub: 'mon · ready for approval' },
+    { t: 'last campaign roi: 3.2x', sub: 'feb 28 - mar 14' },
+    { t: 'best creative: terracotta b-roll', sub: 'ctr 4.1% above baseline' }
+  ]},
+  echo: { role: 'content creator + analyzer', now: 'drafting tue ig carousel', progress: 80, findings: [
+    { t: 'cream + terracotta posts get 2.8× engagement', sub: 'pattern · 14 posts' },
+    { t: '"unboxing pottery" trending +340%', sub: 'tiktok · act fast' },
+    { t: '12 posts scheduled this week', sub: 'ig + email + linkedin' }
+  ]},
+  pulse: { role: 'external signals', now: 'scanning industry + market', progress: 55, findings: [
+    { t: 'handmade ceramics search +22%', sub: 'demand · last 30 days' },
+    { t: 'import tariff on ceramics flagged', sub: 'fri · watch' },
+    { t: 'toronto design week announced', sub: 'jun 15-22 · opportunity' }
+  ]}
+};
+
+const screenInfo = {
+  splash: { title: 'Splash', section: '01 · Onboarding', desc: 'Bold promise. Live ticker. Tap to begin.', notes: ['Headline leads with promise, not product', 'Live ticker rotates real events every 3.5s', 'Tap anywhere to start onboarding'] },
+  onboard: { title: 'Onboarding · 3 quick questions', section: '01 · Onboarding', desc: '90 seconds to get ORB running. 3 questions: what you do, what you want, connect Instagram.', notes: ['Step 1: one line about business', 'Step 2: pick your goal (more customers / repeat buyers / visibility)', 'Step 3: connect Instagram', 'No agents mentioned — ORB just starts working'] },
+  home: { title: 'Home', section: '02 · Core', desc: 'The "is it working?" screen. Status card shows what ORB did. Amber card if something needs you.', notes: ['One status card with this-week summary', 'Optional amber card for needs-you items', '"Show me everything" link for curious users', 'Everything else is hidden — 95% of users stop here'] },
+  needsyou: { title: 'Needs you · detail', section: '02 · Core', desc: 'When the owner taps the amber card. One question, two buttons. No extra choices.', notes: ['Shows what ORB wants to post about', 'Photo upload area + skip option', 'Native iOS photo picker'] },
+  everything: { title: 'Show me everything', section: '03 · Deep dive', desc: 'Activity feed for the curious user. Links to all v3 detailed screens.', notes: ['Chronological feed of what ORB did', 'Links out to calendar, performance, trends', 'Shows the team (6 agents) as "specialists"', '10% of owners reach this regularly'] },
+  call: { title: 'Live call', section: '04 · Urgent', desc: 'Signal is on a call right now. Live transcript, intent detection.', notes: ['Red pulsing dot = live', 'Waveform animates', 'Take over or mute'] },
+  missed: { title: 'Missed call recovery', section: '04 · Urgent', desc: 'The hero screen. Signal caught a missed call. Timeline shows what happened.', notes: ['Color-coded timeline dots', 'Two stats: recovered % + avg response time', 'Watch conversation CTA'] },
+  convo: { title: 'SMS conversation', section: '04 · Urgent', desc: 'Actual words Signal is saying. Trust screen.', notes: ['Every AI bubble labeled SIGNAL', 'Jump in button', 'Amber card shows flagged intent'] },
+  booked: { title: 'Booked', section: '04 · Urgent', desc: 'Hero moment. Saved the sale.', notes: ['Only celebratory UI in app', 'Share button', 'Team handoff shows coordination'] },
+  inbox: { title: 'Inbox', section: '05 · Detail views', desc: 'All channels in one view. Accessible from "show me everything."', notes: ['Channel filter pills', 'Tap row → thread detail', 'Needs-you vs handled'] },
+  appts: { title: 'Appointments', section: '05 · Detail views', desc: 'Booking rules + upcoming list. From "show me everything."', notes: ['Rules matter more than individual appts', 'Tap appt row → detail sheet'] },
+  agent: { title: 'Specialist detail', section: '05 · Detail views', desc: 'Per-agent view for curious users. Framed as "specialists working on your business."', notes: ['Switch between 6 specialists', 'Tap finding → detail', 'Only reached via "show me everything"'] },
+  report: { title: 'Weekly report', section: '05 · Detail views', desc: 'Sunday 6pm push. Recovered revenue, saves, cumulative total.', notes: ['Retention engine', 'Bar chart shape', 'Cumulative card prevents churn'] },
+  settings: { title: 'Settings', section: '06 · System', desc: 'Radically reduced. Business, connections, notifications, plan.', notes: ['Every row tappable', 'Rarely visited', 'Plan upgrade from here'] },
+  lock: { title: 'Lock screen notification', section: '06 · System', desc: 'The most important screen — 90% of urgent ORB interactions happen here.', notes: ['Mini transcript inside notification', 'Three actions', 'Warm dark gradient'] },
+  echo: { title: 'Content detail', section: '05 · Detail views', desc: 'Calendar, composer, performance, trends. Reached from "show me everything."', notes: ['Calendar shows week balance', 'Composer = draft + repurpose', 'Performance shows patterns', 'Trends flags rising topics'] }
+};
+
+// =============================================
+// TEMPLATES
+// =============================================
+const statusBar = `<div class="status-bar mono" id="status-bar"><span>9:41</span><span style="font-size: 12px;">● ● ●</span></div>`;
+
+function splashView() {
+  return `
+    <div style="height: 100%; display: flex; flex-direction: column; padding: 0 32px; position: relative;">
+
+      <div style="margin-top: 40px; display: flex; align-items: center; gap: 8px;">
+        <div style="width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #333 0%, #111 60%);"></div>
+        <p class="mono" style="font-size: 11px; letter-spacing: 0.25em; color: #111; margin: 0;">ORB</p>
+      </div>
+
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: -40px;">
+        <h1 style="font-size: 44px; font-weight: 500; letter-spacing: -0.04em; line-height: 0.98; color: #111; margin: 0 0 4px;">stop doing</h1>
+        <h1 style="font-size: 44px; font-weight: 500; letter-spacing: -0.04em; line-height: 0.98; color: #111; margin: 0 0 4px;">your own</h1>
+        <h1 style="font-size: 44px; font-weight: 500; letter-spacing: -0.04em; line-height: 0.98; color: #999; margin: 0;">marketing.</h1>
+
+        <div style="height: 0.5px; background: #E5E3DB; margin: 28px 0 20px; width: 48px;"></div>
+
+        <p style="font-size: 14px; color: #444; line-height: 1.55; margin: 0 0 18px; max-width: 240px;">six AI agents handle your calls, content, ads, and competitors — while you make things.</p>
+
+        <div id="splash-ticker" style="display: flex; align-items: center; gap: 8px; min-height: 18px;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #7CE896; animation: pulse 2s ease-in-out infinite;"></div>
+          <p class="mono" id="ticker-text" style="font-size: 11px; color: #444; letter-spacing: 0.02em; margin: 0; transition: opacity 0.4s ease;">booked a $850 lead 3 min ago</p>
+        </div>
+      </div>
+
+      <div style="padding-bottom: 32px;">
+        <button class="pbtn" style="letter-spacing: 0.08em; border-radius: 100px; padding: 16px;" data-tap="onboard">START HIRING →</button>
+        <p class="mono" style="text-align: center; font-size: 11px; color: #999; margin: 14px 0 0; cursor: pointer; letter-spacing: 0.02em;" data-tap="deck">already have an account? sign in</p>
+      </div>
+
+    </div>
+  `;
+}
+
+function onboardView() {
+  const step = state.onboardStep || 1;
+  const progress = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
+      <span class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em;">0${step} / 06</span>
+      <div style="display: flex; gap: 4px;">
+        ${[1,2,3,4,5,6].map(n => `<div style="width: 14px; height: 3px; background: ${step >= n ? '#111' : '#E5E3DB'}; border-radius: 2px;"></div>`).join('')}
+      </div>
+    </div>
+  `;
+
+  if (step === 1) {
+    const hasBrief = state.brief.length > 10;
+    return `
+      <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto;">
+        ${progress}
+        <h2 style="font-size: 28px; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.03em; color: #111; line-height: 1.15;">what does your<br/>business do?</h2>
+        <p style="font-size: 14px; color: #888; margin: 0 0 24px; line-height: 1.5;">one line. i'll figure out the rest from your website and instagram.</p>
+        <textarea id="brief-ta" placeholder="i sell handmade ceramics in toronto" style="min-height: 100px; font-size: 15px;">${state.brief}</textarea>
+        <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 20px 0 10px;">OR TRY AN EXAMPLE</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px;">
+          <span class="chip" data-example="1">ceramics studio</span>
+          <span class="chip" data-example="2">yoga studio</span>
+          <span class="chip" data-example="3">dentist</span>
+        </div>
+        <button class="pbtn" ${hasBrief ? '' : 'disabled'} data-action="onboard-next">${hasBrief ? 'continue →' : 'write something to continue'}</button>
+        <div style="height: 30px;"></div>
+      </div>
+    `;
+  }
+
+  if (step === 2) {
+    const goals = [
+      { id: 'customers', t: 'more customers', s: 'get new people to discover and buy from you' },
+      { id: 'repeat', t: 'more repeat buyers', s: 'keep existing customers coming back' },
+      { id: 'visibility', t: 'more visibility', s: 'grow your audience and brand presence' }
+    ];
+    return `
+      <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto;">
+        ${progress}
+        <h2 style="font-size: 28px; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.03em; color: #111; line-height: 1.15;">what do you<br/>want more of?</h2>
+        <p style="font-size: 14px; color: #888; margin: 0 0 24px; line-height: 1.5;">pick one. you can change this anytime.</p>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px;">
+          ${goals.map(g => {
+            const sel = state.selectedGoal === g.id;
+            return `
+              <div class="agent-row ${sel ? 'hired' : ''}" data-goal="${g.id}" style="padding: 16px;">
+                <div class="a-dot"></div>
+                <div style="flex: 1;">
+                  <p style="font-size: 15px; font-weight: 500; margin: 0;">${g.t}</p>
+                  <p class="mono" style="font-size: 11px; color: ${sel ? 'rgba(255,255,255,0.6)' : '#888'}; margin: 3px 0 0;">${g.s}</p>
+                </div>
+                <span class="mono" style="font-size: 15px; color: ${sel ? 'white' : '#999'};">${sel ? '✓' : ''}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <button class="pbtn" ${state.selectedGoal ? '' : 'disabled'} data-action="onboard-next">${state.selectedGoal ? 'continue →' : 'pick a goal to continue'}</button>
+        <div style="height: 30px;"></div>
+      </div>
+    `;
+  }
+
+  if (step === 3) {
+    if (!state.analysisRun) {
+      return `
+        <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto; display: flex; flex-direction: column;">
+          ${progress}
+          <h2 style="font-size: 26px; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.03em; color: #111; line-height: 1.15;">give me 30 seconds.</h2>
+          <p style="font-size: 14px; color: #888; margin: 0 0 28px; line-height: 1.5;">i'll look at your business and tell you what i see.</p>
+
+          <div style="background: #111; color: white; border-radius: 18px; padding: 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+              <div style="width: 8px; height: 8px; border-radius: 50%; background: #7CE896; animation: pulse 1.5s ease-in-out infinite;"></div>
+              <span class="mono" style="font-size: 11px; opacity: 0.8; letter-spacing: 0.2em;">ANALYZING</span>
+            </div>
+            <div id="analysis-steps" style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; opacity: 0.9;">
+                <span class="mono" style="font-size: 11px; opacity: 0.5;">01</span>
+                <span>reading your business description</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; opacity: 0.5;">
+                <span class="mono" style="font-size: 11px; opacity: 0.4;">02</span>
+                <span>finding similar businesses</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; opacity: 0.5;">
+                <span class="mono" style="font-size: 11px; opacity: 0.4;">03</span>
+                <span>checking industry benchmarks</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; opacity: 0.5;">
+                <span class="mono" style="font-size: 11px; opacity: 0.4;">04</span>
+                <span>spotting your biggest opportunity</span>
+              </div>
+            </div>
+          </div>
+
+          <button class="pbtn" data-action="run-analysis">see what i found →</button>
+          <p style="text-align: center; margin: 10px 0 0; font-family: 'SF Mono', monospace; font-size: 11px; color: #999;">no card needed yet · just a quick look</p>
+          <div style="height: 30px;"></div>
+        </div>
+      `;
+    }
+    return `
+      <div style="padding: 20px 24px 0; height: 100%; overflow-y: auto;">
+        ${progress}
+        <h2 style="font-size: 24px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.025em; color: #111; line-height: 1.2;">here's what i see.</h2>
+        <p style="font-size: 13px; color: #888; margin: 0 0 20px; line-height: 1.5;"><em>handmade ceramics in toronto — nice.</em></p>
+
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 16px; padding: 16px; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: #3a9d5c;"></div>
+            <span class="mono" style="font-size: 10px; color: #3a9d5c; letter-spacing: 0.2em;">YOUR BIGGEST OPPORTUNITY</span>
+          </div>
+          <p style="font-size: 14px; color: #111; margin: 0; line-height: 1.55;">your target customer is probably interior designers and boutique stores — not retail shoppers. you could <strong>3× your wholesale accounts</strong> within 6 months.</p>
+        </div>
+
+        <div style="background: #FFF9ED; border: 0.5px solid #F0D98C; border-radius: 16px; padding: 16px; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: #F0D98C;"></div>
+            <span class="mono" style="font-size: 10px; color: #8a6a1e; letter-spacing: 0.2em;">YOUR BIGGEST RISK</span>
+          </div>
+          <p style="font-size: 14px; color: #111; margin: 0; line-height: 1.55;">studios like yours miss <strong>4–6 calls per week</strong>. at your price point, that's <strong>$8k–$20k/year</strong> walking past your door.</p>
+        </div>
+
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 16px; padding: 16px; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: #111;"></div>
+            <span class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em;">RIVALS I'LL WATCH FOR YOU</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-size: 13px; color: #111;">east fork · asheville</span>
+              <span class="mono" style="font-size: 11px; color: #3a9d5c;">+30% last year</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-size: 13px; color: #111;">heath ceramics · sf</span>
+              <span class="mono" style="font-size: 11px; color: #3a9d5c;">+32% last year</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 16px; padding: 16px; margin-bottom: 24px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: #111;"></div>
+            <span class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em;">FIRST 3 POSTS I'D MAKE</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.4;">• wheel-throwing reel — your process is your edge</p>
+            <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.4;">• behind-the-scenes carousel about your glazes</p>
+            <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.4;">• customer testimonial — you have 5 great ones already</p>
+          </div>
+        </div>
+
+        <div style="background: #F2EFE5; border-radius: 14px; padding: 14px; margin-bottom: 18px; text-align: center;">
+          <p style="font-size: 14px; color: #111; margin: 0 0 4px; font-weight: 500;">want me to actually do this for you?</p>
+          <p style="font-size: 12px; color: #666; margin: 0;">7 days free · i won't charge you until i've proven i'm working</p>
+        </div>
+
+        <button class="pbtn" data-action="onboard-next">start my free trial →</button>
+        <div style="height: 30px;"></div>
+      </div>
+    `;
+  }
+
+  if (step === 4) {
+    const plans = [
+      {
+        id: 'starter',
+        name: 'starter',
+        price: 39,
+        tagline: 'the essentials',
+        features: [
+          'i answer your calls and texts',
+          'i give you business insights each week',
+          'no content, no ads — yet'
+        ]
+      },
+      {
+        id: 'team',
+        name: 'team',
+        price: 99,
+        tagline: 'most solopreneurs pick this',
+        recommended: true,
+        features: [
+          'everything in starter, plus:',
+          'i post to instagram and linkedin',
+          'i watch your competitors',
+          'i run your weekly business review'
+        ]
+      },
+      {
+        id: 'studio',
+        name: 'studio',
+        price: 299,
+        tagline: 'a full marketing team',
+        features: [
+          'everything in team, plus:',
+          'i run your paid ad campaigns',
+          'i build and update your website',
+          'unlimited everything'
+        ]
+      }
+    ];
+
+    return `
+      <div style="padding: 20px 24px 0; height: 100%; overflow-y: auto;">
+        ${progress}
+        <h2 style="font-size: 26px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.03em; color: #111; line-height: 1.15;">start my free trial.</h2>
+        <p style="font-size: 13px; color: #888; margin: 0 0 18px; line-height: 1.5;">7 days free. pick what you want me to do. you can change this anytime.</p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
+          ${plans.map(p => {
+            const sel = state.selectedPlan === p.id;
+            const border = sel ? '1.5px solid #111' : '0.5px solid #E5E3DB';
+            const bg = sel ? 'white' : 'white';
+            return `
+              <div data-plan="${p.id}" style="position: relative; background: ${bg}; border: ${border}; border-radius: 16px; padding: 16px; cursor: pointer; transition: all 0.15s;">
+                ${p.recommended ? `<div style="position: absolute; top: -9px; left: 16px; background: #111; color: white; padding: 3px 10px; border-radius: 100px; font-family: 'SF Mono', monospace; font-size: 9px; letter-spacing: 0.15em;">MOST POPULAR</div>` : ''}
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: ${p.recommended ? '4px' : '0'}; margin-bottom: 4px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 16px; height: 16px; border-radius: 50%; border: ${sel ? '5px solid #111' : '1.5px solid #D5D2C5'}; transition: all 0.15s;"></div>
+                    <p style="font-size: 16px; font-weight: 500; margin: 0; color: #111;">${p.name}</p>
+                  </div>
+                  <p style="font-size: 15px; margin: 0; color: #111;"><span style="font-weight: 500;">$${p.price}</span><span style="color: #888; font-size: 11px;">/mo</span></p>
+                </div>
+                <p class="mono" style="font-size: 10px; color: #888; margin: 0 0 ${sel ? '10px' : '0'}; letter-spacing: 0.1em; padding-left: 24px;">${p.tagline}</p>
+                ${sel ? `
+                  <div style="display: flex; flex-direction: column; gap: 5px; padding-left: 24px; padding-top: 4px; border-top: 0.5px solid #EEEBE0; margin-top: 8px;">
+                    ${p.features.map(f => `<p style="margin: 0; line-height: 1.5; font-size: 12px; color: #444;">• ${f}</p>`).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 8px;">CARD ON FILE</p>
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 2px; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 14px;">
+            <div style="width: 32px; height: 22px; background: #F2EFE5; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <span class="mono" style="font-size: 9px; color: #666; letter-spacing: 0.05em;">CARD</span>
+            </div>
+            <input type="text" placeholder="card number" style="flex: 1; border: none; outline: none; font-size: 14px; color: #111; background: transparent;" />
+          </div>
+          <div style="display: flex; border-top: 0.5px solid #EEEBE0;">
+            <div style="flex: 1; padding: 14px; border-right: 0.5px solid #EEEBE0;">
+              <input type="text" placeholder="mm / yy" style="width: 100%; border: none; outline: none; font-size: 14px; color: #111; background: transparent;" />
+            </div>
+            <div style="flex: 1; padding: 14px;">
+              <input type="text" placeholder="cvc" style="width: 100%; border: none; outline: none; font-size: 14px; color: #111; background: transparent;" />
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #F2EFE5; border-radius: 12px; padding: 12px; margin-bottom: 18px;">
+          <p style="font-size: 12px; color: #666; line-height: 1.6; margin: 0;"><strong style="color: #111;">you won't be charged today.</strong> your card will only be used after i've shown real results. i'll ping you before any charge.</p>
+        </div>
+
+        <button class="pbtn" data-action="enter-card">start my 7 days free →</button>
+        <p style="text-align: center; margin: 10px 0 0; font-family: 'SF Mono', monospace; font-size: 10px; color: #999;">🔒 stripe · cancel anytime</p>
+        <div style="height: 30px;"></div>
+      </div>
+    `;
+  }
+
+  if (step === 5) {
+    return `
+      <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto;">
+        ${progress}
+        <h2 style="font-size: 26px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.03em; color: #111; line-height: 1.15;">here's your orb number.</h2>
+        <p style="font-size: 13px; color: #888; margin: 0 0 22px; line-height: 1.5;">this is how i'll catch calls and texts for you.</p>
+
+        <div style="background: #111; color: white; border-radius: 20px; padding: 24px; margin-bottom: 16px; text-align: center;">
+          <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="width: 7px; height: 7px; border-radius: 50%; background: #7CE896; animation: pulse 2s ease-in-out infinite;"></div>
+            <span class="mono" style="font-size: 10px; opacity: 0.6; letter-spacing: 0.2em;">ACTIVE · READY FOR CALLS</span>
+          </div>
+          <p style="font-family: 'SF Mono', monospace; font-size: 22px; font-weight: 500; color: white; margin: 0 0 6px; letter-spacing: -0.01em;">${state.phoneNumber}</p>
+          <p style="font-size: 11px; opacity: 0.5; margin: 0;">local · toronto</p>
+        </div>
+
+        <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 8px;">TWO WAYS TO USE IT</p>
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; margin-bottom: 20px;">
+          <div style="padding: 14px; border-bottom: 0.5px solid #EEEBE0;">
+            <div style="display: flex; align-items: start; gap: 10px;">
+              <span class="mono" style="font-size: 11px; color: #111; margin-top: 2px; font-weight: 500;">01</span>
+              <div style="flex: 1;">
+                <p style="font-size: 13px; color: #111; margin: 0 0 3px; font-weight: 500;">forward your business line to this</p>
+                <p style="font-size: 12px; color: #888; margin: 0 0 8px; line-height: 1.5;">when you miss a call, it rings me. i answer in your voice.</p>
+                <span class="mono" style="font-size: 11px; color: #111; text-decoration: underline; cursor: pointer;" data-action="show-carrier-help">show me how →</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding: 14px;">
+            <div style="display: flex; align-items: start; gap: 10px;">
+              <span class="mono" style="font-size: 11px; color: #111; margin-top: 2px; font-weight: 500;">02</span>
+              <div style="flex: 1;">
+                <p style="font-size: 13px; color: #111; margin: 0 0 3px; font-weight: 500;">put it on your website or google business</p>
+                <p style="font-size: 12px; color: #888; margin: 0; line-height: 1.5;">new inquiries hit me directly — i qualify, answer, and book.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        ${state.carrierHelpOpen ? carrierHelperSheet() : ''}
+
+        <button class="pbtn" data-action="onboard-next">continue →</button>
+        <p style="text-align: center; margin: 10px 0 0; font-family: 'SF Mono', monospace; font-size: 11px; color: #999; cursor: pointer;" data-action="onboard-next">i'll set it up later</p>
+        <div style="height: 30px;"></div>
+      </div>
+    `;
+  }
+
+  if (step === 6) {
+    return `
+      <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto;">
+        ${progress}
+        <h2 style="font-size: 26px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.03em; color: #111; line-height: 1.15;">one last thing — instagram.</h2>
+        <p style="font-size: 13px; color: #888; margin: 0 0 22px; line-height: 1.5;">connect it so i can post for you too. totally optional — you can do this later.</p>
+
+        <div style="background: white; border: 0.5px solid ${state.igConnected ? '#7CE896' : '#E5E3DB'}; border-radius: 18px; padding: 20px; margin-bottom: 14px; cursor: pointer;" data-action="connect-ig">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: #F2EFE5; display: flex; align-items: center; justify-content: center;">
+              <div style="width: 18px; height: 18px; border-radius: 5px; border: 2px solid #111;"></div>
+            </div>
+            <div style="flex: 1;">
+              <p style="font-size: 15px; font-weight: 500; color: #111; margin: 0;">Instagram</p>
+              <p class="mono" style="font-size: 11px; color: ${state.igConnected ? '#3a9d5c' : '#888'}; margin: 3px 0 0;">${state.igConnected ? '✓ connected · @ceramicsco' : 'tap to connect'}</p>
+            </div>
+            ${state.igConnected ? '<div style="width: 8px; height: 8px; border-radius: 50%; background: #7CE896;"></div>' : '<span style="font-family: \'SF Mono\', monospace; font-size: 13px; color: #111;">→</span>'}
+          </div>
+        </div>
+
+        <div style="background: #F2EFE5; border-radius: 14px; padding: 14px; margin-bottom: 22px;">
+          <p style="font-size: 12px; color: #666; line-height: 1.6; margin: 0;">we never see your password. more platforms later — for now, one is enough.</p>
+        </div>
+
+        <button class="pbtn" data-action="onboard-done">${state.igConnected ? 'start working →' : 'skip & start working →'}</button>
+        <div style="height: 30px;"></div>
+      </div>
+    `;
+  }
+
+  return '';
+}
+
+function carrierHelperSheet() {
+  const carriers = [
+    { id: 'verizon', name: 'verizon', code: '*72 14165550172' },
+    { id: 'att', name: 'at&t', code: '**21*14165550172#' },
+    { id: 'tmobile', name: 't-mobile', code: '**21*14165550172#' },
+    { id: 'rogers', name: 'rogers', code: '*21*14165550172#' },
+    { id: 'bell', name: 'bell', code: '*21*14165550172#' },
+    { id: 'other', name: 'other', code: 'ask your carrier for call-forwarding instructions' }
+  ];
+
+  const selected = state.selectedCarrier ? carriers.find(c => c.id === state.selectedCarrier) : null;
+
+  return `
+    <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 16px; padding: 16px; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <p class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em; margin: 0;">PICK YOUR CARRIER</p>
+        <span class="mono" style="font-size: 11px; color: #999; cursor: pointer;" data-action="hide-carrier-help">close</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: ${selected ? '14px' : '0'};">
+        ${carriers.map(c => `
+          <span class="chip ${state.selectedCarrier === c.id ? 'active' : ''}" data-carrier="${c.id}" style="text-align: center; justify-content: center;">${c.name}</span>
+        `).join('')}
+      </div>
+      ${selected ? `
+        <div style="background: #111; color: white; border-radius: 12px; padding: 12px; margin-top: 10px;">
+          <p class="mono" style="font-size: 10px; opacity: 0.5; letter-spacing: 0.2em; margin: 0 0 8px;">DIAL THIS ON YOUR BUSINESS PHONE</p>
+          <p class="mono" style="font-size: 15px; color: white; margin: 0 0 6px; letter-spacing: 0.02em;">${selected.code}</p>
+          <p style="font-size: 11px; opacity: 0.6; margin: 0; line-height: 1.5;">missed calls will forward to me automatically. you can undo this anytime.</p>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function hireView() {
+  return `
+    <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <span class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em;">02 / 03</span>
+        <span class="mono" style="font-size: 11px; color: #999;">${state.hired.size} / 6</span>
+      </div>
+      <h2 style="font-size: 23px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.02em; color: #111;">hire your team</h2>
+      <p style="font-size: 13px; color: #888; margin: 0 0 20px; line-height: 1.5;">tap to add. the orb coordinates them.</p>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+        ${agents.map(a => `
+          <div class="agent-row ${state.hired.has(a.id) ? 'hired' : ''}" data-hire="${a.id}">
+            <div class="a-dot"></div>
+            <div style="flex: 1;">
+              <p class="a-name" style="font-size: 14px; font-weight: 500; margin: 0;">${a.name}</p>
+              <p class="a-role mono" style="font-size: 11px; color: #888; margin: 2px 0 0;">${a.role}</p>
+            </div>
+            <span class="a-check mono" style="font-size: 15px; color: #999;">${state.hired.has(a.id) ? '✓' : '+'}</span>
+          </div>
+        `).join('')}
+      </div>
+      <button class="pbtn" data-action="start-work">start working →</button>
+      <div style="height: 30px;"></div>
+    </div>
+  `;
+}
+
+function deckView() {
+  const hs = state.homeState || 'steady';
+
+  const headerBar = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #333 0%, #111 60%); animation: float 4s ease-in-out infinite;"></div>
+        <p class="mono" style="font-size: 11px; color: #888; margin: 0; letter-spacing: 0.15em;">${hs === 'day1' ? 'MONDAY · DAY 1' : hs === 'day3' ? 'WEDNESDAY · DAY 3' : 'MONDAY · APR 21'}</p>
+      </div>
+      <span class="mono" style="font-size: 11px; color: #999; cursor: pointer;" data-route="settings">settings</span>
+    </div>
+  `;
+
+  const stateSwitcher = `
+    <div style="background: #F2EFE5; border-radius: 12px; padding: 10px; margin-bottom: 18px;">
+      <p class="mono" style="font-size: 9px; color: #999; letter-spacing: 0.2em; margin: 0 0 6px; text-align: center;">DEMO · SWITCH HOME STATE</p>
+      <div style="display: flex; gap: 4px;">
+        <span class="chip ${hs === 'day1' ? 'active' : ''}" data-home-state="day1" style="flex: 1; justify-content: center; font-size: 10px;">day 1</span>
+        <span class="chip ${hs === 'day3' ? 'active' : ''}" data-home-state="day3" style="flex: 1; justify-content: center; font-size: 10px;">day 3 · paywall</span>
+        <span class="chip ${hs === 'steady' ? 'active' : ''}" data-home-state="steady" style="flex: 1; justify-content: center; font-size: 10px;">steady</span>
+      </div>
+    </div>
+  `;
+
+  if (hs === 'day1') {
+    return `
+      <div style="padding: 30px 24px 40px; height: 100%; overflow-y: auto; display: flex; flex-direction: column;">
+        ${headerBar}
+        ${stateSwitcher}
+
+        <div style="margin-bottom: 22px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="width: 7px; height: 7px; border-radius: 50%; background: #F0D98C; animation: pulse 2s ease-in-out infinite;"></div>
+            <span class="mono" style="font-size: 10px; color: #8a6a1e; letter-spacing: 0.2em;">I'M SETTING UP</span>
+          </div>
+          <h1 style="font-size: 26px; font-weight: 500; color: #111; margin: 0 0 10px; letter-spacing: -0.025em; line-height: 1.2;">give me a few hours.</h1>
+          <p style="font-size: 15px; color: #666; margin: 0; line-height: 1.55;">i'm learning your voice, scanning your competitors, and drafting your first week.</p>
+        </div>
+
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 16px; padding: 16px; margin-bottom: 16px;">
+          <p class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em; margin: 0 0 12px;">WHAT I'M DOING RIGHT NOW</p>
+          <div style="display: flex; flex-direction: column; gap: 9px;">
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #3a9d5c;">
+              <span style="width: 14px; height: 14px; border-radius: 50%; background: #7CE896; display: flex; align-items: center; justify-content: center; color: white; font-size: 9px;">✓</span>
+              <span style="color: #111;">connected to instagram</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 13px;">
+              <span style="width: 14px; height: 14px; border-radius: 50%; background: #7CE896; display: flex; align-items: center; justify-content: center; color: white; font-size: 9px;">✓</span>
+              <span style="color: #111;">found 47 of your past posts</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 13px;">
+              <span style="width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #F0D98C; display: flex; align-items: center; justify-content: center;">
+                <div style="width: 5px; height: 5px; border-radius: 50%; background: #F0D98C; animation: pulse 1s ease-in-out infinite;"></div>
+              </span>
+              <span style="color: #111;">learning your voice and style</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #999;">
+              <span style="width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #E5E3DB;"></span>
+              <span>scanning east fork and heath</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #999;">
+              <span style="width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #E5E3DB;"></span>
+              <span>drafting your first 3 posts</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #111; color: white; border-radius: 16px; padding: 16px; margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+            <div style="width: 7px; height: 7px; border-radius: 50%; background: #7CE896;"></div>
+            <span class="mono" style="font-size: 10px; opacity: 0.6; letter-spacing: 0.2em;">YOUR PHONE IS READY</span>
+          </div>
+          <p class="mono" style="font-size: 17px; margin: 0 0 6px;">${state.phoneNumber}</p>
+          <p style="font-size: 12px; opacity: 0.6; margin: 0 0 12px;">first call since launch: none yet</p>
+          <button style="width: 100%; background: white; color: #111; border: none; padding: 10px; border-radius: 10px; font-family: 'SF Mono', monospace; font-size: 11px; font-weight: 500; cursor: pointer;" data-toast="call the number from another phone to test">give me a test call →</button>
+        </div>
+
+        <p style="text-align: center; font-family: 'SF Mono', monospace; font-size: 11px; color: #999; margin: 0;">i'll ping you when i have something to show</p>
+      </div>
+    `;
+  }
+
+  if (hs === 'day3') {
+    return `
+      <div style="padding: 30px 24px 40px; height: 100%; overflow-y: auto; display: flex; flex-direction: column;">
+        ${headerBar}
+        ${stateSwitcher}
+
+        <div style="margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="width: 7px; height: 7px; border-radius: 50%; background: #7CE896; animation: pulse 2s ease-in-out infinite;"></div>
+            <span class="mono" style="font-size: 10px; color: #3a9d5c; letter-spacing: 0.2em;">I'VE BEEN WORKING FOR YOU</span>
+          </div>
+          <h1 style="font-size: 26px; font-weight: 500; color: #111; margin: 0 0 10px; letter-spacing: -0.025em; line-height: 1.2;">look what i did.</h1>
+          <p style="font-size: 14px; color: #666; margin: 0; line-height: 1.55;">3 days in. here's what i've done so far.</p>
+        </div>
+
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 16px; padding: 16px; margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 6px; height: 6px; border-radius: 50%; background: #3a9d5c;"></div>
+              <span class="mono" style="font-size: 10px; color: #3a9d5c; letter-spacing: 0.2em;">SIGNAL · TUE 2:14PM</span>
+            </div>
+            <span class="mono" style="font-size: 11px; color: #3a9d5c;">$850 saved</span>
+          </div>
+          <p style="font-size: 14px; color: #111; margin: 0 0 4px; font-weight: 500;">i caught a missed call</p>
+          <p style="font-size: 12px; color: #666; margin: 0; line-height: 1.5;">a designer asked about custom dinnerware. i booked her for thursday.</p>
+        </div>
+
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 16px; padding: 16px; margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 6px; height: 6px; border-radius: 50%; background: #3a9d5c;"></div>
+              <span class="mono" style="font-size: 10px; color: #3a9d5c; letter-spacing: 0.2em;">ECHO · MON 11:02AM</span>
+            </div>
+            <span class="mono" style="font-size: 11px; color: #888;">1,240 reach</span>
+          </div>
+          <p style="font-size: 14px; color: #111; margin: 0 0 4px; font-weight: 500;">i posted your wheel-throwing reel</p>
+          <p style="font-size: 12px; color: #666; margin: 0; line-height: 1.5;">it's already outperforming 80% of your past posts. people love it.</p>
+        </div>
+
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 16px; padding: 16px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 6px; height: 6px; border-radius: 50%; background: #3a9d5c;"></div>
+              <span class="mono" style="font-size: 10px; color: #3a9d5c; letter-spacing: 0.2em;">DMS · ONGOING</span>
+            </div>
+            <span class="mono" style="font-size: 11px; color: #888;">4 replies</span>
+          </div>
+          <p style="font-size: 14px; color: #111; margin: 0 0 4px; font-weight: 500;">i answered your dms</p>
+          <p style="font-size: 12px; color: #666; margin: 0; line-height: 1.5;">shipping · pricing · restock · wholesale. all handled.</p>
+        </div>
+
+        <div style="background: #111; color: white; border-radius: 20px; padding: 20px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="width: 7px; height: 7px; border-radius: 50%; background: #7CE896;"></div>
+            <span class="mono" style="font-size: 10px; opacity: 0.7; letter-spacing: 0.2em;">READY TO KEEP GOING?</span>
+          </div>
+          <p style="font-size: 19px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em; line-height: 1.3;">i've earned my keep. want to start billing?</p>
+          <p style="font-size: 12px; opacity: 0.6; margin: 0 0 16px; line-height: 1.5;">${(() => {
+            const p = state.selectedPlan || 'team';
+            const prices = { starter: 39, team: 99, studio: 299 };
+            return '$' + prices[p] + '/month (' + p + ' plan) after today. your card is on file. cancel anytime from settings.';
+          })()}</p>
+          <button style="width: 100%; background: white; color: #111; border: none; padding: 13px; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 8px;" data-action="start-billing">yes, start billing →</button>
+          <button style="width: 100%; background: transparent; color: rgba(255,255,255,0.7); border: 0.5px solid rgba(255,255,255,0.15); padding: 11px; border-radius: 10px; font-family: 'SF Mono', monospace; font-size: 12px; cursor: pointer;" data-action="delay-billing">give me one more day</button>
+        </div>
+
+        <div style="text-align: center;">
+          <span style="font-size: 13px; color: #888; border-bottom: 0.5px solid #999; padding-bottom: 2px; cursor: pointer;" data-route="everything">show me everything</span>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div style="padding: 30px 24px 40px; height: 100%; overflow-y: auto; display: flex; flex-direction: column;">
+      ${headerBar}
+      ${stateSwitcher}
+
+      <div style="margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <div style="width: 7px; height: 7px; border-radius: 50%; background: #7CE896; animation: pulse 2s ease-in-out infinite;"></div>
+          <span class="mono" style="font-size: 10px; color: #3a9d5c; letter-spacing: 0.2em;">EVERYTHING IS RUNNING</span>
+        </div>
+        <h1 style="font-size: 28px; font-weight: 500; color: #111; margin: 0 0 10px; letter-spacing: -0.025em; line-height: 1.15;">I posted 3 things<br/>this week.</h1>
+        <p style="font-size: 15px; color: #666; margin: 0 0 4px; line-height: 1.5;">8,400 people saw them.</p>
+        <p style="font-size: 15px; color: #666; margin: 0; line-height: 1.5;">3 customers messaged you — I handled them.</p>
+      </div>
+
+      <div style="height: 0.5px; background: #E5E3DB; margin: 0 0 20px;"></div>
+
+      <div style="background: #FFF9ED; border: 0.5px solid #F0D98C; border-radius: 20px; padding: 20px; margin-bottom: 22px; cursor: pointer;" data-route="needsyou">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <div style="width: 7px; height: 7px; border-radius: 50%; background: #F0D98C;"></div>
+          <span class="mono" style="font-size: 10px; color: #8a6a1e; letter-spacing: 0.2em;">ONE THING NEEDS YOU</span>
+        </div>
+        <p style="font-size: 17px; font-weight: 500; color: #111; margin: 0 0 8px; letter-spacing: -0.01em; line-height: 1.3;">I want to post about your new terracotta pieces on Wednesday.</p>
+        <p style="font-size: 14px; color: #666; margin: 0 0 14px; line-height: 1.5;">I need a few photos from you.</p>
+        <span class="mono" style="font-size: 11px; color: #8a6a1e;">tap to help →</span>
+      </div>
+
+      <div style="flex: 1;"></div>
+
+      <div style="text-align: center; padding-top: 20px;">
+        <span style="font-size: 13px; color: #888; border-bottom: 0.5px solid #999; padding-bottom: 2px; cursor: pointer;" data-route="everything">show me everything</span>
+      </div>
+    </div>
+  `;
+}
+
+function needsYouView() {
+  return `
+    <div style="padding: 20px 24px 0; height: 100%; overflow-y: auto; padding-bottom: 40px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← home</span>
+        <span class="mono" style="font-size: 11px; color: #999;">wed 23 · 11a</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <div style="width: 9px; height: 9px; border-radius: 50%; background: #F0D98C;"></div>
+        <span class="mono" style="font-size: 11px; color: #8a6a1e; letter-spacing: 0.15em;">I NEED YOUR HELP</span>
+      </div>
+      <h1 style="font-size: 22px; font-weight: 500; letter-spacing: -0.02em; color: #111; margin: 6px 0 6px; line-height: 1.2;">Can you send me a few photos of your terracotta pieces?</h1>
+      <p style="font-size: 14px; color: #666; margin: 0 0 22px; line-height: 1.55;">I want to post about them on Wednesday. I have the caption ready — I just need 3 or 4 photos.</p>
+
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 18px; padding: 16px; margin-bottom: 16px;">
+        <p class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em; margin: 0 0 10px;">HERE'S WHAT I'LL POST</p>
+        <p style="font-size: 14px; color: #111; line-height: 1.6; margin: 0 0 4px;">warm tones are having a moment. our terracotta series just came out of the kiln — here's a look at the pieces before they go up on the site.</p>
+        <div style="height: 0.5px; background: #EEEBE0; margin: 12px 0;"></div>
+        <p class="mono" style="font-size: 11px; color: #888; margin: 0;">ig carousel · wed 11:00a</p>
+      </div>
+
+      <div style="background: #F2EFE5; border: 1px dashed #D5D2C5; border-radius: 18px; padding: 28px 16px; margin-bottom: 20px; text-align: center; cursor: pointer;" data-action="upload-photos">
+        <div style="width: 40px; height: 40px; border-radius: 50%; background: white; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; border: 0.5px solid #E5E3DB;">
+          <span style="font-size: 20px; color: #111; line-height: 1;">+</span>
+        </div>
+        <p style="font-size: 13px; color: #111; font-weight: 500; margin: 0 0 3px;">Tap to add photos</p>
+        <p class="mono" style="font-size: 11px; color: #999; margin: 0;">3 or 4 is plenty · any angle works</p>
+      </div>
+
+      <button class="pbtn secondary" data-action="skip-post" style="background: transparent; border: none; color: #888; padding: 10px;">skip this post · i'll do another next week</button>
+    </div>
+  `;
+}
+
+function everythingView() {
+  return `
+    <div style="padding: 20px 24px 0; height: 100%; overflow-y: auto; padding-bottom: 40px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← home</span>
+        <span class="mono" style="font-size: 11px; color: #999;">last 7 days</span>
+      </div>
+
+      <h1 style="font-size: 22px; font-weight: 500; letter-spacing: -0.02em; color: #111; margin: 0 0 4px;">everything ORB did</h1>
+      <p style="font-size: 13px; color: #888; margin: 0 0 22px;">the full picture. tap anything for more.</p>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 12px;">ACTIVITY</p>
+
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 18px; overflow: hidden; margin-bottom: 24px;">
+
+        <div class="setting-row" data-route="convo">
+          <div style="display: flex; gap: 12px; align-items: start; flex: 1;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; width: 40px; padding-top: 2px;">
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: #7CE896;"></div>
+              <span class="mono" style="font-size: 9px; color: #3a9d5c;">today</span>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.4; font-weight: 500;">I caught a missed call</p>
+              <p class="mono" style="font-size: 11px; color: #888; margin: 2px 0 0;">$850 lead · booked thu 11a</p>
+            </div>
+          </div>
+          <span class="mono" style="font-size: 11px; color: #999;">→</span>
+        </div>
+
+        <div class="setting-row" data-route="echo">
+          <div style="display: flex; gap: 12px; align-items: start; flex: 1;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; width: 40px; padding-top: 2px;">
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: #7CE896;"></div>
+              <span class="mono" style="font-size: 9px; color: #3a9d5c;">mon</span>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.4; font-weight: 500;">I posted to your instagram</p>
+              <p class="mono" style="font-size: 11px; color: #888; margin: 2px 0 0;">wheel-throwing reel · 1.2k reach</p>
+            </div>
+          </div>
+          <span class="mono" style="font-size: 11px; color: #999;">→</span>
+        </div>
+
+        <div class="setting-row" data-route="needsyou">
+          <div style="display: flex; gap: 12px; align-items: start; flex: 1;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; width: 40px; padding-top: 2px;">
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: #F0D98C;"></div>
+              <span class="mono" style="font-size: 9px; color: #8a6a1e;">wed</span>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.4; font-weight: 500;">I'm waiting for photos</p>
+              <p class="mono" style="font-size: 11px; color: #8a6a1e; margin: 2px 0 0;">terracotta post · tap to help</p>
+            </div>
+          </div>
+          <span class="mono" style="font-size: 11px; color: #999;">→</span>
+        </div>
+
+        <div class="setting-row" data-route="agent">
+          <div style="display: flex; gap: 12px; align-items: start; flex: 1;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; width: 40px; padding-top: 2px;">
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: #a67800;"></div>
+              <span class="mono" style="font-size: 9px; color: #a67800;">sun</span>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.4; font-weight: 500;">east fork dropped prices 15%</p>
+              <p class="mono" style="font-size: 11px; color: #888; margin: 2px 0 0;">noticed it · no action needed yet</p>
+            </div>
+          </div>
+          <span class="mono" style="font-size: 11px; color: #999;">→</span>
+        </div>
+
+        <div class="setting-row" data-route="inbox">
+          <div style="display: flex; gap: 12px; align-items: start; flex: 1;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; width: 40px; padding-top: 2px;">
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: #999;"></div>
+              <span class="mono" style="font-size: 9px; color: #999;">sat</span>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.4; font-weight: 500;">I replied to 4 DMs</p>
+              <p class="mono" style="font-size: 11px; color: #888; margin: 2px 0 0;">shipping · pricing · restock · wholesale</p>
+            </div>
+          </div>
+          <span class="mono" style="font-size: 11px; color: #999;">→</span>
+        </div>
+
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 12px;">VIEWS</p>
+
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 18px; overflow: hidden; margin-bottom: 24px;">
+        <div class="setting-row" data-route="echo">
+          <span style="font-size: 14px; color: #111;">content plans + performance</span>
+          <span class="mono" style="font-size: 13px; color: #888;">→</span>
+        </div>
+        <div class="setting-row" data-route="inbox">
+          <span style="font-size: 14px; color: #111;">messages + inbox</span>
+          <span class="mono" style="font-size: 13px; color: #888;">→</span>
+        </div>
+        <div class="setting-row" data-route="appts">
+          <span style="font-size: 14px; color: #111;">appointments</span>
+          <span class="mono" style="font-size: 13px; color: #888;">→</span>
+        </div>
+        <div class="setting-row" data-route="report">
+          <span style="font-size: 14px; color: #111;">weekly report</span>
+          <span class="mono" style="font-size: 13px; color: #888;">→</span>
+        </div>
+        <div class="setting-row" data-route="agent">
+          <span style="font-size: 14px; color: #111;">the specialists working for you</span>
+          <span class="mono" style="font-size: 13px; color: #888;">→</span>
+        </div>
+      </div>
+
+      <div style="background: #F2EFE5; border-radius: 14px; padding: 16px; margin-bottom: 10px;">
+        <p class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em; margin: 0 0 6px;">UNDER THE HOOD</p>
+        <p style="font-size: 13px; color: #111; margin: 0 0 4px; font-weight: 500;">ORB is actually 6 specialists</p>
+        <p style="font-size: 12px; color: #666; margin: 0; line-height: 1.5;">content, calls, competitors, paid ads, strategy, external signals. they coordinate so you see one friendly interface.</p>
+      </div>
+    </div>
+  `;
+}
+
+function callView() {
+  return `
+    <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto; padding-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← deck</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #C84A3E; animation: pulse 1.5s ease-in-out infinite;"></div>
+          <span class="mono" style="font-size: 11px; color: #C84A3E;">live · 02:14</span>
+        </div>
+      </div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">SIGNAL · ON CALL</p>
+      <h2 style="font-size: 22px; font-weight: 500; margin: 4px 0 2px; letter-spacing: -0.02em; color: #111;">+1 (416) 555-0184</h2>
+      <p style="font-size: 13px; color: #888; margin: 0 0 22px;">first-time caller · 00:47</p>
+
+      <div style="display: flex; align-items: center; justify-content: center; gap: 3px; height: 40px; margin-bottom: 22px;">
+        ${Array.from({length: 14}).map((_, i) => `<div class="wave-bar" style="animation-delay: ${(i * 0.07).toFixed(2)}s;"></div>`).join('')}
+      </div>
+
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0 0 10px;">LIVE TRANSCRIPT</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 12px;">
+        <p class="mono" style="font-size: 11px; color: #999; margin: 0 0 4px;">caller</p>
+        <p style="font-size: 13px; color: #111; margin: 0 0 12px; line-height: 1.5;">hi, saw your work on instagram. wondering if you take custom commissions for dinnerware sets?</p>
+        <p class="mono" style="font-size: 11px; color: #999; margin: 0 0 4px;">signal</p>
+        <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.5;">absolutely, we do custom sets. can i grab a few details about the piece count and timeline?<span class="dots"></span></p>
+      </div>
+
+      <div style="background: #FFF9ED; border: 0.5px solid #F0D98C; border-radius: 14px; padding: 12px 14px; margin-bottom: 16px;">
+        <p class="mono" style="font-size: 10px; color: #8a6a1e; letter-spacing: 0.15em; margin: 0 0 2px;">INTENT DETECTED</p>
+        <p style="font-size: 13px; color: #111; margin: 0;">custom commission inquiry · hot lead</p>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="pbtn" style="flex: 1;" data-sheet="takeover">take over →</button>
+        <button class="pbtn secondary" style="flex: 1;" data-toast="signal muted · listening silently">mute signal</button>
+      </div>
+    </div>
+  `;
+}
+
+function missedView() {
+  return `
+    <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto; padding-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← deck</span>
+        <span class="mono" style="font-size: 11px; color: #999;">9:43a</span>
+      </div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">YOU MISSED A CALL</p>
+      <h2 style="font-size: 24px; font-weight: 500; margin: 6px 0 4px; letter-spacing: -0.03em; color: #111; line-height: 1.15;">signal caught it<br/>12 seconds later</h2>
+      <p style="font-size: 13px; color: #888; margin: 0 0 22px;">here's what happened.</p>
+
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 18px; padding: 4px 0; margin-bottom: 14px;">
+        ${[
+          { time: '9:40:18', title: 'incoming call · 4 rings', sub: '+1 (416) 555-0184 · unknown', dot: 'red' },
+          { time: '9:40:30', title: 'signal sent a text', sub: '"hi — sorry we missed you. what were you calling about?"', dot: 'black' },
+          { time: '9:41:02', title: 'they replied in 32s', sub: 'custom dinnerware, 12-piece, by june', dot: 'black' },
+          { time: 'now · live', title: 'signal gathering details', sub: 'piece count, colors, delivery', dot: 'live' }
+        ].map((e, i, arr) => {
+          const dotColor = e.dot === 'red' ? '#C84A3E' : e.dot === 'live' ? '#7CE896' : '#111';
+          const pulse = e.dot === 'live' ? 'animation: pulse 2s ease-in-out infinite;' : '';
+          const timeColor = e.dot === 'live' ? '#3a9d5c' : '#999';
+          return `
+            <div style="display: flex; gap: 12px; padding: 12px 16px;">
+              <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: ${dotColor}; margin-top: 6px; ${pulse}"></div>
+                ${i < arr.length - 1 ? '<div style="width: 0.5px; background: #E5E3DB; flex: 1; margin-top: 4px; min-height: 20px;"></div>' : ''}
+              </div>
+              <div style="flex: 1; padding-bottom: 6px;">
+                <p class="mono" style="font-size: 10px; color: ${timeColor}; margin: 0 0 2px;">${e.time}</p>
+                <p style="font-size: 13px; color: #111; margin: 0 0 3px; font-weight: 500;">${e.title}${e.dot === 'live' ? '<span class="dots"></span>' : ''}</p>
+                <p style="font-size: 12px; color: #888; margin: 0; line-height: 1.5;">${e.sub}</p>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
+        <div class="metric-tile">
+          <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.15em; margin: 0;">RECOVERED</p>
+          <p style="font-size: 22px; font-weight: 500; margin: 4px 0 2px; letter-spacing: -0.02em;">7 / 9</p>
+          <p class="mono" style="font-size: 11px; color: #999; margin: 0;">this week</p>
+        </div>
+        <div class="metric-tile">
+          <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.15em; margin: 0;">AVG RESP</p>
+          <p style="font-size: 22px; font-weight: 500; margin: 4px 0 2px; letter-spacing: -0.02em;">18s</p>
+          <p class="mono" style="font-size: 11px; color: #999; margin: 0;">vs 6hr manual</p>
+        </div>
+      </div>
+
+      <button class="pbtn" data-route="convo">watch the conversation →</button>
+    </div>
+  `;
+}
+
+function convoView() {
+  return `
+    <div style="padding: 20px 24px 0; height: 100%; overflow-y: auto; padding-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="missed">← back</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #7CE896; animation: pulse 2s ease-in-out infinite;"></div>
+          <span class="mono" style="font-size: 11px; color: #3a9d5c;">live</span>
+        </div>
+      </div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">SIGNAL · SMS</p>
+      <h2 style="font-size: 19px; font-weight: 500; margin: 4px 0 2px; letter-spacing: -0.02em; color: #111;">+1 (416) 555-0184</h2>
+      <p style="font-size: 12px; color: #888; margin: 0 0 14px;">first contact · 3 min ago</p>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+        ${[
+          { t: 'them', msg: 'hey i was trying to call about ordering plates', time: '9:40a' },
+          { t: 'us', msg: 'hi — sorry we missed you. this is signal at ceramics co. what were you looking to order?', time: '9:40a · sent in 12s' },
+          { t: 'them', msg: 'custom dinnerware, 12-piece set, need by early june', time: '9:41a' },
+          { t: 'us', msg: 'yes, june works — we do custom runs in about 5 weeks. any color preferences?', time: '9:41a' },
+          { t: 'them', msg: 'gift — anniversary. warm earth tones, like your cream-and-terracotta posts', time: '9:42a' },
+          { t: 'us', msg: 'lovely. can i get you on maya\'s calendar for a 20-min design call? tue 2pm or thu 11am?', time: '9:42a' },
+          { t: 'them', msg: 'thu 11 works', time: '9:43a' },
+          { t: 'us', msg: 'booking now', time: '', typing: true }
+        ].map(b => `
+          <div class="msg-bubble ${b.t}">
+            ${b.t === 'us' ? '<p class="mono" style="font-size: 9px; letter-spacing: 0.2em; opacity: 0.5; margin: 0 0 3px;">SIGNAL</p>' : ''}
+            <p style="font-size: 13px; margin: 0; line-height: 1.45;">${b.msg}${b.typing ? '<span class="dots"></span>' : ''}</p>
+            ${b.time ? `<p class="mono" style="font-size: 10px; opacity: 0.5; margin: 4px 0 0;">${b.time}</p>` : ''}
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="background: #FFF9ED; border: 0.5px solid #F0D98C; border-radius: 12px; padding: 10px 12px; margin-bottom: 12px;">
+        <p class="mono" style="font-size: 10px; color: #8a6a1e; letter-spacing: 0.15em; margin: 0 0 3px;">SIGNAL FLAGGED</p>
+        <p style="font-size: 12px; color: #111; margin: 0;">hot lead · anniversary gift · ~$850</p>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+        <button class="pbtn" style="flex: 1;" data-toast="keyboard would open · jump in mode">jump in</button>
+        <button class="pbtn secondary" style="flex: 1;" data-sheet="takeover">take over →</button>
+      </div>
+
+      <button class="pbtn secondary" data-route="booked">see final outcome →</button>
+    </div>
+  `;
+}
+
+function bookedView() {
+  return `
+    <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto; padding-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="convo">← back</span>
+        <span class="mono" style="font-size: 11px; color: #999; cursor: pointer;" data-toast="ios share sheet would open">share</span>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin: 16px 0 24px;">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #7CE896; display: flex; align-items: center; justify-content: center; position: relative;">
+          <svg width="30" height="30" viewBox="0 0 32 32" fill="none"><path d="M8 16 L14 22 L24 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div style="position: absolute; inset: -8px; border-radius: 50%; border: 0.5px solid #7CE896; animation: ripple 2s ease-out infinite;"></div>
+        </div>
+      </div>
+
+      <p class="mono" style="text-align: center; font-size: 11px; color: #999; letter-spacing: 0.2em; margin: 0 0 8px;">SAVED THE SALE</p>
+      <h2 style="text-align: center; font-size: 22px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.02em; color: #111; line-height: 1.2;">signal booked<br/>a ~$850 lead</h2>
+      <p style="text-align: center; font-size: 12px; color: #888; margin: 0 0 22px;">total time: <span class="mono" style="color: #111; font-weight: 500;">3 min 14 sec</span></p>
+
+      <div style="background: #111; color: white; border-radius: 16px; padding: 16px; margin-bottom: 12px;">
+        <p class="mono" style="font-size: 10px; opacity: 0.5; letter-spacing: 0.2em; margin: 0 0 10px;">BOOKED</p>
+        <p style="font-size: 16px; font-weight: 500; margin: 0 0 2px;">thursday · 11:00 am</p>
+        <p style="font-size: 12px; opacity: 0.6; margin: 0 0 14px;">custom dinnerware · 20 min</p>
+        <div style="height: 0.5px; background: rgba(255,255,255,0.15); margin-bottom: 12px;"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+          <div style="display: flex; justify-content: space-between;"><span style="opacity: 0.6;">lead</span><span>anonymous · 416 area</span></div>
+          <div style="display: flex; justify-content: space-between;"><span style="opacity: 0.6;">est. value</span><span>~$850</span></div>
+          <div style="display: flex; justify-content: space-between;"><span style="opacity: 0.6;">intent</span><span>anniversary gift</span></div>
+        </div>
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 18px 0 8px;">TEAM HANDOFF</p>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;">
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #111;"></div>
+          <div style="flex: 1;"><p class="mono" style="font-size: 11px; color: #111; margin: 0; font-weight: 500;">STRATEGIST</p><p style="font-size: 12px; color: #666; margin: 1px 0 0;">prepping client brief</p></div>
+          <span class="mono" style="font-size: 11px; color: #3a9d5c;">done</span>
+        </div>
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #111;"></div>
+          <div style="flex: 1;"><p class="mono" style="font-size: 11px; color: #111; margin: 0; font-weight: 500;">SIGNAL</p><p style="font-size: 12px; color: #666; margin: 1px 0 0;">24h sms reminder queued</p></div>
+          <span class="mono" style="font-size: 11px; color: #3a9d5c;">queued</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="pbtn" style="flex: 1;" data-sheet="brief-detail">see brief →</button>
+        <button class="pbtn secondary" style="flex: 1;" data-route="inbox">view inbox</button>
+      </div>
+    </div>
+  `;
+}
+
+function inboxView() {
+  const all = [
+    { ch: 'call', type: 'needs', ago: '14 min ago', title: 'custom commission · 24-piece', sub: 'caller asked for a price — signal held', val: '$4k lead' },
+    { ch: 'email', type: 'needs', ago: '1h ago', title: 'editor at azure magazine', sub: 'feature opportunity', val: 'press' },
+    { ch: 'dm', type: 'done', ago: '9:12a', title: 'shipping question → answered', status: 'replied' },
+    { ch: 'call', type: 'done', ago: '8:48a', title: 'studio visit → thu 2pm', status: 'booked' },
+    { ch: 'sms', type: 'done', ago: '8:30a', title: 'order status → tracked + sent', status: 'replied' },
+    { ch: 'email', type: 'done', ago: '7:52a', title: 'wholesale inquiry → drafted reply', status: 'queued' }
+  ];
+  const mapCh = { all: true, call: 'call', dm: 'dm', email: 'email' };
+  const filtered = state.channel === 'all' ? all : all.filter(m => m.ch === mapCh[state.channel]);
+  const needs = filtered.filter(m => m.type === 'needs');
+  const done = filtered.filter(m => m.type === 'done');
+
+  return `
+    <div style="padding: 20px 24px 0; height: 100%; overflow-y: auto; padding-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← deck</span>
+        <span class="mono" style="font-size: 11px; color: #999; cursor: pointer;" data-toast="filter sheet would open">filter</span>
+      </div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">SIGNAL · TODAY</p>
+      <h2 style="font-size: 21px; font-weight: 500; margin: 4px 0 4px; letter-spacing: -0.02em; color: #111;">handled 23 messages</h2>
+      <p style="font-size: 12px; color: #888; margin: 0 0 16px;">${needs.length} need your input</p>
+
+      <div style="display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;">
+        ${['all', 'call', 'dm', 'email'].map(ch => {
+          const label = ch === 'call' ? 'calls' : ch === 'dm' ? 'dms' : ch;
+          const count = ch === 'all' ? all.length : all.filter(m => m.ch === ch).length;
+          return `<span class="chip ${state.channel === ch ? 'active' : ''}" data-channel="${ch}">${label} · ${count}</span>`;
+        }).join('')}
+      </div>
+
+      ${needs.length ? `
+        <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 12px 0 8px;">NEEDS YOU</p>
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;">
+          ${needs.map(m => `
+            <div class="msg-row amber" data-sheet="msg" data-sheet-data="${encodeURIComponent(m.title)}">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                <span class="mono" style="font-size: 11px; color: #8a6a1e;">${m.ch.toUpperCase()} · ${m.ago}</span>
+                <span class="mono" style="font-size: 11px; color: #8a6a1e;">${m.val}</span>
+              </div>
+              <p style="font-size: 13px; color: #111; margin: 0 0 2px; font-weight: 500;">${m.title}</p>
+              <p style="font-size: 12px; color: #666; margin: 0;">${m.sub}</p>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${done.length ? `
+        <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 16px 0 8px;">HANDLED</p>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          ${done.map(m => `
+            <div class="msg-row" data-sheet="msg" data-sheet-data="${encodeURIComponent(m.title)}">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span class="mono" style="font-size: 11px; color: #999;">${m.ch.toUpperCase()} · ${m.ago}</span>
+                <span class="mono" style="font-size: 11px; color: #3a9d5c;">${m.status}</span>
+              </div>
+              <p style="font-size: 13px; color: #111; margin: 0;">${m.title}</p>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function apptsView() {
+  return `
+    <div style="padding: 20px 24px 0; height: 100%; overflow-y: auto; padding-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← deck</span>
+        <span class="mono" style="font-size: 11px; color: #999; cursor: pointer;" data-sheet="rule">+ rule</span>
+      </div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">THIS WEEK</p>
+      <h2 style="font-size: 21px; font-weight: 500; margin: 4px 0 16px; letter-spacing: -0.02em; color: #111;">7 appointments</h2>
+
+      <div style="background: #111; color: white; border-radius: 18px; padding: 16px; margin-bottom: 14px;">
+        <p class="mono" style="font-size: 10px; opacity: 0.5; letter-spacing: 0.2em; margin: 0 0 10px;">BOOKING RULES</p>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+          <div style="display: flex; justify-content: space-between;"><span style="opacity: 0.7;">hours</span><span>tue–sat · 10a–6p</span></div>
+          <div style="display: flex; justify-content: space-between;"><span style="opacity: 0.7;">slot length</span><span>45 min</span></div>
+          <div style="display: flex; justify-content: space-between;"><span style="opacity: 0.7;">buffer</span><span>15 min</span></div>
+          <div style="display: flex; justify-content: space-between;"><span style="opacity: 0.7;">auto-confirm</span><span style="color: ${state.toggles.autoconfirm ? '#7CE896' : 'rgba(255,255,255,0.4)'};">${state.toggles.autoconfirm ? 'on' : 'off'}</span></div>
+        </div>
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 14px 0 10px;">UPCOMING</p>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        ${[
+          { day: 'TUE · 10:00', name: 'maya chen · studio visit', sub: 'sms reminder sent', status: 'confirmed', color: '#3a9d5c' },
+          { day: 'WED · 2:30', name: 'j. park · commission review', sub: 'strategist prepped brief', status: 'confirmed', color: '#3a9d5c' },
+          { day: 'THU · 11:00', name: 'sasha l. · wholesale', sub: 'awaiting confirmation', status: 'pending', color: '#a67800' },
+          { day: 'THU · 11:00', name: 'anonymous · design call', sub: 'just booked · anniversary gift', status: 'confirmed', color: '#3a9d5c' }
+        ].map(a => `
+          <div class="appt-row" data-sheet="appt" data-sheet-data="${encodeURIComponent(a.name)}">
+            <div>
+              <p class="mono" style="font-size: 11px; color: #999; margin: 0;">${a.day}</p>
+              <p style="font-size: 13px; color: #111; margin: 2px 0 0; font-weight: 500;">${a.name}</p>
+              <p style="font-size: 11px; color: #888; margin: 2px 0 0;">${a.sub}</p>
+            </div>
+            <span class="mono" style="font-size: 11px; color: ${a.color};">${a.status}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function agentView() {
+  const a = agentDetails[state.selectedAgent];
+  const agentInfo = agents.find(ag => ag.id === state.selectedAgent);
+  const tier = agentInfo?.tier || 'starter';
+  const coming = agentInfo?.coming || false;
+  const tierColors = { starter: '#3a9d5c', team: '#111', studio: '#8a6a1e' };
+  return `
+    <div style="padding: 20px 28px 0; height: 100%; overflow-y: auto; padding-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← back</span>
+        <span class="mono" style="font-size: 11px; color: #999; cursor: pointer;" data-toast="menu: pause · archive · delete">···</span>
+      </div>
+
+      <div style="display: flex; gap: 6px; margin-bottom: 18px; overflow-x: auto; padding-bottom: 4px;">
+        ${Object.keys(agentDetails).map(id => `<span class="chip ${state.selectedAgent === id ? 'active' : ''}" data-agent-pick="${id}" style="white-space: nowrap;">${id}</span>`).join('')}
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+        <div style="width: 12px; height: 12px; border-radius: 50%; background: #111;"></div>
+        <h2 style="font-size: 23px; font-weight: 500; margin: 0; letter-spacing: -0.02em; color: #111;">${state.selectedAgent}</h2>
+        <span class="mono" style="font-size: 9px; background: ${tierColors[tier]}; color: white; padding: 3px 8px; border-radius: 100px; letter-spacing: 0.1em;">${tier.toUpperCase()}</span>
+        ${coming ? '<span class="mono" style="font-size: 9px; background: #FFF9ED; color: #8a6a1e; padding: 3px 8px; border-radius: 100px; letter-spacing: 0.1em; border: 0.5px solid #F0D98C;">COMING SOON</span>' : ''}
+      </div>
+      <p style="font-size: 13px; color: #888; margin: 0 0 22px; padding-left: 24px;">${a.role}</p>
+
+      ${coming ? `
+        <div style="background: #FFF9ED; border: 0.5px solid #F0D98C; border-radius: 14px; padding: 14px; margin-bottom: 16px;">
+          <p class="mono" style="font-size: 10px; color: #8a6a1e; letter-spacing: 0.2em; margin: 0 0 6px;">NOT LIVE YET</p>
+          <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.5;">i'm building this one next. everyone on the <strong>studio</strong> plan will get it automatically when it ships — no upgrade needed.</p>
+        </div>
+      ` : ''}
+
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0;">NOW</p>
+          <p class="mono" style="font-size: 11px; color: #111; margin: 0;">${a.progress}%</p>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 10px; color: #111; line-height: 1.5;">${a.now}<span class="dots"></span></p>
+        <div style="height: 2px; background: #EEEBE0; border-radius: 1px; overflow: hidden;">
+          <div style="height: 100%; width: ${a.progress}%; background: #111;"></div>
+        </div>
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 20px 0 10px;">THIS WEEK</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; margin-bottom: 16px;">
+        ${a.findings.map(f => `
+          <div class="finding" data-toast="finding detail would open">
+            <p style="font-size: 13px; margin: 0 0 2px; color: #111;">${f.t}</p>
+            <p class="mono" style="font-size: 11px; color: #999; margin: 0;">${f.sub}</p>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="pbtn" style="flex: 1;" data-sheet="brief">brief ${state.selectedAgent}</button>
+        <button class="pbtn secondary" style="flex: 1;" data-toast="${state.selectedAgent} paused">pause agent</button>
+      </div>
+    </div>
+  `;
+}
+
+function reportView() {
+  return `
+    <div style="padding: 20px 24px 0; height: 100%; overflow-y: auto; padding-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← deck</span>
+        <span class="mono" style="font-size: 11px; color: #999; cursor: pointer;" data-toast="share sheet would open">share</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+        <div style="width: 10px; height: 10px; border-radius: 50%; background: #111;"></div>
+        <span class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em;">SIGNAL · WEEK 17</span>
+      </div>
+
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">RECOVERED REVENUE</p>
+      <h1 style="font-size: 46px; font-weight: 500; margin: 4px 0 0; letter-spacing: -0.04em; color: #111; line-height: 1;">$3,247</h1>
+      <p class="mono" style="font-size: 12px; color: #3a9d5c; margin: 6px 0 22px;">↗ up from $1,890 last week</p>
+
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 18px; padding: 16px; margin-bottom: 14px;">
+        <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 12px;">LAST 6 WEEKS</p>
+        <div style="display: flex; align-items: flex-end; gap: 8px; height: 90px; margin-bottom: 8px;">
+          ${[28, 44, 38, 62, 58, 96].map((h, i) => `<div class="bar ${i === 5 ? 'active' : ''}" style="height: ${h}%;"></div>`).join('')}
+        </div>
+        <div style="display: flex; justify-content: space-between;" class="mono">
+          ${['W12','W13','W14','W15','W16','W17'].map(w => `<span style="font-size: 10px; color: #999; letter-spacing: 0.1em;">${w}</span>`).join('')}
+        </div>
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 18px 0 10px;">WHAT SIGNAL DID</p>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+        ${[
+          { l: 'MISSED CALLS RECOVERED', v: '9 of 11', s: '82%' },
+          { l: 'APPOINTMENTS BOOKED', v: '14', s: '+3' },
+          { l: 'MESSAGES HANDLED', v: '138', s: '2.1 min avg' },
+          { l: 'TIME SAVED', v: '11.5 hrs', s: '≈ $575' }
+        ].map(a => `
+          <div class="flow-row" data-toast="activity breakdown would open">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="flex: 1;">
+                <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.15em; margin: 0;">${a.l}</p>
+                <p style="font-size: 15px; font-weight: 500; color: #111; margin: 3px 0 0;">${a.v}</p>
+              </div>
+              <span class="mono" style="font-size: 11px; color: #3a9d5c;">${a.s}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 18px 0 10px;">TOP 3 SAVES</p>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+        ${[
+          { n: '01', t: 'anniversary dinnerware', s: 'missed 9:40a · booked thu', v: '$850' },
+          { n: '02', t: 'restaurant wholesale', s: 'dm sunday · sample sent', v: '$1,200' },
+          { n: '03', t: 'repeat gallery buyer', s: 'sms tuesday · booked same day', v: '$640' }
+        ].map(s => `
+          <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+            <span class="mono" style="font-size: 14px; color: #111; width: 22px;">${s.n}</span>
+            <div style="flex: 1;">
+              <p style="font-size: 13px; color: #111; margin: 0; font-weight: 500;">${s.t}</p>
+              <p style="font-size: 11px; color: #888; margin: 1px 0 0;">${s.s}</p>
+            </div>
+            <span class="mono" style="font-size: 13px; color: #111;">${s.v}</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 18px 0 10px;">ONE THAT GOT AWAY</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 18px; cursor: pointer;" data-sheet="teach">
+        <p style="font-size: 13px; color: #111; margin: 0 0 4px;">caller asked for rush production</p>
+        <p style="font-size: 11px; color: #888; margin: 0 0 8px;">signal couldn't promise 2-week turnaround</p>
+        <p class="mono" style="font-size: 11px; color: #999;">→ teach signal about rush options</p>
+      </div>
+
+      <div style="background: #111; color: white; border-radius: 18px; padding: 18px;">
+        <p class="mono" style="font-size: 10px; opacity: 0.5; letter-spacing: 0.2em; margin: 0 0 10px;">SINCE YOU HIRED SIGNAL</p>
+        <p style="font-size: 30px; font-weight: 500; margin: 0 0 4px; letter-spacing: -0.03em;">$18,420</p>
+        <p style="font-size: 12px; opacity: 0.6; margin: 0;">recovered in 47 days · 184× the plan cost</p>
+      </div>
+    </div>
+  `;
+}
+
+function settingsView() {
+  return `
+    <div style="padding: 20px 24px 0; height: 100%; overflow-y: auto; padding-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← home</span>
+      </div>
+      <h2 style="font-size: 23px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.02em; color: #111;">settings</h2>
+      <p style="font-size: 13px; color: #888; margin: 0 0 20px;">rarely needed. everything works out of the box.</p>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 8px; padding-left: 4px;">YOUR BUSINESS</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; margin-bottom: 18px;">
+        <div class="setting-row" data-sheet="edit-brief"><span style="font-size: 13px; color: #111;">what you do</span><span class="mono" style="font-size: 13px; color: #888;">ceramics · toronto →</span></div>
+        <div class="setting-row" data-sheet="edit-tone"><span style="font-size: 13px; color: #111;">how i should sound</span><span class="mono" style="font-size: 13px; color: #888;">warm · crafted →</span></div>
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 8px; padding-left: 4px;">WHERE I POST</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; margin-bottom: 18px;">
+        <div class="setting-row nonclick"><span style="font-size: 13px; color: #111;">instagram</span><div class="toggle-sw ${state.toggles.ig ? 'on' : ''}" data-toggle="ig"></div></div>
+        <div class="setting-row nonclick"><span style="font-size: 13px; color: #111;">meta ads</span><div class="toggle-sw ${state.toggles.meta ? 'on' : ''}" data-toggle="meta"></div></div>
+        <div class="setting-row nonclick"><span style="font-size: 13px; color: #111;">email</span><div class="toggle-sw ${state.toggles.gmail ? 'on' : ''}" data-toggle="gmail"></div></div>
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 8px; padding-left: 4px;">HOW I REACH YOU</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; margin-bottom: 18px;">
+        <div class="setting-row nonclick"><span style="font-size: 13px; color: #111;">ping me when something needs me</span><div class="toggle-sw ${state.toggles.pushDaily ? 'on' : ''}" data-toggle="pushDaily"></div></div>
+        <div class="setting-row nonclick"><span style="font-size: 13px; color: #111;">weekly summary · sundays</span><div class="toggle-sw ${state.toggles.pushWeekly ? 'on' : ''}" data-toggle="pushWeekly"></div></div>
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 8px; padding-left: 4px;">PLAN</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 18px; cursor: pointer;" data-sheet="upgrade">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+          <p style="font-size: 14px; font-weight: 500; margin: 0; color: #111;">${state.selectedPlan || 'team'} · monthly</p>
+          <p class="mono" style="font-size: 13px; margin: 0; color: #111;">$${({starter:39,team:99,studio:299})[state.selectedPlan || 'team']}</p>
+        </div>
+        <p class="mono" style="font-size: 11px; color: #999; margin: 0;">tap to change plan</p>
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 8px; padding-left: 4px;">ACCOUNT</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden;">
+        <div class="setting-row" data-sheet="billing"><span style="font-size: 13px; color: #111;">billing</span><span class="mono" style="font-size: 13px; color: #888;">→</span></div>
+        <div class="setting-row" data-sheet="data"><span style="font-size: 13px; color: #111;">data + privacy</span><span class="mono" style="font-size: 13px; color: #888;">→</span></div>
+        <div class="setting-row" data-sheet="signout"><span style="font-size: 13px; color: #C84A3E;">sign out</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function echoView() {
+  const subnav = `
+    <div style="display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
+      ${['calendar', 'composer', 'performance', 'trends'].map(v => `<span class="chip ${state.echoView === v ? 'active' : ''}" data-echo-view="${v}" style="white-space: nowrap;">${v}</span>`).join('')}
+    </div>
+  `;
+
+  const backBar = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← deck</span>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <span class="mono" style="font-size: 11px; color: #999; cursor: pointer;" data-toast="filter options">filter</span>
+        <div style="width: 26px; height: 26px; border-radius: 50%; background: #111; display: flex; align-items: center; justify-content: center; cursor: pointer;" data-toast="new post composer">
+          <span style="color: white; font-size: 16px; line-height: 1;">+</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (state.echoView === 'calendar') return `
+    <div style="padding: 20px 22px 0; height: 100%; overflow-y: auto; padding-bottom: 40px;">
+      ${backBar}${subnav}
+
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <div style="width: 9px; height: 9px; border-radius: 50%; background: #111;"></div>
+        <span class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em;">ECHO · THIS WEEK</span>
+      </div>
+      <h1 style="font-size: 22px; font-weight: 500; letter-spacing: -0.02em; color: #111; margin: 4px 0 2px;">12 posts scheduled</h1>
+      <p style="font-size: 13px; color: #888; margin: 0 0 16px;">3 need your approval</p>
+
+      <div style="background: #F2EFE5; border-radius: 14px; padding: 12px 14px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em;">CHANNEL BALANCE</span>
+          <span class="mono" style="font-size: 10px; color: #3a9d5c;">↗ healthy mix</span>
+        </div>
+        <div style="display: flex; height: 6px; border-radius: 3px; overflow: hidden; gap: 2px; margin-bottom: 10px;">
+          <div style="flex: 5; background: #111;"></div>
+          <div style="flex: 4; background: #666;"></div>
+          <div style="flex: 2; background: #aaa;"></div>
+          <div style="flex: 1; background: #d5d2c5;"></div>
+        </div>
+        <div class="mono" style="display: flex; justify-content: space-between; font-size: 11px; color: #666;">
+          <span>ig · 5</span><span>email · 4</span><span>linkedin · 2</span><span>tiktok · 1</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 6px; margin-bottom: 16px;">
+        <span class="chip active">week</span>
+        <span class="chip" data-toast="month view coming">month</span>
+        <span class="chip" data-toast="list view coming">list</span>
+      </div>
+
+      ${[
+        {
+          day: 'MON 21', note: '· today',
+          posts: [
+            { title: 'behind-the-scenes · wheel throwing', meta: 'ig reel · 1.2k reach', time: '9:00a', state: 'posted', status: 'posted' },
+            { title: 'spring commission window open', meta: 'newsletter · 1,847 subs', time: '4:00p', state: 'queued', status: 'queued' }
+          ]
+        },
+        {
+          day: 'TUE 22', note: '',
+          posts: [
+            { title: '"what i learned from 10 years of clay"', meta: 'ig carousel · 7 slides · draft ready', time: '11:00a', state: 'needs', status: 'review →' }
+          ]
+        },
+        {
+          day: 'WED 23', note: '',
+          posts: [
+            { title: 'terracotta series · unboxing', meta: 'ig reel · 22s', time: '11:00a', state: 'queued', status: 'queued' },
+            { title: 'craft economics: the real math', meta: 'linkedin · 340 words', time: '2:00p', state: 'queued', status: 'queued' }
+          ]
+        },
+        {
+          day: 'THU 24', note: '',
+          posts: [
+            { title: "client feature · maya's kitchen", meta: 'needs 3 photos · caption ready', time: '10:30a', state: 'needs', status: 'upload →' }
+          ]
+        }
+      ].map(d => `
+        <div style="margin-bottom: 12px;">
+          <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px;">
+            <span class="mono" style="font-size: 11px; color: #111; letter-spacing: 0.15em;">${d.day}</span>
+            ${d.note ? `<span class="mono" style="font-size: 10px; color: #999;">${d.note}</span>` : ''}
+          </div>
+          ${d.posts.map(p => {
+            const bg = p.state === 'needs' ? '#FFF9ED' : 'white';
+            const bc = p.state === 'needs' ? '#F0D98C' : '#E5E3DB';
+            const dotColor = p.state === 'posted' ? '#7CE896' : p.state === 'needs' ? '#F0D98C' : '#666';
+            const timeColor = p.state === 'posted' ? '#3a9d5c' : p.state === 'needs' ? '#8a6a1e' : '#666';
+            const statusColor = p.state === 'posted' ? '#3a9d5c' : p.state === 'needs' ? '#8a6a1e' : '#999';
+            const opacity = p.state === 'posted' ? '0.82' : '1';
+            const handler = p.state === 'needs' ? `data-echo-view="composer"` : `data-toast="${p.state === 'posted' ? 'view post on instagram' : 'edit or reschedule'}"`;
+            return `
+              <div style="background: ${bg}; border: 0.5px solid ${bc}; border-radius: 12px; padding: 11px 13px; display: flex; align-items: center; gap: 10px; margin-bottom: 5px; cursor: pointer; opacity: ${opacity};" ${handler}>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; width: 32px;">
+                  <div style="width: 8px; height: 8px; border-radius: 50%; background: ${dotColor};"></div>
+                  <span class="mono" style="font-size: 9px; color: ${timeColor};">${p.time}</span>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                  <p style="font-size: 13px; color: #111; margin: 0; line-height: 1.4; ${p.state === 'needs' ? 'font-weight: 500;' : ''}">${p.title}</p>
+                  <p class="mono" style="font-size: 11px; color: ${p.state === 'needs' ? '#8a6a1e' : '#888'}; margin: 2px 0 0;">${p.meta}</p>
+                </div>
+                <span class="mono" style="font-size: 10px; color: ${statusColor};">${p.status}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  if (state.echoView === 'composer') return `
+    <div style="padding: 20px 22px 0; height: 100%; overflow-y: auto; padding-bottom: 40px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-echo-view="calendar">← calendar</span>
+        <span class="mono" style="font-size: 11px; color: #999; cursor: pointer;" data-toast="edit · duplicate · delete">···</span>
+      </div>
+      ${subnav}
+
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <div style="width: 9px; height: 9px; border-radius: 50%; background: #F0D98C;"></div>
+        <span class="mono" style="font-size: 11px; color: #8a6a1e; letter-spacing: 0.15em;">ECHO · NEEDS YOUR REVIEW</span>
+      </div>
+      <h1 style="font-size: 19px; font-weight: 500; letter-spacing: -0.02em; color: #111; margin: 4px 0 2px; line-height: 1.25;">"what i learned from 10 years of clay"</h1>
+      <p class="mono" style="font-size: 11px; color: #888; margin: 2px 0 16px;">ig carousel · tue 22 · 11:00a</p>
+
+      <div style="display: flex; gap: 6px; overflow-x: auto; margin: 0 -22px 14px; padding: 0 22px 4px;">
+        <div style="min-width: 108px; aspect-ratio: 1; background: #111; color: white; border-radius: 10px; padding: 12px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+          <span class="mono" style="font-size: 9px; opacity: 0.5; letter-spacing: 0.2em;">01</span>
+          <p style="font-size: 14px; margin: 0; line-height: 1.2; font-weight: 500;">10 years<br/>of clay.</p>
+          <span class="mono" style="font-size: 9px; opacity: 0.5;">the hook</span>
+        </div>
+        <div style="min-width: 108px; aspect-ratio: 1; background: #E3D9C6; border-radius: 10px; padding: 12px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; border: 1.5px solid #111;">
+          <span class="mono" style="font-size: 9px; color: #999; letter-spacing: 0.2em;">02</span>
+          <p style="font-size: 12px; margin: 0; line-height: 1.3; color: #111; font-weight: 500;">the clay always knows before you do.</p>
+          <span class="mono" style="font-size: 9px; color: #888;">lesson 1</span>
+        </div>
+        <div style="min-width: 108px; aspect-ratio: 1; background: white; border: 0.5px solid #E5E3DB; border-radius: 10px; padding: 12px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+          <span class="mono" style="font-size: 9px; color: #999; letter-spacing: 0.2em;">03</span>
+          <p style="font-size: 12px; margin: 0; line-height: 1.3; color: #111; font-weight: 500;">rushing breaks it. every time.</p>
+          <span class="mono" style="font-size: 9px; color: #888;">lesson 2</span>
+        </div>
+        <div style="min-width: 108px; aspect-ratio: 1; background: white; border: 0.5px solid #E5E3DB; border-radius: 10px; padding: 12px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+          <span class="mono" style="font-size: 9px; color: #999; letter-spacing: 0.2em;">04</span>
+          <p style="font-size: 12px; margin: 0; line-height: 1.3; color: #111; font-weight: 500;">patience makes the piece.</p>
+          <span class="mono" style="font-size: 9px; color: #888;">lesson 3</span>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: center; gap: 4px; margin-bottom: 18px;">
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: #111; opacity: 0.3;"></div>
+        <div style="width: 16px; height: 4px; border-radius: 2px; background: #111;"></div>
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: #111; opacity: 0.3;"></div>
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: #111; opacity: 0.3;"></div>
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: #111; opacity: 0.3;"></div>
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: #111; opacity: 0.3;"></div>
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: #111; opacity: 0.3;"></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em;">CAPTION</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #7CE896;"></div>
+          <span class="mono" style="font-size: 10px; color: #3a9d5c;">voice match 94%</span>
+        </div>
+      </div>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 10px; cursor: pointer;" data-toast="caption editor would open">
+        <p style="font-size: 13px; color: #111; line-height: 1.6; margin: 0;">ten years in, i can tell you one thing: the clay always knows before you do.</p>
+        <p style="font-size: 13px; color: #111; line-height: 1.6; margin: 10px 0 0;">here are 7 lessons i keep relearning →</p>
+        <div style="height: 0.5px; background: #EEEBE0; margin: 12px 0 8px;"></div>
+        <div style="display: flex; justify-content: space-between;">
+          <span class="mono" style="font-size: 10px; color: #888;">142 chars · warm · crafted</span>
+          <span class="mono" style="font-size: 10px; color: #111; text-decoration: underline;">edit</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px;">
+        <span class="chip" data-toast="echo rewriting caption">↻ rewrite</span>
+        <span class="chip" data-toast="echo making it shorter">shorter</span>
+        <span class="chip" data-toast="echo making it punchier">punchier</span>
+        <span class="chip" data-toast="echo adding a CTA">add CTA</span>
+      </div>
+
+      <span class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em;">HASHTAGS · 8 PICKED</span>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 11px 12px; margin: 8px 0 18px; cursor: pointer;" data-toast="hashtag editor would open">
+        <p class="mono" style="font-size: 11px; color: #111; line-height: 1.8; margin: 0;">#handmadeceramics #pottery #studiolife #madeintoronto #slowcraft #ceramicart #torontomakers #wabisabi</p>
+      </div>
+
+      <span class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em;">ECHO CAN ALSO POST THIS AS</span>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin: 8px 0 20px;">
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 11px 12px; display: flex; align-items: center; gap: 10px; cursor: pointer;" data-toast="linkedin version drafted · added to queue">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #555;"></div>
+          <div style="flex: 1;">
+            <p style="font-size: 13px; color: #111; margin: 0;">linkedin post</p>
+            <p class="mono" style="font-size: 10px; color: #888; margin: 1px 0 0;">adapted for professional tone</p>
+          </div>
+          <span class="mono" style="font-size: 11px; color: #111; text-decoration: underline;">+ add</span>
+        </div>
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 11px 12px; display: flex; align-items: center; gap: 10px; cursor: pointer;" data-toast="newsletter section drafted · paired with friday send">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #888;"></div>
+          <div style="flex: 1;">
+            <p style="font-size: 13px; color: #111; margin: 0;">newsletter section</p>
+            <p class="mono" style="font-size: 10px; color: #888; margin: 1px 0 0;">paired with friday send</p>
+          </div>
+          <span class="mono" style="font-size: 11px; color: #111; text-decoration: underline;">+ add</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="pbtn" style="flex: 1;" data-action="approve-post">approve & schedule</button>
+        <button class="pbtn secondary" style="flex: 0 0 auto; padding: 14px 16px;" data-toast="echo regenerating...">↻</button>
+      </div>
+      <p style="text-align: center; font-family: 'SF Mono', monospace; font-size: 10px; color: #999; margin: 10px 0 0;">tap ↻ to regenerate · or edit any part above</p>
+    </div>
+  `;
+
+  if (state.echoView === 'performance') return `
+    <div style="padding: 20px 22px 0; height: 100%; overflow-y: auto; padding-bottom: 40px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← deck</span>
+        <div style="display: flex; gap: 5px;">
+          <span class="chip active">30d</span>
+          <span class="chip" data-toast="90-day view">90d</span>
+          <span class="chip" data-toast="all-time view">all</span>
+        </div>
+      </div>
+      ${subnav}
+
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <div style="width: 9px; height: 9px; border-radius: 50%; background: #111;"></div>
+        <span class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em;">ECHO · LAST 30 DAYS</span>
+      </div>
+      <h1 style="font-size: 22px; font-weight: 500; letter-spacing: -0.02em; color: #111; margin: 4px 0 16px;">what's working</h1>
+
+      <div style="background: #111; color: white; border-radius: 18px; padding: 16px; margin-bottom: 16px;">
+        <p class="mono" style="font-size: 10px; opacity: 0.5; letter-spacing: 0.2em; margin: 0 0 8px;">ECHO FOUND A PATTERN</p>
+        <p style="font-size: 17px; font-weight: 500; margin: 0 0 10px; line-height: 1.3; letter-spacing: -0.01em;">cream + terracotta posts get 2.8× the engagement of blue posts</p>
+        <div style="height: 0.5px; background: rgba(255,255,255,0.15); margin: 10px 0;"></div>
+        <div class="mono" style="display: flex; justify-content: space-between; font-size: 11px;">
+          <span style="opacity: 0.6;">last 14 posts</span>
+          <span style="opacity: 0.6;">confidence: high</span>
+        </div>
+        <button style="width: 100%; margin-top: 12px; background: white; color: #111; border: none; padding: 10px; border-radius: 10px; font-family: 'SF Mono', monospace; font-size: 12px; font-weight: 500; cursor: pointer;" data-toast="echo will favor warm palettes next week">apply to next week →</button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 12px;">
+          <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.15em; margin: 0;">AVG REACH</p>
+          <p style="font-size: 22px; font-weight: 500; margin: 6px 0 2px; letter-spacing: -0.02em; color: #111;">8.4k</p>
+          <p class="mono" style="font-size: 11px; color: #3a9d5c; margin: 0;">↗ +68%</p>
+        </div>
+        <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 12px;">
+          <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.15em; margin: 0;">AVG ENG RATE</p>
+          <p style="font-size: 22px; font-weight: 500; margin: 6px 0 2px; letter-spacing: -0.02em; color: #111;">3.8%</p>
+          <p class="mono" style="font-size: 11px; color: #3a9d5c; margin: 0;">↗ +22%</p>
+        </div>
+      </div>
+
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+          <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0;">ENGAGEMENT BY WEEK</p>
+          <p class="mono" style="font-size: 10px; color: #999;">w1 — w4</p>
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 6px; height: 70px;">
+          ${[30, 48, 62, 92].map((h, i) => `
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+              <div style="width: 100%; background: ${i === 3 ? '#111' : '#E5E3DB'}; height: ${h}%; border-radius: 3px 3px 0 0;"></div>
+              <span class="mono" style="font-size: 9px; color: ${i === 3 ? '#111' : '#999'};">w${i+1}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 10px;">TOP 3 THIS MONTH</p>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+        ${[
+          { n: '01', t: 'behind-the-scenes · wheel throwing', m: 'ig reel · 12.4k · 4.1%', star: true },
+          { n: '02', t: 'terracotta dinner · flat-lay', m: 'ig post · 8.7k · 3.8%' },
+          { n: '03', t: '"why we don&rsquo;t sell on amazon"', m: 'ig carousel · 6.2k · 5.2%' }
+        ].map(p => `
+          <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 11px 12px; display: flex; align-items: center; gap: 10px; cursor: pointer;" data-toast="post breakdown would open">
+            <span class="mono" style="font-size: 14px; color: #111; width: 22px; font-weight: 500;">${p.n}</span>
+            <div style="flex: 1; min-width: 0;">
+              <p style="font-size: 13px; color: #111; margin: 0; font-weight: 500;">${p.t}</p>
+              <p class="mono" style="font-size: 11px; color: #888; margin: 2px 0 0;">${p.m}</p>
+            </div>
+            ${p.star ? '<div style="width: 6px; height: 6px; border-radius: 50%; background: #7CE896;"></div>' : ''}
+          </div>
+        `).join('')}
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 10px;">DO MORE OF</p>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+        ${[
+          { t: 'warm palette · earth tones', p: '+180%' },
+          { t: 'process videos over stills', p: '+124%' },
+          { t: 'opinion takes · your pov', p: '+90%' }
+        ].map(i => `
+          <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
+            <p style="font-size: 12px; color: #111; margin: 0;">${i.t}</p>
+            <span class="mono" style="font-size: 11px; color: #3a9d5c;">${i.p}</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 10px;">DO LESS OF</p>
+      <div style="background: #FFF9ED; border: 0.5px solid #F0D98C; border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
+        <p style="font-size: 12px; color: #111; margin: 0;">product-only stills · no story</p>
+        <span class="mono" style="font-size: 11px; color: #8a6a1e;">−42%</span>
+      </div>
+    </div>
+  `;
+
+  if (state.echoView === 'trends') return `
+    <div style="padding: 20px 22px 0; height: 100%; overflow-y: auto; padding-bottom: 40px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <span class="mono" style="font-size: 13px; color: #111; cursor: pointer;" data-route="deck">← deck</span>
+        <span class="mono" style="font-size: 11px; color: #999;">toronto · craft</span>
+      </div>
+      ${subnav}
+
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <div style="width: 9px; height: 9px; border-radius: 50%; background: #111;"></div>
+        <span class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em;">ECHO · RIGHT NOW</span>
+      </div>
+      <h1 style="font-size: 22px; font-weight: 500; letter-spacing: -0.02em; color: #111; margin: 4px 0 2px;">trending in your niche</h1>
+      <p style="font-size: 13px; color: #888; margin: 0 0 18px;">3 worth acting on · 6 worth watching</p>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 10px;">RISING · ACT FAST</p>
+
+      ${[
+        { t: '"unboxing studio pottery"', g: '↗ +340%', d: 'tiktok format surging. people love bubble wrap coming off your work, reveal → reaction.', cta: 'echo drafts it →', toast: 'echo drafting unboxing reel', secondary: 'skip' },
+        { t: '"kiln firing timelapse"', g: '↗ +160%', d: '24hr timelapse format performing 4× average. you shot one last week — echo can edit.', cta: 'use my footage →', toast: 'echo editing your kiln footage' },
+        { t: '"quiet luxury" search term', g: '↗ +85%', d: 'your terracotta dinnerware fits this aesthetic. worth using in captions + hashtags.', cta: 'add to voice →', toast: 'added to brand voice' }
+      ].map(tr => `
+        <div style="background: #FFF9ED; border: 0.5px solid #F0D98C; border-radius: 14px; padding: 14px; margin-bottom: 8px; cursor: pointer;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+            <p style="font-size: 14px; font-weight: 500; margin: 0; color: #111;">${tr.t}</p>
+            <span class="mono" style="font-size: 11px; color: #8a6a1e;">${tr.g}</span>
+          </div>
+          <p style="font-size: 12px; color: #666; margin: 0 0 10px; line-height: 1.5;">${tr.d}</p>
+          <div style="display: flex; gap: 6px;">
+            <span class="mono" style="font-size: 11px; background: #111; color: white; padding: 5px 11px; border-radius: 100px; cursor: pointer;" data-toast="${tr.toast}">${tr.cta}</span>
+            ${tr.secondary ? `<span class="mono" style="font-size: 11px; background: white; color: #111; border: 0.5px solid #E5E3DB; padding: 5px 11px; border-radius: 100px; cursor: pointer;" data-toast="trend skipped">${tr.secondary}</span>` : ''}
+          </div>
+        </div>
+      `).join('')}
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 22px 0 10px;">UPCOMING MOMENTS</p>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 22px;">
+        ${[
+          { t: 'earth day · april 22', sub: "your kiln's energy story would land", when: '3d', dot: '#111', color: '#111' },
+          { t: "mother's day · may 12", sub: 'start teasing gift sets next week', when: '3w', dot: '#666', color: '#666' },
+          { t: 'toronto design week · jun 15', sub: 'pulse flagged · build a series', when: '8w', dot: '#999', color: '#999' }
+        ].map(m => `
+          <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 12px; padding: 11px 13px; display: flex; align-items: center; gap: 10px; cursor: pointer;" data-toast="echo planning content for ${m.t}">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; width: 32px;">
+              <div style="width: 6px; height: 6px; border-radius: 50%; background: ${m.dot};"></div>
+              <span class="mono" style="font-size: 9px; color: ${m.color};">${m.when}</span>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <p style="font-size: 13px; color: #111; margin: 0; font-weight: 500;">${m.t}</p>
+              <p style="font-size: 11px; color: #888; margin: 2px 0 0;">${m.sub}</p>
+            </div>
+            <span class="mono" style="font-size: 10px; color: #111; text-decoration: underline;">plan</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 10px;">WHAT RIVALS ARE DOING</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; margin-bottom: 16px;">
+        <div style="padding: 12px 14px; border-bottom: 0.5px solid #EEEBE0; cursor: pointer;" data-toast="east fork activity detail">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <p style="font-size: 13px; color: #111; margin: 0; font-weight: 500;">east fork</p>
+            <span class="mono" style="font-size: 11px; color: #666;">+23% growth</span>
+          </div>
+          <p class="mono" style="font-size: 11px; color: #888; margin: 3px 0 0;">"maker's monday" series · weekly · high engagement</p>
+        </div>
+        <div style="padding: 12px 14px; cursor: pointer;" data-toast="heath activity detail">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <p style="font-size: 13px; color: #111; margin: 0; font-weight: 500;">heath</p>
+            <span class="mono" style="font-size: 11px; color: #666;">+14% growth</span>
+          </div>
+          <p class="mono" style="font-size: 11px; color: #888; margin: 3px 0 0;">studio tour reels · 3× this week · process-focused</p>
+        </div>
+      </div>
+
+      <div style="background: #F2EFE5; border-radius: 14px; padding: 12px; text-align: center; margin-bottom: 10px;">
+        <p class="mono" style="font-size: 10px; color: #666; letter-spacing: 0.2em; margin: 0 0 4px;">ECHO CHECKS TRENDS</p>
+        <p style="font-size: 13px; color: #111; margin: 0;">every 6 hours · quietly</p>
+      </div>
+    </div>
+  `;
+
+  return '';
+}
+
+function lockView() {
+  return `
+    <div style="height: 100%; position: relative; color: white;">
+      <div style="text-align: center; margin-top: 50px;">
+        <p class="mono" style="font-size: 13px; opacity: 0.7; margin: 0 0 6px; letter-spacing: 0.1em;">MONDAY · APR 21</p>
+        <p style="font-size: 76px; font-weight: 300; margin: 0; letter-spacing: -0.04em; line-height: 1;">9:41</p>
+      </div>
+      <div style="position: absolute; bottom: 120px; left: 14px; right: 14px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="background: rgba(40, 36, 32, 0.85); backdrop-filter: blur(20px); border-radius: 18px; padding: 8px 14px; margin: 0 12px; opacity: 0.7;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 16px; height: 16px; border-radius: 5px; background: #111;"></div>
+            <p class="mono" style="font-size: 11px; color: rgba(255,255,255,0.6); margin: 0;">orb · 2 earlier</p>
+          </div>
+        </div>
+        <div style="background: rgba(40, 36, 32, 0.85); backdrop-filter: blur(24px); border: 0.5px solid rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <div style="width: 28px; height: 28px; border-radius: 7px; background: #111; display: flex; align-items: center; justify-content: center;"><div style="width: 10px; height: 10px; border-radius: 50%; background: #FAFAF7;"></div></div>
+            <div style="flex: 1;">
+              <p style="font-size: 13px; font-weight: 500; color: white; margin: 0;">ORB</p>
+              <p class="mono" style="font-size: 11px; color: rgba(255,255,255,0.5); margin: 0;">signal · just now</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+              <div style="width: 5px; height: 5px; border-radius: 50%; background: #7CE896; animation: pulse 2s ease-in-out infinite;"></div>
+              <span class="mono" style="font-size: 10px; color: #7CE896; letter-spacing: 0.1em;">LIVE</span>
+            </div>
+          </div>
+          <p style="font-size: 15px; color: white; margin: 0 0 4px; font-weight: 500; letter-spacing: -0.01em;">caught a missed call</p>
+          <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin: 0 0 12px; line-height: 1.45;">texting back now · custom dinnerware · ~$850 potential</p>
+          <div style="background: rgba(255,255,255,0.06); border-radius: 10px; padding: 8px 10px; margin-bottom: 12px;">
+            <p class="mono" style="font-size: 10px; color: rgba(255,255,255,0.4); margin: 0 0 3px; letter-spacing: 0.15em;">THEM</p>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.85); margin: 0 0 8px; line-height: 1.4;">custom dinnerware, 12-piece set, need by june</p>
+            <p class="mono" style="font-size: 10px; color: rgba(255,255,255,0.4); margin: 0 0 3px; letter-spacing: 0.15em;">SIGNAL</p>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.85); margin: 0; line-height: 1.4;">yes, june works — 5 weeks for custom runs<span class="dots"></span></p>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="notif-btn" data-route="convo">watch</button>
+            <button class="notif-btn" data-sheet="takeover">take over</button>
+            <button class="notif-btn secondary" data-toast="notification dismissed">let signal handle</button>
+          </div>
+        </div>
+      </div>
+      <div style="position: absolute; bottom: 40px; left: 0; right: 0; text-align: center;">
+        <p class="mono" style="font-size: 11px; color: rgba(255,255,255,0.4); margin: 0; letter-spacing: 0.15em;">swipe up to open</p>
+      </div>
+    </div>
+  `;
+}
+
+// =============================================
+// SHEETS
+// =============================================
+function renderSheet() {
+  const sheets = {
+    brief: briefSheet, 'settings-quick': settingsQuickSheet, thinking: thinkingSheet,
+    flow: flowSheet, takeover: takeoverSheet, msg: msgSheet, appt: apptSheet,
+    rule: ruleSheet, 'brief-detail': briefDetailSheet, teach: teachSheet,
+    'edit-brief': editBriefSheet, 'edit-tone': editToneSheet, 'edit-voice': editVoiceSheet,
+    upgrade: upgradeSheet, billing: billingSheet, data: dataSheet, signout: signoutSheet
+  };
+  return sheets[state.sheet] ? sheets[state.sheet]() : '';
+}
+
+function briefSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
+        <div class="orb-sm" style="cursor: default;"></div>
+        <div>
+          <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">BRIEFING</p>
+          <p style="font-size: 14px; font-weight: 500; margin: 2px 0 0; color: #111;">tell the team</p>
+        </div>
+      </div>
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.15em; margin: 0 0 10px;">SUGGESTED</p>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;">
+        <div class="suggest-chip" data-brief-pick="plan this week's content">plan this week's content</div>
+        <div class="suggest-chip" data-brief-pick="launch spring ad campaign">launch spring ad campaign</div>
+        <div class="suggest-chip" data-brief-pick="audit competitor pricing">audit competitor pricing</div>
+      </div>
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.15em; margin: 0 0 10px;">OR WRITE</p>
+      <textarea id="brief-input" placeholder="brief your team here..." style="min-height: 80px; margin-bottom: 14px;">${state.briefInput}</textarea>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+        <span class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.1em;">ASSIGN</span>
+        <div style="display: flex; gap: 5px; flex: 1;">
+          ${agents.map(a => `<div style="width: 9px; height: 9px; border-radius: 50%; background: ${state.assignedAgents.has(a.id) ? '#111' : '#D5D2C5'}; cursor: pointer;" data-assign="${a.id}" title="${a.name}"></div>`).join('')}
+        </div>
+        <span class="mono" style="font-size: 11px; color: #111;">${state.assignedAgents.size} / 6</span>
+      </div>
+      <button class="pbtn" data-action="send-brief">send to team ↑</button>
+    </div>
+  `;
+}
+
+function settingsQuickSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0 0 16px;">QUICK SETTINGS</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; margin-bottom: 12px;">
+        <div class="setting-row" data-route="settings"><span style="font-size: 13px; color: #111;">all settings</span><span class="mono" style="font-size: 13px; color: #888;">→</span></div>
+        <div class="setting-row" data-route="settings"><span style="font-size: 13px; color: #111;">business brief</span><span class="mono" style="font-size: 13px; color: #888;">edit →</span></div>
+        <div class="setting-row"><span style="font-size: 13px; color: #111;">active agents</span><span class="mono" style="font-size: 13px; color: #888;">${state.hired.size} / 6</span></div>
+        <div class="setting-row"><span style="font-size: 13px; color: #111;">plan</span><span class="mono" style="font-size: 13px; color: #888;">team · $89/mo</span></div>
+      </div>
+      <button class="pbtn secondary" data-close-sheet>close</button>
+    </div>
+  `;
+}
+
+function thinkingSheet() {
+  return `
+    <div style="position: absolute; inset: 0; background: #FAFAF7; z-index: 201; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 40px;">
+      <div class="orb-thinking" style="margin-bottom: 30px;"></div>
+      <p class="mono" style="text-align: center; font-size: 11px; color: #999; letter-spacing: 0.2em; margin: 0 0 8px;">ORB IS THINKING</p>
+      <p style="text-align: center; font-size: 14px; color: #111; margin: 0 0 26px; line-height: 1.5;">breaking down your brief<br/>into tasks for the team</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; width: 100%; max-width: 280px;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 0.5px solid #EEEBE0;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #7CE896;"></div>
+          <p class="mono" style="font-size: 12px; color: #111; margin: 0;">parsed goal</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 0.5px solid #EEEBE0;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #7CE896;"></div>
+          <p class="mono" style="font-size: 12px; color: #111; margin: 0;">pulled brand voice</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #111; animation: pulse 1.2s ease-in-out infinite;"></div>
+          <p class="mono" style="font-size: 12px; color: #111; margin: 0;">routing to agents<span class="dots"></span></p>
+        </div>
+      </div>
+      <p class="mono" style="text-align: center; font-size: 11px; color: #bbb; margin-top: 24px; letter-spacing: 0.1em;">auto-closing...</p>
+    </div>
+  `;
+}
+
+function flowSheet() {
+  const f = flows.find(x => x.id === state.sheetData);
+  if (!f) return '';
+  const outputs = {
+    signal: 'caller asked for custom 12-piece dinnerware, june timeline. signal confirmed possible, asking about piece types and palette. flagged as hot lead, ~$850.',
+    echo: 'carousel of 7 slides drafted. hook: "ten years in, the clay always knows before you do." caption 142 chars, warm-crafted voice ✓. hashtags picked. ready to schedule tue 11am.',
+    ads: 'three variants drafted: "handmade for your table" (warm), "made one at a time" (craft), "limited spring run" (urgency). optimized for ig reels 9:16. ready for approval.',
+    scout: 'east fork markdown on mugs $38 → $32 (-15%). heath launched 4-piece seasonal at $180. two new rivals: clay studio & terra atelier. details in scout report.',
+    strategist: 'pulling your brand voice, ICP (interior designers 30-55, toronto/gta), past commission structure. preparing one-page brief with likely questions.'
+  };
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+        <div style="width: 10px; height: 10px; border-radius: 50%; background: #111;"></div>
+        <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">${f.agent.toUpperCase()}</p>
+      </div>
+      <h3 style="font-size: 18px; font-weight: 500; margin: 4px 0 16px; color: #111; letter-spacing: -0.01em;">${f.task}</h3>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+          <span class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em;">PROGRESS</span>
+          <span class="mono" style="font-size: 11px; color: #111;">${f.progress}%</span>
+        </div>
+        <div style="height: 3px; background: #EEEBE0; border-radius: 2px; overflow: hidden;">
+          <div style="height: 100%; width: ${f.progress}%; background: #111;"></div>
+        </div>
+      </div>
+      <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 16px 0 10px;">OUTPUT SO FAR</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 16px;">
+        <p style="font-size: 13px; color: #111; line-height: 1.6; margin: 0;">${outputs[f.agent] || 'working...'}</p>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="pbtn" style="flex: 1;" data-action="approve-flow">approve</button>
+        <button class="pbtn secondary" style="flex: 1;" data-close-sheet>close</button>
+      </div>
+    </div>
+  `;
+}
+
+function takeoverSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">SIGNAL · HOLDING THE LINE</p>
+      <h3 style="font-size: 18px; font-weight: 500; margin: 4px 0 14px; color: #111;">take over this call?</h3>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 12px;">
+        <p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 10px;">BRIEF · READ ME FIRST</p>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div><p class="mono" style="font-size: 11px; color: #999; margin: 0 0 2px;">WHO</p><p style="font-size: 13px; color: #111; margin: 0;">first-time caller from instagram</p></div>
+          <div style="height: 0.5px; background: #EEEBE0;"></div>
+          <div><p class="mono" style="font-size: 11px; color: #999; margin: 0 0 2px;">WANTS</p><p style="font-size: 13px; color: #111; margin: 0;">custom 12-piece dinnerware, anniversary, june</p></div>
+          <div style="height: 0.5px; background: #EEEBE0;"></div>
+          <div><p class="mono" style="font-size: 11px; color: #999; margin: 0 0 2px;">ASKED FOR YOU</p><p style="font-size: 13px; color: #111; margin: 0;">pricing — signal doesn't quote</p></div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <button class="pbtn" data-toast="connecting you into the call...">take the call now</button>
+        <button class="pbtn secondary" data-toast="signal offering callback times...">book a callback instead</button>
+        <button class="pbtn secondary" data-toast="signal sending price range $700-950">let signal send a range</button>
+      </div>
+    </div>
+  `;
+}
+
+function msgSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">MESSAGE THREAD</p>
+      <h3 style="font-size: 16px; font-weight: 500; margin: 4px 0 14px; color: #111;">${decodeURIComponent(state.sheetData || '')}</h3>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 12px;">
+        <p style="font-size: 13px; color: #111; line-height: 1.6; margin: 0;">signal handled this thread automatically. last reply sent 47 min ago. customer hasn't responded yet.</p>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="pbtn" style="flex: 1;" data-toast="reply composer would open">reply</button>
+        <button class="pbtn secondary" style="flex: 1;" data-toast="thread archived">archive</button>
+      </div>
+    </div>
+  `;
+}
+
+function apptSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">APPOINTMENT</p>
+      <h3 style="font-size: 16px; font-weight: 500; margin: 4px 0 14px; color: #111;">${decodeURIComponent(state.sheetData || 'client')}</h3>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+          <div style="display: flex; justify-content: space-between;"><span style="color: #999;">when</span><span>thu 11:00 am</span></div>
+          <div style="display: flex; justify-content: space-between;"><span style="color: #999;">where</span><span>studio · 284 queen st e</span></div>
+          <div style="display: flex; justify-content: space-between;"><span style="color: #999;">duration</span><span>20 min</span></div>
+          <div style="display: flex; justify-content: space-between;"><span style="color: #999;">booked by</span><span>signal</span></div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="pbtn" style="flex: 1;" data-toast="reschedule picker would open">reschedule</button>
+        <button class="pbtn secondary" style="flex: 1;" data-close-sheet>close</button>
+      </div>
+    </div>
+  `;
+}
+
+function ruleSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">NEW BOOKING RULE</p>
+      <h3 style="font-size: 16px; font-weight: 500; margin: 4px 0 14px; color: #111;">teach signal when to book</h3>
+      <textarea placeholder="e.g. always check with me for commissions over $2k" style="min-height: 90px; margin-bottom: 12px;"></textarea>
+      <button class="pbtn" data-action="save-rule">save rule</button>
+    </div>
+  `;
+}
+
+function briefDetailSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">STRATEGIST · CLIENT BRIEF</p>
+      <h3 style="font-size: 16px; font-weight: 500; margin: 4px 0 14px; color: #111;">for thursday's 11am call</h3>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; padding: 14px; margin-bottom: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.6;">
+          <div><p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 3px;">PROFILE</p><p style="margin: 0; color: #111;">first-time customer, found us on ig. buying for anniversary.</p></div>
+          <div><p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 3px;">SPEC</p><p style="margin: 0; color: #111;">12-piece · earth tones (cream + terracotta) · june deadline</p></div>
+          <div><p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 3px;">PRICE ANCHOR</p><p style="margin: 0; color: #111;">similar set in 2024 ran $850 · factor in rush for june</p></div>
+          <div><p class="mono" style="font-size: 10px; color: #999; letter-spacing: 0.2em; margin: 0 0 3px;">TALKING POINTS</p><p style="margin: 0; color: #111;">ask about venue · offer gift box upgrade · delivery vs pickup</p></div>
+        </div>
+      </div>
+      <button class="pbtn" data-close-sheet>got it</button>
+    </div>
+  `;
+}
+
+function teachSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">TEACH SIGNAL · RUSH OPTIONS</p>
+      <h3 style="font-size: 16px; font-weight: 500; margin: 4px 0 14px; color: #111;">when can you do rush?</h3>
+      <textarea placeholder="e.g. 2-week rush possible for up to 6 pieces, +40% fee" style="min-height: 90px; margin-bottom: 12px;"></textarea>
+      <button class="pbtn" data-action="save-rule">save rule</button>
+    </div>
+  `;
+}
+
+function editBriefSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0 0 12px;">EDIT BRIEF</p>
+      <textarea style="min-height: 140px; margin-bottom: 12px;">we sell handmade ceramics to interior designers in toronto. budget ~$2k/mo. main rivals are east fork and heath.</textarea>
+      <button class="pbtn" data-action="save-settings">save</button>
+    </div>
+  `;
+}
+
+function editToneSheet() {
+  const tones = ['warm · crafted', 'formal · professional', 'playful · casual', 'direct · no-nonsense'];
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0 0 14px;">TONE</p>
+      ${tones.map(t => `<div style="background: ${t === 'warm · crafted' ? '#111' : 'white'}; color: ${t === 'warm · crafted' ? 'white' : '#111'}; border: 0.5px solid ${t === 'warm · crafted' ? '#111' : '#E5E3DB'}; border-radius: 12px; padding: 12px 14px; margin-bottom: 6px; font-size: 13px; cursor: pointer;" data-close-sheet>${t}</div>`).join('')}
+      <button class="pbtn" style="width: 100%; margin-top: 8px;" data-close-sheet>done</button>
+    </div>
+  `;
+}
+
+function editVoiceSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0 0 4px;">SIGNAL VOICE</p>
+      <h3 style="font-size: 18px; font-weight: 500; margin: 0 0 16px; color: #111;">teach your voice</h3>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 18px; padding: 20px; margin-bottom: 14px; text-align: center;">
+        <div style="width: 68px; height: 68px; border-radius: 50%; background: #111; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; position: relative;">
+          <div style="width: 22px; height: 22px; border-radius: 4px; background: white;"></div>
+          <div style="position: absolute; inset: -6px; border-radius: 50%; border: 0.5px solid #111; opacity: 0.3; animation: ripple 2s ease-out infinite;"></div>
+        </div>
+        <p style="font-size: 14px; color: #111; margin: 0; font-weight: 500;">tap to re-record</p>
+        <p class="mono" style="font-size: 11px; color: #999; margin: 3px 0 0;">current: 58s recording</p>
+      </div>
+      <button class="pbtn" data-close-sheet>keep current</button>
+    </div>
+  `;
+}
+
+function upgradeSheet() {
+  const current = state.selectedPlan || 'team';
+  const plans = [
+    { id: 'starter', n: 'starter', p: 39, t: 'calls + texts · business insights' },
+    { id: 'team', n: 'team', p: 99, t: 'starter + content + competitor watch' },
+    { id: 'studio', n: 'studio', p: 299, t: 'team + ads + website manager' }
+  ];
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0;">CHANGE PLAN</p>
+      <h3 style="font-size: 18px; font-weight: 500; margin: 4px 0 14px; color: #111;">pick your plan</h3>
+      ${plans.map(p => {
+        const isCur = current === p.id;
+        return `<div style="background: ${isCur ? '#111' : 'white'}; color: ${isCur ? 'white' : '#111'}; border: 0.5px solid ${isCur ? '#111' : '#E5E3DB'}; border-radius: 14px; padding: 14px; margin-bottom: 8px; cursor: pointer;" data-change-plan="${p.id}"><div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;"><p style="font-size: 15px; font-weight: 500; margin: 0;">${p.n}${isCur ? ' · current' : ''}</p><p class="mono" style="font-size: 14px; margin: 0;">$${p.p}/mo</p></div><p class="mono" style="font-size: 11px; opacity: 0.7; margin: 0;">${p.t}</p></div>`;
+      }).join('')}
+      <button class="pbtn secondary" style="width: 100%; margin-top: 8px;" data-close-sheet>close</button>
+    </div>
+  `;
+}
+
+function billingSheet() {
+  const p = state.selectedPlan || 'team';
+  const prices = { starter: 39, team: 99, studio: 299 };
+  const amt = prices[p];
+  const bills = [
+    { d: 'apr 1, 2026', a: amt, s: 'paid' },
+    { d: 'mar 1, 2026', a: amt, s: 'paid' },
+    { d: 'feb 1, 2026', a: amt, s: 'paid' },
+    { d: 'jan 1, 2026', a: amt, s: 'paid' },
+    { d: 'dec 5, 2025', a: 39, s: 'paid' }
+  ];
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0 0 14px;">BILLING HISTORY</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; margin-bottom: 14px;">
+        ${bills.map((b, i) => `<div style="padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; ${i < bills.length - 1 ? 'border-bottom: 0.5px solid #EEEBE0;' : ''}"><div><p style="font-size: 13px; color: #111; margin: 0;">${p} plan</p><p class="mono" style="font-size: 11px; color: #999; margin: 1px 0 0;">${b.d}</p></div><div style="text-align: right;"><p class="mono" style="font-size: 13px; color: #111; margin: 0;">$${b.a}.00</p><p class="mono" style="font-size: 11px; color: #3a9d5c; margin: 1px 0 0;">${b.s}</p></div></div>`).join('')}
+      </div>
+      <button class="pbtn secondary" data-close-sheet>close</button>
+    </div>
+  `;
+}
+
+function dataSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet">
+      <div class="drag-h"></div>
+      <p class="mono" style="font-size: 11px; color: #999; letter-spacing: 0.15em; margin: 0 0 14px;">DATA + PRIVACY</p>
+      <div style="background: white; border: 0.5px solid #E5E3DB; border-radius: 14px; overflow: hidden; margin-bottom: 14px;">
+        <div class="setting-row nonclick"><span style="font-size: 13px; color: #111;">record calls</span><div class="toggle-sw ${state.toggles.record ? 'on' : ''}" data-toggle="record"></div></div>
+        <div class="setting-row nonclick" style="display: block;"><span style="font-size: 13px; color: #111;">retention</span><p class="mono" style="font-size: 11px; color: #999; margin: 2px 0 0;">auto-delete after 90 days</p></div>
+        <div class="setting-row" data-toast="confirm delete all data?"><span style="font-size: 13px; color: #C84A3E;">delete all call data</span></div>
+      </div>
+      <p style="font-size: 11px; color: #999; line-height: 1.6; margin: 0 0 12px;">your data is encrypted at rest. only you and signal can access it. orb staff never see call content.</p>
+      <button class="pbtn secondary" data-close-sheet>close</button>
+    </div>
+  `;
+}
+
+function signoutSheet() {
+  return `
+    <div class="sheet-overlay" data-close-sheet></div>
+    <div class="sheet" style="text-align: center; padding-top: 30px;">
+      <div class="drag-h"></div>
+      <p style="font-size: 15px; color: #111; margin: 20px 0 8px; font-weight: 500;">sign out?</p>
+      <p style="font-size: 12px; color: #888; margin: 0 0 20px;">signal will keep running. you can sign back in anytime.</p>
+      <button class="pbtn danger" style="margin-bottom: 8px;" data-action="signout">sign out</button>
+      <button class="pbtn secondary" data-close-sheet>cancel</button>
+    </div>
+  `;
+}
+
+// =============================================
+// RENDER + BINDING
+// =============================================
+const routes = {
+  splash: splashView, onboard: onboardView, hire: hireView, deck: deckView,
+  needsyou: needsYouView, everything: everythingView,
+  call: callView, missed: missedView, convo: convoView, booked: bookedView,
+  inbox: inboxView, appts: apptsView, agent: agentView, report: reportView,
+  settings: settingsView, lock: lockView, echo: echoView
+};
+
+const navPrimary = [
+  { id: 'splash', label: 'splash' },
+  { id: 'onboard', label: 'onboard' },
+  { id: 'deck', label: 'home' },
+  { id: 'needsyou', label: 'needs you' },
+  { id: 'everything', label: 'show more' },
+  { id: 'lock', label: 'lock screen' }
+];
+const navSecondary = [
+  { id: 'call', label: 'live call' },
+  { id: 'missed', label: 'missed' },
+  { id: 'convo', label: 'convo' },
+  { id: 'booked', label: 'booked' },
+  { id: 'inbox', label: 'inbox' },
+  { id: 'appts', label: 'appts' },
+  { id: 'echo', label: 'echo' },
+  { id: 'agent', label: 'specialists' },
+  { id: 'report', label: 'report' },
+  { id: 'settings', label: 'settings' }
+];
+
+function render() {
+  const sa = document.getElementById('screen-area');
+  const sb = document.getElementById('status-bar');
+  const c = document.getElementById('content');
+
+  if (state.tickerInterval) {
+    clearInterval(state.tickerInterval);
+    state.tickerInterval = null;
+  }
+
+  if (state.route === 'lock') {
+    sa.classList.add('dark');
+    sb.classList.add('dark');
+  } else {
+    sa.classList.remove('dark');
+    sb.classList.remove('dark');
+  }
+
+  c.innerHTML = (routes[state.route] || deckView)();
+  if (state.sheet) c.insertAdjacentHTML('beforeend', renderSheet());
+
+  if (state.route === 'splash') {
+    const events = [
+      'booked a $850 lead 3 min ago',
+      'echo posted to instagram · 1.2k reach',
+      'signal recovered 7 missed calls this week',
+      'scout spotted a competitor price drop',
+      'ads draft ready · 3 variants waiting',
+      'pulse flagged toronto design week'
+    ];
+    let idx = 0;
+    state.tickerInterval = setInterval(() => {
+      const el = document.getElementById('ticker-text');
+      if (!el) { clearInterval(state.tickerInterval); return; }
+      el.style.opacity = '0';
+      setTimeout(() => {
+        idx = (idx + 1) % events.length;
+        el.textContent = events[idx];
+        el.style.opacity = '1';
+      }, 400);
+    }, 3500);
+  }
+
+  renderNav();
+  renderInfo();
+  bind();
+}
+
+function renderNav() {
+  const n1 = document.getElementById('nav-wrap');
+  const n2 = document.getElementById('nav-wrap-2');
+  n1.innerHTML = navPrimary.map(n => `<button class="nav-pill ${state.route === n.id ? 'active' : ''}" data-nav="${n.id}">${n.label}</button>`).join('');
+  n2.innerHTML = navSecondary.map(n => `<button class="nav-pill ${state.route === n.id ? 'active' : ''}" data-nav="${n.id}">${n.label}</button>`).join('');
+
+  // Also populate mobile nav sheet
+  const mn = document.getElementById('mobile-nav-content');
+  if (mn) {
+    const allNav = [...navPrimary, ...navSecondary];
+    mn.innerHTML = `
+      <p style="color: rgba(255,255,255,0.4); font-family: 'SF Mono', monospace; font-size: 10px; letter-spacing: 0.2em; margin: 0 0 12px;">NAVIGATE TO</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px;">
+        ${allNav.map(n => `<button onclick="navigateAndClose('${n.id}')" style="background: ${state.route === n.id ? 'white' : 'rgba(255,255,255,0.08)'}; color: ${state.route === n.id ? '#111' : 'white'}; border: 0.5px solid ${state.route === n.id ? 'white' : 'rgba(255,255,255,0.1)'}; border-radius: 100px; padding: 8px 14px; font-family: 'SF Mono', monospace; font-size: 12px; cursor: pointer;">${n.label}</button>`).join('')}
+      </div>
+      <p style="color: rgba(255,255,255,0.4); font-family: 'SF Mono', monospace; font-size: 10px; letter-spacing: 0.2em; margin: 0 0 8px;">CURRENT SCREEN</p>
+      <p style="color: white; font-size: 14px; font-weight: 500; margin: 0 0 4px;">${screenInfo[state.route]?.title || state.route}</p>
+      <p style="color: rgba(255,255,255,0.6); font-size: 12px; line-height: 1.5; margin: 0 0 12px;">${screenInfo[state.route]?.desc || ''}</p>
+    `;
+  }
+}
+
+function toggleMobileNav() {
+  const sheet = document.getElementById('mobile-nav-sheet');
+  const bd = document.getElementById('mobile-nav-backdrop');
+  const open = sheet.classList.toggle('open');
+  bd.style.display = open ? 'block' : 'none';
+  if (open) setTimeout(() => bd.classList.add('open'), 10);
+  else bd.classList.remove('open');
+}
+
+function navigateAndClose(route) {
+  state.route = route;
+  state.sheet = null;
+  toggleMobileNav();
+  render();
+}
+
+function renderInfo() {
+  const info = screenInfo[state.route];
+  if (!info) return;
+  const panel = document.getElementById('info-panel');
+  panel.innerHTML = `
+    <h3>${info.section}</h3>
+    <h2>${info.title}</h2>
+    <p>${info.desc}</p>
+    <ul>${info.notes.map(n => `<li>${n}</li>`).join('')}</ul>
+  `;
+}
+
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+function toggleInfo() {
+  state.infoOpen = !state.infoOpen;
+  document.getElementById('info-panel').classList.toggle('hidden', !state.infoOpen);
+}
+
+function bind() {
+  document.querySelectorAll('[data-nav]').forEach(el => {
+    el.onclick = () => { state.route = el.dataset.nav; state.sheet = null; render(); };
+  });
+  document.querySelectorAll('[data-tap]').forEach(el => {
+    el.onclick = () => { state.route = el.dataset.tap; render(); };
+  });
+  document.querySelectorAll('[data-route]').forEach(el => {
+    el.onclick = () => { state.route = el.dataset.route; state.sheet = null; render(); };
+  });
+  document.querySelectorAll('[data-sheet]').forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      state.sheet = el.dataset.sheet;
+      state.sheetData = el.dataset.sheetData;
+      render();
+    };
+  });
+  document.querySelectorAll('[data-close-sheet]').forEach(el => {
+    el.onclick = () => { state.sheet = null; state.sheetData = null; render(); };
+  });
+  document.querySelectorAll('[data-toast]').forEach(el => {
+    el.onclick = (e) => { e.stopPropagation(); showToast(el.dataset.toast); };
+  });
+  document.querySelectorAll('[data-flow]').forEach(el => {
+    el.onclick = () => {
+      const fid = el.dataset.flow;
+      const f = flows.find(x => x.id === fid);
+      if (f && f.agent === 'echo') {
+        state.route = 'echo';
+        state.echoView = 'calendar';
+        render();
+      } else {
+        state.sheet = 'flow';
+        state.sheetData = fid;
+        render();
+      }
+    };
+  });
+  document.querySelectorAll('[data-hire]').forEach(el => {
+    el.onclick = () => {
+      const id = el.dataset.hire;
+      if (state.hired.has(id)) state.hired.delete(id);
+      else state.hired.add(id);
+      render();
+    };
+  });
+  document.querySelectorAll('[data-assign]').forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      const id = el.dataset.assign;
+      if (state.assignedAgents.has(id)) state.assignedAgents.delete(id);
+      else state.assignedAgents.add(id);
+      render();
+    };
+  });
+  document.querySelectorAll('[data-brief-pick]').forEach(el => {
+    el.onclick = () => { state.briefInput = el.dataset.briefPick; render(); };
+  });
+  document.querySelectorAll('[data-channel]').forEach(el => {
+    el.onclick = () => { state.channel = el.dataset.channel; render(); };
+  });
+  document.querySelectorAll('[data-agent-pick]').forEach(el => {
+    el.onclick = () => { state.selectedAgent = el.dataset.agentPick; render(); };
+  });
+  document.querySelectorAll('[data-echo-view]').forEach(el => {
+    el.onclick = () => { state.echoView = el.dataset.echoView; render(); };
+  });
+  document.querySelectorAll('[data-example]').forEach(el => {
+    el.onclick = () => {
+      const ex = {
+        '1': 'i sell handmade ceramics in toronto',
+        '2': 'i run a hot yoga studio in austin',
+        '3': 'i have a family dental practice in brooklyn'
+      };
+      state.brief = ex[el.dataset.example];
+      render();
+    };
+  });
+  document.querySelectorAll('[data-toggle]').forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      state.toggles[el.dataset.toggle] = !state.toggles[el.dataset.toggle];
+      render();
+    };
+  });
+  document.querySelectorAll('[data-action]').forEach(el => {
+    el.onclick = () => {
+      const a = el.dataset.action;
+      if (a === 'analyze') { state.route = 'hire'; state.sheet = null; render(); }
+      else if (a === 'start-work') { state.route = 'deck'; state.sheet = null; render(); }
+      else if (a === 'onboard-next') {
+        state.onboardStep = (state.onboardStep || 1) + 1;
+        state.carrierHelpOpen = false;
+        render();
+      }
+      else if (a === 'run-analysis') {
+        state.analysisRun = true;
+        render();
+      }
+      else if (a === 'enter-card') {
+        state.cardEntered = true;
+        showToast('card saved · no charge yet');
+        setTimeout(() => {
+          state.onboardStep = 5;
+          state.phoneProvisioned = true;
+          render();
+        }, 900);
+      }
+      else if (a === 'show-carrier-help') {
+        state.carrierHelpOpen = true;
+        render();
+      }
+      else if (a === 'hide-carrier-help') {
+        state.carrierHelpOpen = false;
+        state.selectedCarrier = null;
+        render();
+      }
+      else if (a === 'connect-ig') {
+        state.igConnected = true;
+        showToast('instagram connected · @ceramicsco');
+        render();
+      }
+      else if (a === 'onboard-done') {
+        state.route = 'deck';
+        state.onboardStep = 1;
+        showToast("i'm starting to work on your marketing now");
+        render();
+      }
+      else if (a === 'upload-photos') {
+        showToast('photo picker would open · post will go out wed 11a');
+        setTimeout(() => { state.route = 'deck'; render(); }, 1500);
+      }
+      else if (a === 'skip-post') {
+        showToast("post skipped · i'll try again next week");
+        setTimeout(() => { state.route = 'deck'; render(); }, 1500);
+      }
+      else if (a === 'start-billing') {
+        const prices = { starter: 39, team: 99, studio: 299 };
+        const p = state.selectedPlan || 'team';
+        state.homeState = 'steady';
+        showToast('thanks · billing started · $' + prices[p] + ' / month');
+        render();
+      }
+      else if (a === 'delay-billing') {
+        showToast("ok · i'll ask again tomorrow");
+      }
+      else if (a === 'send-brief') {
+        state.sheet = 'thinking';
+        render();
+        setTimeout(() => {
+          state.sheet = null;
+          state.briefInput = '';
+          showToast('brief sent · team on it');
+          render();
+        }, 2800);
+      }
+      else if (a === 'approve-flow') { state.sheet = null; showToast('approved'); render(); }
+      else if (a === 'approve-post') { state.echoView = 'calendar'; showToast('post approved · scheduled for tue 11a'); render(); }
+      else if (a === 'save-rule') { state.sheet = null; showToast('rule saved · signal updated'); render(); }
+      else if (a === 'save-settings') { state.sheet = null; showToast('saved'); render(); }
+      else if (a === 'signout') { state.sheet = null; state.route = 'splash'; showToast('signed out'); render(); }
+    };
+  });
+
+  document.querySelectorAll('[data-goal]').forEach(el => {
+    el.onclick = () => {
+      state.selectedGoal = el.dataset.goal;
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-carrier]').forEach(el => {
+    el.onclick = () => {
+      state.selectedCarrier = el.dataset.carrier;
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-home-state]').forEach(el => {
+    el.onclick = () => {
+      state.homeState = el.dataset.homeState;
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-plan]').forEach(el => {
+    el.onclick = () => {
+      state.selectedPlan = el.dataset.plan;
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-change-plan]').forEach(el => {
+    el.onclick = () => {
+      const newPlan = el.dataset.changePlan;
+      if (newPlan === state.selectedPlan) {
+        showToast('already on this plan');
+      } else {
+        state.selectedPlan = newPlan;
+        state.sheet = null;
+        showToast('plan changed · ' + newPlan);
+      }
+      render();
+    };
+  });
+
+  const ta = document.getElementById('brief-ta');
+  if (ta) ta.oninput = e => {
+    state.brief = e.target.value;
+    const btn = document.querySelector('[data-action=onboard-next]');
+    if (btn && state.onboardStep === 1) {
+      btn.disabled = state.brief.length <= 10;
+      btn.textContent = state.brief.length > 10 ? 'continue →' : 'write something to continue';
+    }
+  };
+
+  const bi = document.getElementById('brief-input');
+  if (bi) bi.oninput = e => { state.briefInput = e.target.value; };
+}
+
+render();
+</script>
+</body>
+</html>

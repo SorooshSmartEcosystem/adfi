@@ -2,14 +2,18 @@
 
 The full monorepo layout. Every folder has a purpose; every file convention is documented here.
 
+## Naming note
+
+This repo uses codename **ORB** for all internal identifiers and brand **ADFI** for all user-facing strings. Package names, folders, and type names use `orb`; app display names, UI copy, and marketing use `adfi`. See `CLAUDE.md` for the full rule.
+
 ## Top-level layout
 
 ```
-orb/
+adfi/
 ├── apps/                    # Three deployable applications
-│   ├── mobile/              # React Native (Expo) — the consumer app
-│   ├── web/                 # Next.js — marketing site + tRPC API host
-│   └── admin/               # Next.js — internal ops dashboard (private)
+│   ├── mobile/              # React Native (Expo) — iOS + Android
+│   ├── web/                 # Next.js 15 — tRPC API host (+ future web app)
+│   └── admin/               # Next.js 15 — internal ops dashboard (private)
 │
 ├── packages/                # Shared code consumed by apps
 │   ├── api/                 # tRPC routers (the shared contract)
@@ -20,7 +24,7 @@ orb/
 │
 ├── docs/                    # Every doc (this folder)
 ├── prototype/               # Original clickable prototype (reference only)
-│   └── ORB_Prototype_v5.html
+│   └── ORB_Prototype_v6.html
 │
 ├── scripts/                 # Dev scripts (seed, migrate, deploy helpers)
 │
@@ -37,7 +41,11 @@ orb/
 └── turbo.json               # Turborepo pipeline definition
 ```
 
-## `apps/mobile` — the consumer app
+**The marketing site is NOT in this monorepo.** `adfi.ca` lives in a separate `adfi-landing/` project deployed independently to Vercel. The reason: marketing sites iterate on a different cadence than product code, and mixing them creates pointless deployment coupling.
+
+## `apps/mobile` — iOS + Android consumer app
+
+One codebase, two platforms. Expo builds native iOS and Android apps from this folder.
 
 ```
 apps/mobile/
@@ -47,17 +55,17 @@ apps/mobile/
 │   │   ├── onboarding/          # 6-step onboarding
 │   │   │   ├── business.tsx     # Step 1 — what does your business do
 │   │   │   ├── goal.tsx         # Step 2 — what do you want more of
-│   │   │   ├── analysis.tsx     # Step 3 — ORB shows its findings
-│   │   │   ├── payment.tsx      # Step 4 — card + trial
-│   │   │   ├── phone.tsx        # Step 5 — ORB number reveal
+│   │   │   ├── analysis.tsx     # Step 3 — ADFI shows its findings
+│   │   │   ├── payment.tsx      # Step 4 — 3-tier paywall + card + trial
+│   │   │   ├── phone.tsx        # Step 5 — ADFI number reveal
 │   │   │   └── instagram.tsx    # Step 6 — connect IG (optional)
 │   │   └── _layout.tsx
 │   ├── (app)/                   # Authenticated routes
-│   │   ├── home.tsx             # The one-card home (day1/day3/steady states)
+│   │   ├── home.tsx             # The one-card home (day1/day3/steady)
 │   │   ├── needs-you/           # When user taps amber card
 │   │   ├── everything/          # Activity feed
-│   │   ├── calls/               # Signal screens (live call, missed, convo, booked)
-│   │   ├── content/             # Echo screens (calendar, composer, performance, trends)
+│   │   ├── calls/               # Signal screens
+│   │   ├── content/             # Echo screens
 │   │   ├── specialists/         # Agent detail views
 │   │   ├── settings/
 │   │   └── _layout.tsx
@@ -65,29 +73,58 @@ apps/mobile/
 │   └── index.tsx                # Entry redirect based on auth state
 │
 ├── components/                  # Reusable components
-│   ├── cards/                   # StatusCard, NeedsYouCard, AmberCard, etc.
+│   ├── cards/                   # StatusCard, NeedsYouCard, AmberCard
 │   ├── orb/                     # The breathing orb component
 │   └── ui/                      # Generic primitives (Button, Chip, Pill)
 │
 ├── hooks/                       # React hooks
 │   ├── use-auth.ts
-│   ├── use-orb-state.ts
+│   ├── use-adfi-state.ts
 │   └── use-push-notifications.ts
 │
 ├── lib/                         # App-specific utilities
 │   ├── trpc.ts                  # tRPC client setup
 │   ├── supabase.ts              # Supabase client
-│   └── stripe.ts                # Stripe (Payment Element wrapper)
+│   ├── stripe.ts                # Stripe (Payment Element wrapper)
+│   └── platform.ts              # iOS/Android platform helpers
 │
 ├── stores/                      # Zustand stores (auth state, UI state)
 ├── assets/                      # Fonts, images, audio
 ├── app.config.ts                # Expo config (replaces app.json)
+│                                # iOS: bundleIdentifier "ca.adfi.mobile"
+│                                # Android: package "ca.adfi.mobile"
 ├── babel.config.js
-├── eas.json                     # EAS Build + Update config
+├── eas.json                     # EAS Build + Update config (iOS + Android)
 ├── metro.config.js
-├── package.json
+├── package.json                 # @orb/mobile
+├── google-services.json         # Android Firebase config (not committed)
+├── GoogleService-Info.plist     # iOS Firebase config (not committed)
 └── tsconfig.json
 ```
+
+### Platform-specific considerations
+
+**iOS-only files:**
+- `GoogleService-Info.plist` — Firebase config for iOS push notifications
+
+**Android-only files:**
+- `google-services.json` — Firebase config for Android push notifications
+
+**Platform-specific code in TypeScript:**
+
+Use Expo's `Platform.OS` sparingly when behavior must differ:
+
+```ts
+import { Platform } from 'react-native';
+
+if (Platform.OS === 'ios') {
+  // iOS-specific
+} else if (Platform.OS === 'android') {
+  // Android-specific
+}
+```
+
+Prefer shared code where possible. Platform-specific paths are a code smell.
 
 ### File naming in mobile
 
@@ -96,15 +133,11 @@ apps/mobile/
 - Hooks: `use-kebab-case.ts`
 - Utilities: `kebab-case.ts`
 
-## `apps/web` — marketing site + API host
+## `apps/web` — tRPC API host (+ future web app)
 
 ```
 apps/web/
 ├── app/                         # Next.js 15 App Router
-│   ├── (marketing)/             # Public routes
-│   │   ├── page.tsx             # Landing page
-│   │   ├── pricing/
-│   │   └── privacy/
 │   ├── api/
 │   │   ├── trpc/[trpc]/         # tRPC fetch adapter route
 │   │   │   └── route.ts
@@ -116,7 +149,7 @@ apps/web/
 │   │   └── ai/                  # Long-running AI endpoints (non-tRPC)
 │   │       └── analyze/
 │   ├── layout.tsx
-│   └── globals.css
+│   └── page.tsx                 # Placeholder (future web app home)
 │
 ├── components/
 ├── lib/
@@ -124,13 +157,17 @@ apps/web/
 ├── next.config.mjs
 ├── postcss.config.mjs
 ├── tailwind.config.ts           # Extends packages/config/tailwind
-├── package.json
+├── package.json                 # @orb/web
 └── tsconfig.json
 ```
 
 ### Why `apps/web` hosts the API
 
-Pragmatism. Instead of running a separate backend service, we use Next.js API route handlers to host tRPC. Mobile and admin both call `https://web-orb.vercel.app/api/trpc/...`. If we ever need to scale the API independently, we extract `apps/api` and point all clients there. For v1, co-location wins.
+Pragmatism. Instead of running a separate backend service, we use Next.js API route handlers to host tRPC. Mobile and admin both call `https://api.adfi.ca/api/trpc/...` (or equivalent). If we ever need to scale the API independently, we extract it later. For v1, co-location wins.
+
+### Future: signed-in web version
+
+If/when we build a web version of the ADFI mobile app (for users who want to use ADFI from a desktop browser), it goes in `apps/web/app/(app)/` alongside the API routes. For now, this is future work. The marketing site at `adfi.ca` is a separate project entirely.
 
 ## `apps/admin` — internal ops dashboard
 
@@ -149,11 +186,11 @@ apps/admin/
 │
 ├── components/
 ├── lib/
-├── package.json
+├── package.json                 # @orb/admin
 └── tsconfig.json
 ```
 
-Admin is deployed to a separate Vercel project with Vercel Password Protection enabled. No public access, ever.
+Admin is deployed to a separate Vercel project at `admin.adfi.ca` with Vercel Password Protection enabled. No public access, ever.
 
 ## `packages/api` — the tRPC routers
 
@@ -163,21 +200,21 @@ packages/api/
 │   ├── index.ts                 # Exports the root router + AppRouter type
 │   ├── context.ts               # tRPC context (session, db, logger)
 │   ├── errors.ts                # TRPCError taxonomy
-│   ├── trpc.ts                  # Procedure builders (publicProc, authedProc, etc.)
+│   ├── trpc.ts                  # Procedure builders
 │   │
 │   ├── routers/
 │   │   ├── index.ts             # appRouter composition
-│   │   ├── auth.ts              # login, logout, refresh
-│   │   ├── user.ts              # profile, preferences
-│   │   ├── onboarding.ts        # 6-step flow, analysis, finalization
-│   │   ├── billing.ts           # Stripe customer, subscription, invoices
-│   │   ├── content.ts           # Echo — posts, drafts, scheduling
-│   │   ├── messaging.ts         # Signal — inbox, threads, replies
-│   │   ├── calls.ts             # Signal — call logs, transcripts
-│   │   ├── appointments.ts      # Signal — bookings, rules
-│   │   ├── competitors.ts       # Scout — tracked rivals, findings
-│   │   ├── insights.ts          # Pulse + Strategist analytics
-│   │   └── admin.ts             # Admin-only procedures
+│   │   ├── auth.ts
+│   │   ├── user.ts
+│   │   ├── onboarding.ts
+│   │   ├── billing.ts
+│   │   ├── content.ts
+│   │   ├── messaging.ts
+│   │   ├── calls.ts
+│   │   ├── appointments.ts
+│   │   ├── competitors.ts
+│   │   ├── insights.ts
+│   │   └── admin.ts
 │   │
 │   ├── agents/                  # Agent implementations
 │   │   ├── strategist.ts
@@ -187,7 +224,6 @@ packages/api/
 │   │   ├── signal.ts
 │   │   └── prompts/             # System prompts as .md files
 │   │       ├── strategist.md
-│   │       ├── scout.md
 │   │       └── ...
 │   │
 │   └── services/                # Wrappers around third-party APIs
@@ -197,7 +233,7 @@ packages/api/
 │       ├── meta.ts
 │       └── anthropic.ts
 │
-├── package.json
+├── package.json                 # @orb/api
 └── tsconfig.json
 ```
 
@@ -213,9 +249,9 @@ packages/db/
 ├── src/
 │   ├── index.ts                 # Exports the prisma client
 │   ├── client.ts                # Singleton client setup
-│   └── types.ts                 # Helper types (e.g., UserWithSubscription)
+│   └── types.ts                 # Helper types
 │
-├── package.json
+├── package.json                 # @orb/db
 └── tsconfig.json
 ```
 
@@ -230,17 +266,13 @@ packages/ui/
 │   │   ├── StatusCard.tsx
 │   │   ├── AmberCard.tsx
 │   │   └── ...
-│   └── web/                     # Web components (shared between web + admin)
+│   └── web/                     # Web components
 │       ├── Button.tsx
 │       └── ...
 │
-├── package.json
+├── package.json                 # @orb/ui
 └── tsconfig.json
 ```
-
-### Why split native/ and web/
-
-React Native and React DOM can share utilities and types, but not components. An `Orb.tsx` for native uses `View` and `Animated`; for web, it uses `<div>` and CSS keyframes. Same token file drives both.
 
 ## `packages/auth` — Supabase auth helpers
 
@@ -253,7 +285,7 @@ packages/auth/
 │   ├── middleware.ts            # Next.js middleware for protected routes
 │   └── hooks.ts                 # React hooks (useUser, useSession)
 │
-├── package.json
+├── package.json                 # @orb/auth
 └── tsconfig.json
 ```
 
@@ -271,7 +303,11 @@ packages/config/
 │   └── react-native.json
 ├── tailwind/
 │   └── preset.js                # Shared Tailwind preset with our tokens
-└── package.json
+├── src/
+│   ├── env.server.ts            # Server env validation (zod)
+│   ├── env.client.ts            # Client env validation
+│   └── env.expo.ts              # Expo env validation
+└── package.json                 # @orb/config
 ```
 
 ## Workspace wiring
@@ -337,17 +373,19 @@ Every package's `package.json` references peer packages the same way. Changes to
 
 ## The prototype folder
 
-`prototype/ORB_Prototype_v5.html` is the reference for all UX decisions. It's a standalone HTML file that works offline. Keep it committed and in sync if we make significant UX changes.
+`prototype/ORB_Prototype_v6.html` is the reference for all UX decisions. It's a standalone HTML file that works offline. Keep it committed and in sync if we make significant UX changes.
 
 If you find yourself asking "should this screen look like X or Y?" — open the prototype. It probably has the answer.
 
 ## Files you should never commit
 
 - `.env.local`, `.env.*.local` — real secrets
+- `google-services.json` — Android Firebase config (treat as secret)
+- `GoogleService-Info.plist` — iOS Firebase config (treat as secret)
 - `.DS_Store`, `Thumbs.db` — OS cruft
 - `dist/`, `.next/`, `build/` — build outputs
 - `node_modules/` — package code
 - `*.log` — runtime logs
-- `*.pem`, `*.key` — certificates
+- `*.pem`, `*.key`, `*.p12`, `*.keystore` — certificates
 
 Full list in `.gitignore`. If you catch a secret in git history, STOP and ask for help before rewriting.

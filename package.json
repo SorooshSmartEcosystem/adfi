@@ -1,0 +1,27 @@
+{
+  "name": "orb",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ADFI monorepo — mobile, web, admin, and shared packages",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "db:generate": "turbo run db:generate --filter=@orb/db",
+    "db:migrate": "turbo run db:migrate --filter=@orb/db",
+    "db:seed": "pnpm --filter=@orb/db run db:seed",
+    "db:studio": "pnpm --filter=@orb/db run db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.3"
+  }
+}

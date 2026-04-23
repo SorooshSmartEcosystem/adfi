@@ -4,7 +4,7 @@ The technical decisions that shape this project. Every choice here has a reason 
 
 ## Product thesis (most important section)
 
-ORB is designed around one claim: **solopreneurs want to hire their marketing, not supervise it.**
+ADFI is designed around one claim: **solopreneurs want to hire their marketing, not supervise it.**
 
 Everything technical flows from this. If we get the tech right but break this thesis in UX, we've failed. If we compromise the tech for the sake of this thesis, we've won.
 
@@ -12,9 +12,29 @@ Three implications worth calling out:
 
 1. **Autonomous by default.** The backend must be able to take actions (post, reply, book) without waiting for user confirmation. Confirmation flows are the exception, not the rule.
 
-2. **Six invisible agents, one visible brand.** Under the hood, six specialized agents (Strategist, Scout, Pulse, Ads, Echo, Signal) coordinate. To the user, it's always "ORB" — one colleague. The backend is multi-agent; the UX never exposes this.
+2. **Six invisible agents, one visible brand.** Under the hood, six specialized agents (Strategist, Scout, Pulse, Ads, Echo, Signal) coordinate. To the user, it's always "ADFI" — one colleague. The backend is multi-agent; the UX never exposes this.
 
-3. **The user trusts by default, or they leave.** Unlike most AI tools where the user reviews every output, ORB must earn trust fast and then get out of the way. This means a 7-day shadow period at the start (ORB drafts, user approves via text), then autopilot forever.
+3. **The user trusts by default, or they leave.** Unlike most AI tools where the user reviews every output, ADFI must earn trust fast and then get out of the way. This means a 7-day shadow period at the start (ADFI drafts, user approves via text), then autopilot forever.
+
+## Naming: ORB vs ADFI
+
+Internal codename is **ORB** (all package names, code identifiers, file names). Brand is **ADFI** (user-facing strings, marketing, app store listings). See `CLAUDE.md` for the full rule. Don't mix them.
+
+## Deployment topology
+
+This is the full picture of what goes where:
+
+| Component | Source | Deploys to | URL |
+|-----------|--------|-----------|-----|
+| Marketing site | `adfi-landing/` (separate project) | Vercel | `www.adfi.ca` |
+| API backend | `apps/web/` (this monorepo) | Vercel | `api.adfi.ca` or `app.adfi.ca/api/*` |
+| Admin panel | `apps/admin/` (this monorepo) | Vercel (private) | `admin.adfi.ca` |
+| Mobile iOS | `apps/mobile/` (this monorepo) | EAS → App Store | iOS App Store |
+| Mobile Android | `apps/mobile/` (this monorepo) | EAS → Google Play | Google Play |
+| Database | managed | Supabase | managed |
+| Background jobs | `apps/web/` (edge functions) | Supabase Edge Functions | managed |
+
+**Why the landing page is a separate project:** Marketing sites iterate on a different cadence than product code (weekly landing-page tests vs. quarterly product releases). Keeping them separate means each can ship without coordinating with the other. When a signed-in web app eventually ships, it lives in `apps/web/` at a subdomain.
 
 ## Stack decisions
 
@@ -26,11 +46,19 @@ Three implications worth calling out:
 
 **Why not Yarn 4 Berry:** pnpm's strict peer dependency enforcement catches more bugs, and its workspace protocol is simpler.
 
-### Mobile — Expo (managed workflow)
+### Mobile — Expo managed workflow (iOS + Android)
 
-**Why:** We get OTA updates, EAS builds, push notifications, and the whole native module ecosystem without ever opening Xcode. For a v1 that ships fast, managed workflow is right.
+**Why:** One codebase ships to both iOS and Android as native apps. We get OTA updates, EAS builds, push notifications, and the whole native module ecosystem without needing separate Swift and Kotlin projects. For a v1 that needs to ship to two platforms with a small team, managed workflow is right.
+
+**Launch strategy:** iOS ships first (typically), Android follows within 1-4 weeks. This isn't because Android is second-class — it's because iOS App Store review is faster, iOS users pay more on average, and staggering lets Android benefit from iOS TestFlight feedback. Both are part of launch scope; neither is a "v2 feature."
 
 **What we give up:** Some native modules aren't available in managed workflow. If we hit that wall (unlikely for v1), we use `expo prebuild` to eject to bare. We don't eject preemptively.
+
+**Platform-specific considerations:**
+- Push notifications: APNS on iOS, FCM on Android (both wrapped by Expo Notifications)
+- Deep linking: Universal Links on iOS, App Links on Android
+- Permissions: Slightly different prompts and flows per platform
+- Back button: Android has a hardware back button; iOS doesn't
 
 **SDK version:** Pin to the latest stable SDK (54+ at time of writing). Upgrade quarterly, not continuously.
 
@@ -70,9 +98,9 @@ Three implications worth calling out:
 
 **Why not custom (Lucia, Better-Auth):** More control, more work. We don't need control we can't get from Supabase yet.
 
-**Auth flow for ORB specifically:**
-- **Mobile:** Phone OTP primary. Email as backup. No passwords.
-- **Web marketing site:** Email magic link (users come from ads, less friction than phone).
+**Auth flow for ADFI specifically:**
+- **Mobile (iOS + Android):** Phone OTP primary. Email as backup. No passwords.
+- **Web marketing site:** No auth (marketing only)
 - **Admin:** Email + TOTP 2FA enforced. No OAuth.
 
 ### Storage — Supabase Storage
@@ -94,6 +122,11 @@ Three implications worth calling out:
 
 **Webhook endpoint:** `/api/webhooks/stripe` in `apps/web`. Signature verification is non-negotiable. Webhook events update our `subscriptions` and `billing_events` tables.
 
+**Plans:**
+- **Starter** — $39/mo — Signal (calls + SMS) + business insights
+- **Team** — $99/mo (recommended) — Signal + Echo + Scout + Pulse + Strategist
+- **Studio** — $299/mo — everything + Ads + Website manager (both coming soon)
+
 ### Phone + SMS — Twilio
 
 **Why:** Most mature platform. Programmable numbers, SMS delivery in every country we care about, global phone number inventory.
@@ -108,6 +141,8 @@ Three implications worth calling out:
 - User signs up → Twilio API provisions a number → stored in `users.orb_phone_number`
 - User cancels → 30-day grace period → number released back to Twilio pool
 
+**Canadian + US numbers:** Since we're launching in Canada (`adfi.ca`), we provision Canadian numbers by default with a fallback to US numbers when needed. Twilio API handles both seamlessly.
+
 ### Voice AI — Vapi
 
 **Why:** Wraps OpenAI Realtime API with a conversational layer designed for phone calls. Handles audio streaming, interruption, end-of-turn detection.
@@ -115,7 +150,7 @@ Three implications worth calling out:
 **Why not Retell or direct OpenAI:** Retell is comparable; we picked Vapi for easier Twilio integration. Direct OpenAI Realtime requires too much infrastructure for a small team.
 
 **What Signal does via Vapi:**
-- Answer incoming calls on the user's ORB number
+- Answer incoming calls on the user's ADFI number
 - Use custom system prompt per-user (loaded from their `agent_context` table)
 - Extract structured intent (custom commission inquiry, appointment request, complaint)
 - Handoff to our tRPC `signal.handleCallResult` to record the interaction
@@ -149,8 +184,9 @@ Three implications worth calling out:
 
 ### Infra
 
-- **Web + Admin:** Vercel. Edge functions for tRPC routes by default, Node runtime for anything touching Stripe/Twilio (their SDKs need Node).
-- **Mobile:** EAS (Expo Application Services). EAS Build for App Store binaries. EAS Update for OTA updates.
+- **Marketing site (adfi.ca):** Vercel, from separate `adfi-landing/` project
+- **Web API + Admin:** Vercel (two separate projects, both from this monorepo)
+- **Mobile:** EAS (Expo Application Services). EAS Build for App Store + Play Store binaries. EAS Update for OTA updates.
 - **Background jobs:** Supabase Edge Functions for scheduled work (cron via `pg_cron`). If we outgrow this, add a dedicated worker on Railway.
 - **Error tracking:** Sentry. Mobile + web + admin all report to the same project.
 - **Analytics:** PostHog. Event tracking for product analytics.
@@ -158,31 +194,35 @@ Three implications worth calling out:
 
 ## Agent architecture
 
-Six agents, each a separate system prompt + tool set + memory context.
+Six core agents, each a separate system prompt + tool set + memory context.
 
-### Strategist
+### Strategist *(Starter tier and up)*
 Owns: brand voice fingerprint, ICP definition, content strategy guidelines.
 When it runs: once on signup (analyze the user's business), then monthly refreshes.
 
-### Scout
+### Signal *(Starter tier and up)*
+Owns: calls, SMS, DMs, email, appointments. The user-facing hero agent for inbound comms.
+When it runs: real-time on every inbound call/message. Booking logic runs sync.
+
+### Scout *(Team tier and up)*
 Owns: competitor tracking, rival content monitoring.
 When it runs: weekly sweeps. On-demand when user asks "what are my competitors doing?"
 
-### Pulse
+### Pulse *(Team tier and up)*
 Owns: external signals — news, trends, cultural moments relevant to the user's business.
 When it runs: daily sweeps. Surfaces "act fast" opportunities.
 
-### Ads
-Owns: paid campaign planning, budget allocation, creative generation.
-When it runs: weekly planning, daily optimization. **Out of scope for v1 MVP.** Stub it.
-
-### Echo
+### Echo *(Team tier and up)*
 Owns: organic content creation — posts, captions, hashtags, scheduling. The user-facing hero agent for content.
 When it runs: daily content pipeline. On-demand for user-triggered posts.
 
-### Signal
-Owns: calls, SMS, DMs, email, appointments. The user-facing hero agent for inbound comms.
-When it runs: real-time on every inbound call/message. Booking logic runs sync.
+### Ads *(Studio tier · coming soon)*
+Owns: paid campaign planning, budget allocation, creative generation.
+When it runs: weekly planning, daily optimization. **Out of scope for v1 MVP.** Stubbed.
+
+### Site *(Studio tier · coming soon)*
+Owns: building and updating the user's website.
+When it runs: on-demand. **Out of scope for v1 MVP.** Stubbed.
 
 **Coordination:** Agents share state via the `agent_context` table (per-user context) and `agent_events` table (cross-agent signals). When Strategist updates the brand voice, Echo reads the latest version on next run. No direct agent-to-agent calls.
 
@@ -204,7 +244,7 @@ The Strategist job runs after onboarding completes, analyzing the user's Instagr
 
 ### Incoming call (Signal hero flow)
 ```
-Customer dials ORB number → Twilio receives → forwards audio to Vapi
+Customer dials ADFI number → Twilio receives → forwards audio to Vapi
 Vapi → runs per-user system prompt (loaded from agent_context)
 Vapi → real-time conversation with caller
 Vapi → end of call → webhook to /api/webhooks/vapi
@@ -234,7 +274,7 @@ Full threat model in `SECURITY.md`.
 
 - Multi-tenant enterprise features (SSO, SAML, workspaces)
 - Desktop app
-- Android support in v1 (iOS-first; Android after PMF)
+- Android app lagging iOS by more than a few weeks (both are launch scope)
 - Real-time collaboration (not a team product)
 - LLM-provider abstraction (Claude-only until proven otherwise)
 - Self-hosted option

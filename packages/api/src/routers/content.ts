@@ -2,7 +2,10 @@ import { z } from "zod";
 import { DraftStatus, Platform } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
-import { generateDailyContent } from "../agents/echo";
+import {
+  generateDailyContent,
+  regenerateDraftContent,
+} from "../agents/echo";
 
 const paginationInput = z.object({
   limit: z.number().min(1).max(100).default(20),
@@ -111,6 +114,30 @@ export const contentRouter = router({
           throw OrbError.VALIDATION(error.message);
         }
         console.error("Echo generate failed:", error);
+        throw OrbError.EXTERNAL_API("Claude");
+      }
+    }),
+
+  regenerateDraft: authedProc
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        hint: z.string().max(300).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const draft = await ctx.db.contentDraft.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+      });
+      if (!draft) throw OrbError.NOT_FOUND("draft");
+      try {
+        await regenerateDraftContent(input.id, input.hint);
+        return { success: true as const };
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("Brand voice")) {
+          throw OrbError.VALIDATION(error.message);
+        }
+        console.error("Echo regenerate failed:", error);
         throw OrbError.EXTERNAL_API("Claude");
       }
     }),

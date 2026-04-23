@@ -73,7 +73,7 @@ Write the next post.`;
 }
 
 // Orchestration: generate one new draft for the given user. Called by
-// `content.generate` tRPC procedure, scheduled cron, or regenerate flows.
+// `content.generate` tRPC procedure or scheduled cron.
 export async function generateDailyContent(
   userId: string,
   hint?: string,
@@ -138,4 +138,83 @@ export async function generateDailyContent(
   });
 
   return draft.id;
+}
+
+// Regenerate an existing draft in place — pulls the previous caption into
+// the prompt as context so Echo doesn't repeat the same angle. Resets the
+// draft to AWAITING_REVIEW with the new content.
+export async function regenerateDraftContent(
+  draftId: string,
+  hint?: string,
+): Promise<void> {
+  const draft = await db.contentDraft.findUnique({
+    where: { id: draftId },
+    include: {
+      user: { include: { agentContext: true } },
+    },
+  });
+  if (!draft) throw new Error("Draft not found");
+  if (!draft.user.agentContext?.strategistOutput) {
+    throw new Error(
+      "Brand voice not set — run onboarding analysis before regenerating",
+    );
+  }
+
+  const prevContent = draft.content as { caption?: string } | null;
+  const prevCaption = prevContent?.caption;
+
+  const recentPosts = await db.contentPost.findMany({
+    where: { userId: draft.userId },
+    orderBy: { publishedAt: "desc" },
+    take: 10,
+    select: { draft: { select: { content: true } } },
+  });
+
+  const recentCaptions = recentPosts
+    .map((p) => {
+      const c = p.draft.content as { caption?: string } | null;
+      return c?.caption ?? "";
+    })
+    .filter(Boolean);
+
+  const combinedHint = [
+    hint,
+    prevCaption ? `Previous attempt didn't land: "${prevCaption}"` : null,
+  ]
+    .filter((s): s is string => Boolean(s))
+    .join(". ");
+
+  const result = await runEcho({
+    businessDescription: draft.user.businessDescription ?? "",
+    brandVoice: draft.user.agentContext.strategistOutput,
+    recentCaptions,
+    hint: combinedHint || undefined,
+  });
+
+  await db.contentDraft.update({
+    where: { id: draftId },
+    data: {
+      status: DraftStatus.AWAITING_REVIEW,
+      content: {
+        caption: result.caption,
+        hashtags: result.hashtags,
+        pillar: result.pillar,
+      } as Prisma.InputJsonValue,
+      voiceMatchScore: result.voiceMatchConfidence,
+      rejectedAt: null,
+      rejectionReason: null,
+    },
+  });
+
+  await db.agentEvent.create({
+    data: {
+      userId: draft.userId,
+      agent: Agent.ECHO,
+      eventType: "draft_regenerated",
+      payload: {
+        draftId,
+        hint: hint ?? null,
+      },
+    },
+  });
 }

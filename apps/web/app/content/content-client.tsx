@@ -10,6 +10,8 @@ type DraftContent = {
 
 export function ContentClient() {
   const [hint, setHint] = useState("");
+  const [regenHints, setRegenHints] = useState<Record<string, string>>({});
+  const [activeRegenId, setActiveRegenId] = useState<string | null>(null);
   const utils = trpc.useUtils();
 
   const awaitingQuery = trpc.content.listDrafts.useQuery({
@@ -34,6 +36,13 @@ export function ContentClient() {
   const generateMutation = trpc.content.generate.useMutation({
     onSuccess: () => {
       setHint("");
+      invalidateAll();
+    },
+  });
+  const regenerateMutation = trpc.content.regenerateDraft.useMutation({
+    onSuccess: () => {
+      setRegenHints({});
+      setActiveRegenId(null);
       invalidateAll();
     },
   });
@@ -113,22 +122,72 @@ export function ContentClient() {
                     {content.hashtags.map((t) => `#${t.replace(/^#/, "")}`).join(" ")}
                   </p>
                 )}
-                <div className="flex gap-sm mt-sm">
+                <div className="flex gap-sm mt-sm flex-wrap">
                   <button
                     onClick={() => approveMutation.mutate({ id: draft.id })}
-                    disabled={approveMutation.isPending}
+                    disabled={approveMutation.isPending || regenerateMutation.isPending}
                     className="px-md py-xs bg-ink text-bg rounded-md text-sm font-medium disabled:opacity-50"
                   >
                     approve
                   </button>
                   <button
                     onClick={() => rejectMutation.mutate({ id: draft.id })}
-                    disabled={rejectMutation.isPending}
+                    disabled={rejectMutation.isPending || regenerateMutation.isPending}
                     className="px-md py-xs bg-bg border border-border text-ink3 rounded-md text-sm font-medium disabled:opacity-50"
                   >
                     reject
                   </button>
+                  <button
+                    onClick={() =>
+                      setActiveRegenId(activeRegenId === draft.id ? null : draft.id)
+                    }
+                    disabled={regenerateMutation.isPending}
+                    className="px-md py-xs bg-bg border border-border text-ink3 rounded-md text-sm font-medium disabled:opacity-50"
+                  >
+                    write differently
+                  </button>
                 </div>
+
+                {activeRegenId === draft.id && (
+                  <div className="flex flex-col gap-sm pt-sm">
+                    <input
+                      type="text"
+                      value={regenHints[draft.id] ?? ""}
+                      onChange={(e) =>
+                        setRegenHints({
+                          ...regenHints,
+                          [draft.id]: e.target.value,
+                        })
+                      }
+                      placeholder="hint (optional — e.g. 'shorter', 'less formal')"
+                      className="px-md py-xs bg-bg border border-border rounded-md text-sm text-ink focus:outline-none focus:border-ink3"
+                      disabled={regenerateMutation.isPending}
+                    />
+                    <div className="flex gap-sm">
+                      <button
+                        onClick={() =>
+                          regenerateMutation.mutate({
+                            id: draft.id,
+                            hint: regenHints[draft.id] || undefined,
+                          })
+                        }
+                        disabled={regenerateMutation.isPending}
+                        className="px-md py-xs bg-ink text-bg rounded-md text-sm font-medium disabled:opacity-50"
+                      >
+                        {regenerateMutation.isPending &&
+                        regenerateMutation.variables?.id === draft.id
+                          ? "thinking..."
+                          : "rewrite"}
+                      </button>
+                      <button
+                        onClick={() => setActiveRegenId(null)}
+                        className="px-md py-xs text-ink3 text-sm font-mono"
+                      >
+                        cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })

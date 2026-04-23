@@ -13,6 +13,7 @@ export {
 export {
   runEcho,
   generateDailyContent,
+  regenerateDraftContent,
   type EchoOutput,
 } from "./agents/echo";
 export {

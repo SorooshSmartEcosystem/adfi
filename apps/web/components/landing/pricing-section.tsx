@@ -87,7 +87,7 @@ export function PricingSection() {
                 ))}
               </ul>
               <Link
-                href="/signin"
+                href="/signup"
                 className={`block text-center w-full py-[10px] rounded-full text-sm font-medium transition-colors ${
                   p.featured
                     ? "bg-ink text-white"

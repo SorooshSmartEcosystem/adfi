@@ -26,7 +26,7 @@ export function Hero() {
 
         <div className="flex gap-sm justify-center flex-wrap mb-md">
           <Link
-            href="/signin"
+            href="/signup"
             className="bg-ink text-white px-[26px] py-md rounded-full text-base font-medium"
           >
             start free trial

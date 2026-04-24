@@ -32,7 +32,7 @@ export function SplashScreen() {
       </View>
 
       <SplashCta
-        onStart={() => router.push("/signin")}
+        onStart={() => router.push("/signin?next=onboarding")}
         onSignIn={() => router.push("/signin")}
       />
     </View>

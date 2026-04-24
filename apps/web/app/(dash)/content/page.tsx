@@ -3,6 +3,15 @@ import { createServerClient } from "@orb/auth/server";
 import { trpcServer } from "../../../lib/trpc-server";
 import { WeekGrid } from "../../../components/content/week-grid";
 import { PerformanceCards } from "../../../components/content/performance-cards";
+import { ContentTabs } from "../../../components/content/tabs";
+import { DraftsPanel } from "../../../components/content/drafts-panel";
+
+type Tab = "week" | "drafts" | "performance";
+
+function parseTab(value: string | string[] | undefined): Tab {
+  if (value === "drafts" || value === "performance") return value;
+  return "week";
+}
 
 const DAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -15,12 +24,19 @@ function shortPlatform(p: string): string {
   return p.slice(0, 2);
 }
 
-export default async function ContentPage() {
+export default async function ContentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
   const supabase = await createServerClient();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
   if (!authUser) redirect("/signin");
+
+  const { tab: tabParam } = await searchParams;
+  const tab = parseTab(tabParam);
 
   const trpc = await trpcServer();
   const [drafts, posts] = await Promise.all([
@@ -116,30 +132,26 @@ export default async function ContentPage() {
     }))
     .sort((a, b) => b.reach - a.reach)[0];
 
+  const pendingDrafts = drafts.items.filter(
+    (d) => d.status === "AWAITING_REVIEW" || d.status === "AWAITING_PHOTOS",
+  ).length;
+
   return (
     <>
-      <div className="flex items-center justify-between mb-xl flex-wrap gap-md">
-        <div className="flex items-center gap-sm">
-          <span className="font-mono text-xs px-md py-[5px] rounded-full bg-ink text-white border-hairline border-ink">
-            this week
-          </span>
-          <span className="font-mono text-xs text-ink2 px-md py-[5px] rounded-full border-hairline border-border">
-            drafts · {drafts.items.filter((d) => d.status !== "PUBLISHED").length}
-          </span>
-          <span className="font-mono text-xs text-ink2 px-md py-[5px] rounded-full border-hairline border-border">
-            performance
-          </span>
-        </div>
-      </div>
+      <ContentTabs active={tab} draftsCount={pendingDrafts} />
 
-      <div className="mb-xl">
-        <WeekGrid rangeLabel={rangeLabel} slots={slots} />
-      </div>
-
-      <PerformanceCards
-        bestPost={bestPost ?? null}
-        insights={[]}
-      />
+      {tab === "drafts" ? (
+        <DraftsPanel />
+      ) : tab === "performance" ? (
+        <PerformanceCards bestPost={bestPost ?? null} insights={[]} />
+      ) : (
+        <>
+          <div className="mb-xl">
+            <WeekGrid rangeLabel={rangeLabel} slots={slots} />
+          </div>
+          <PerformanceCards bestPost={bestPost ?? null} insights={[]} />
+        </>
+      )}
     </>
   );
 }

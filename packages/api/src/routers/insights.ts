@@ -49,11 +49,26 @@ export const insightsRouter = router({
       const end = input.weekOf ?? new Date();
       const start = new Date(end.getTime() - 7 * DAY_MS);
 
-      const [posts, messages, calls, appointments] = await Promise.all([
+      const priorStart = new Date(start.getTime() - 7 * DAY_MS);
+      const [
+        posts,
+        priorPosts,
+        messages,
+        calls,
+        appointments,
+        findings,
+      ] = await Promise.all([
         ctx.db.contentPost.findMany({
           where: {
             userId: ctx.user.id,
             publishedAt: { gte: start, lte: end },
+          },
+          select: { metrics: true },
+        }),
+        ctx.db.contentPost.findMany({
+          where: {
+            userId: ctx.user.id,
+            publishedAt: { gte: priorStart, lt: start },
           },
           select: { metrics: true },
         }),
@@ -67,27 +82,49 @@ export const insightsRouter = router({
         ctx.db.call.count({
           where: { userId: ctx.user.id, startedAt: { gte: start, lte: end } },
         }),
-        ctx.db.appointment.count({
+        ctx.db.appointment.findMany({
           where: {
             userId: ctx.user.id,
             createdAt: { gte: start, lte: end },
           },
+          select: { estimatedValueCents: true },
+        }),
+        ctx.db.finding.findMany({
+          where: { userId: ctx.user.id, createdAt: { gte: start, lte: end } },
+          orderBy: { createdAt: "desc" },
+          take: 10,
         }),
       ]);
 
-      const reach = posts.reduce((sum, p) => {
-        const m = p.metrics as { reach?: number } | null;
-        return sum + (m?.reach ?? 0);
-      }, 0);
+      const sumReach = (ps: { metrics: unknown }[]) =>
+        ps.reduce((sum, p) => {
+          const m = p.metrics as { reach?: number } | null;
+          return sum + (m?.reach ?? 0);
+        }, 0);
+
+      const reach = sumReach(posts);
+      const reachPrior = sumReach(priorPosts);
+      const reachDeltaPct =
+        reachPrior > 0
+          ? Math.round(((reach - reachPrior) / reachPrior) * 100)
+          : null;
+
+      const revenueImpactCents = appointments.reduce(
+        (sum, a) => sum + (a.estimatedValueCents ?? 0),
+        0,
+      );
 
       return {
         weekStart: start,
         weekEnd: end,
         postsPublished: posts.length,
         reach,
+        reachDeltaPct,
         messagesInbound: messages,
         callsHandled: calls,
-        appointmentsBooked: appointments,
+        appointmentsBooked: appointments.length,
+        revenueImpactCents,
+        findings,
       };
     }),
 

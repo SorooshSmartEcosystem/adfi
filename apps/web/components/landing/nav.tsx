@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Orb } from "../shared/orb";
 
 export function LandingNav({
   isAuthed = false,
@@ -13,10 +14,7 @@ export function LandingNav({
     <nav className="sticky top-0 z-50 topbar-blur border-b-hairline border-border">
       <div className="max-w-[1080px] mx-auto px-lg flex items-center justify-between py-md">
         <Link href="/" className="flex items-center gap-sm font-medium text-md tracking-tight text-ink">
-          <span
-            className="w-[16px] h-[16px] rounded-full animate-breathe-dot"
-            style={{ background: "radial-gradient(circle at 35% 30%, #333 0%, #111 60%)" }}
-          />
+          <Orb size="sm" ring={false} />
           <span>adfi</span>
         </Link>
         <div className="flex items-center gap-lg">

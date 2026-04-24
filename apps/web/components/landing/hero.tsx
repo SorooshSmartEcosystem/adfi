@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Orb } from "../shared/orb";
 
 export function Hero() {
   return (
@@ -9,15 +10,8 @@ export function Hero() {
           <span>LIVE · RUNNING FOR SOLOPRENEURS NOW</span>
         </div>
 
-        <div className="relative w-[120px] h-[120px] mx-auto mb-[40px]">
-          <div
-            className="w-full h-full rounded-full animate-orb-float"
-            style={{
-              background:
-                "radial-gradient(circle at 35% 30%, #2a2a2a 0%, #111 60%)",
-            }}
-          />
-          <div className="absolute -inset-[12px] rounded-full border-hairline border-ink/10 animate-orb-ring" />
+        <div className="mx-auto mb-[40px] flex justify-center">
+          <Orb size="xl" />
         </div>
 
         <h1 className="text-[clamp(36px,7vw,56px)] font-medium tracking-[-0.035em] leading-[1.05] mb-md">

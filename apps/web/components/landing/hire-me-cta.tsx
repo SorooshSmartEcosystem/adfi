@@ -1,17 +1,14 @@
 import Link from "next/link";
+import { Orb } from "../shared/orb";
 
 export function HireMeCta() {
   return (
     <section className="py-[100px] px-lg">
       <div className="max-w-[1080px] mx-auto">
         <div className="bg-ink text-white rounded-[28px] px-lg py-[80px] text-center relative overflow-hidden">
-          <div
-            className="w-[80px] h-[80px] rounded-full mx-auto mb-[32px] animate-orb-float"
-            style={{
-              background:
-                "radial-gradient(circle at 35% 30%, #2a2a2a 0%, #050505 60%)",
-            }}
-          />
+          <div className="mx-auto mb-[32px] flex justify-center">
+            <Orb size="lg" />
+          </div>
           <div className="font-mono text-[10px] text-white/50 tracking-[0.2em] mb-md">
             READY WHEN YOU ARE
           </div>

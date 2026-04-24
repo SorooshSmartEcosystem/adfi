@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { createBrowserClient } from "@orb/auth/client";
+import { Orb } from "../shared/orb";
 
 type Mode = "login" | "signup";
 type Status = "idle" | "sending" | "sent" | "error";
@@ -69,15 +70,9 @@ export function AuthCard({ mode }: { mode: Mode }) {
 
   if (status === "sent") {
     return (
-      <div className="w-full max-w-[420px] bg-white border-hairline border-border rounded-2xl p-xl text-center">
-        <div className="relative w-[48px] h-[48px] mx-auto mb-lg">
-          <div
-            className="w-full h-full rounded-full animate-orb-float"
-            style={{
-              background:
-                "radial-gradient(circle at 35% 30%, #2a2a2a 0%, #111 60%)",
-            }}
-          />
+      <div className="w-full max-w-[420px] bg-white border-hairline border-border rounded-[16px] p-[20px] text-center">
+        <div className="mx-auto mb-lg flex justify-center">
+          <Orb size="md" ring={false} />
         </div>
         <h2 className="text-2xl font-medium tracking-tight mb-sm">
           check your inbox.
@@ -99,16 +94,9 @@ export function AuthCard({ mode }: { mode: Mode }) {
   const submitLabel = mode === "login" ? "send login code" : "continue →";
 
   return (
-    <div className="w-full max-w-[420px] bg-white border-hairline border-border rounded-2xl p-xl">
-      <div className="relative w-[48px] h-[48px] mx-auto mb-lg">
-        <div
-          className="w-full h-full rounded-full animate-orb-float"
-          style={{
-            background:
-              "radial-gradient(circle at 35% 30%, #2a2a2a 0%, #111 60%)",
-          }}
-        />
-        <div className="absolute -inset-[6px] rounded-full border-hairline border-ink/10 animate-orb-ring" />
+    <div className="w-full max-w-[420px] bg-white border-hairline border-border rounded-[16px] p-[20px]">
+      <div className="mx-auto mb-lg flex justify-center">
+        <Orb size="md" />
       </div>
 
       <h2 className="text-2xl font-medium tracking-tight mb-sm text-center">

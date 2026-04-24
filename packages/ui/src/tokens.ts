@@ -37,16 +37,16 @@ export const fontWeights = {
 } as const;
 
 export const fontSizes = {
-  xs: 11,
-  sm: 12,
-  base: 14,
-  md: 15,
-  lg: 17,
-  xl: 19,
-  "2xl": 23,
-  "3xl": 28,
-  "4xl": 36,
-  "5xl": 44,
+  xs: 13,
+  sm: 14,
+  base: 17,
+  md: 18,
+  lg: 20,
+  xl: 23,
+  "2xl": 28,
+  "3xl": 34,
+  "4xl": 43,
+  "5xl": 53,
 } as const;
 
 export const radii = {

@@ -3,7 +3,104 @@ import { Direction, MessageChannel } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 
+export type InboxItem =
+  | {
+      kind: "thread";
+      id: string;
+      channel: "SMS" | "INSTAGRAM_DM" | "EMAIL";
+      fromAddress: string;
+      preview: string;
+      at: Date;
+      handled: boolean;
+    }
+  | {
+      kind: "call";
+      id: string;
+      channel: "CALL";
+      fromAddress: string;
+      preview: string;
+      at: Date;
+      handled: boolean;
+      booked: boolean;
+    };
+
 export const messagingRouter = router({
+  // Unified inbox: messages (grouped by thread) + calls, newest first.
+  inboxFeed: authedProc
+    .input(
+      z.object({
+        filter: z.enum(["all", "calls", "texts", "dms"]).default("all"),
+        limit: z.number().min(1).max(50).default(30),
+      }),
+    )
+    .query(async ({ ctx, input }): Promise<InboxItem[]> => {
+      const [msgs, calls, appts] = await Promise.all([
+        input.filter === "calls"
+          ? Promise.resolve([])
+          : ctx.db.message.findMany({
+              where: { userId: ctx.user.id },
+              orderBy: { createdAt: "desc" },
+              take: 500,
+            }),
+        input.filter === "texts" || input.filter === "dms"
+          ? Promise.resolve([])
+          : ctx.db.call.findMany({
+              where: { userId: ctx.user.id },
+              orderBy: { startedAt: "desc" },
+              take: input.limit,
+            }),
+        ctx.db.appointment.findMany({
+          where: { userId: ctx.user.id, callId: { not: null } },
+          select: { callId: true },
+        }),
+      ]);
+
+      const bookedCallIds = new Set(appts.map((a) => a.callId).filter(Boolean));
+
+      const threadMap = new Map<string, (typeof msgs)[number]>();
+      for (const m of msgs) {
+        const current = threadMap.get(m.threadId);
+        if (!current) threadMap.set(m.threadId, m);
+      }
+
+      const threadItems: InboxItem[] = Array.from(threadMap.values())
+        .filter((m) => {
+          if (input.filter === "texts") return m.channel === "SMS";
+          if (input.filter === "dms") return m.channel === "INSTAGRAM_DM";
+          return true;
+        })
+        .map((m) => ({
+          kind: "thread" as const,
+          id: m.threadId,
+          channel: m.channel,
+          fromAddress: m.fromAddress,
+          preview: m.body.slice(0, 160),
+          at: m.createdAt,
+          handled: Boolean(m.handledBy),
+        }));
+
+      const callItems: InboxItem[] = calls.map((c) => {
+        const intent = (c.extractedIntent ?? {}) as { summary?: string };
+        return {
+          kind: "call" as const,
+          id: c.id,
+          channel: "CALL" as const,
+          fromAddress: c.fromNumber,
+          preview: intent.summary ?? "caller left no details",
+          at: c.startedAt,
+          handled:
+            c.recoveredStatus === "ANSWERED_BY_SIGNAL" ||
+            c.recoveredStatus === "ANSWERED_BY_USER" ||
+            c.recoveredStatus === "MISSED_AND_RECOVERED",
+          booked: bookedCallIds.has(c.id),
+        };
+      });
+
+      return [...threadItems, ...callItems]
+        .sort((a, b) => b.at.getTime() - a.at.getTime())
+        .slice(0, input.limit);
+    }),
+
   // Returns the most recent message per thread (thread preview list).
   // For v1 volumes this fetches recent messages and groups in JS; swap to
   // Postgres DISTINCT ON with a raw query when inbox volumes outgrow this.

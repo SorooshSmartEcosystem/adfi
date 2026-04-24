@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Direction, FindingSeverity } from "@orb/db";
+import { Agent, Direction, FindingSeverity } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 
@@ -11,6 +11,8 @@ export const insightsRouter = router({
       z.object({
         severity: z.nativeEnum(FindingSeverity).optional(),
         acknowledged: z.boolean().optional(),
+        agent: z.nativeEnum(Agent).optional(),
+        limit: z.number().min(1).max(50).default(20),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -21,8 +23,10 @@ export const insightsRouter = router({
           ...(input.acknowledged !== undefined && {
             acknowledged: input.acknowledged,
           }),
+          ...(input.agent && { agent: input.agent }),
         },
         orderBy: { createdAt: "desc" },
+        take: input.limit,
       });
     }),
 

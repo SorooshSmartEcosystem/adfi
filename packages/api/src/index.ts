@@ -32,6 +32,12 @@ export {
   sendSms,
   validateTwilioSignature,
 } from "./services/twilio";
+export {
+  stripe,
+  priceIdForPlan,
+  planForPriceId,
+  PLAN_PRICES_CENTS,
+} from "./services/stripe";
 
 // Cron orchestration (invoked by /api/cron/* route handlers)
 export {

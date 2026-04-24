@@ -4,6 +4,7 @@ import { trpcServer } from "../../../lib/trpc-server";
 import { Card } from "../../../components/shared/card";
 import { Row, Section } from "../../../components/settings/section";
 import { StatusDot } from "../../../components/shared/status-dot";
+import { BillingCard } from "../../../components/settings/billing-card";
 
 function formatPhone(raw: string | null | undefined): string {
   if (!raw) return "not set up";
@@ -49,30 +50,7 @@ export default async function SettingsPage() {
       </Section>
 
       <Section label="PLAN">
-        <Card>
-          <div className="flex items-start justify-between mb-md">
-            <div>
-              <div className="text-lg font-medium">
-                {home.trialDaysLeft && home.trialDaysLeft > 0
-                  ? "trial · monthly"
-                  : "team · monthly"}
-              </div>
-              <div className="font-mono text-sm text-ink4 mt-xs">
-                {home.trialDaysLeft && home.trialDaysLeft > 0
-                  ? `${home.trialDaysLeft} DAYS LEFT · NO CHARGE YET`
-                  : "$99/MO"}
-              </div>
-            </div>
-            <span className="font-mono text-[10px] bg-alive text-[#1a4a2c] px-md py-[3px] rounded-full tracking-[0.1em]">
-              ACTIVE
-            </span>
-          </div>
-          <div className="flex items-center gap-md flex-wrap">
-            <ChipButton label="change plan" />
-            <ChipButton label="billing history" />
-            <ChipButton label="update card" />
-          </div>
-        </Card>
+        <BillingCard />
       </Section>
 
       <Section label="CONNECTED ACCOUNTS">
@@ -121,17 +99,6 @@ export default async function SettingsPage() {
         </Card>
       </Section>
     </div>
-  );
-}
-
-function ChipButton({ label }: { label: string }) {
-  return (
-    <button
-      type="button"
-      className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors"
-    >
-      {label}
-    </button>
   );
 }
 

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
+    "prebuild": "pnpm --filter @orb/db exec prisma generate",
     "build": "next build",
     "start": "next start -p 3001",
     "typecheck": "tsc --noEmit",
@@ -12,7 +13,9 @@
   "dependencies": {
     "@orb/api": "workspace:*",
     "@orb/auth": "workspace:*",
+    "@orb/db": "workspace:*",
     "@orb/ui": "workspace:*",
+    "@prisma/client": "^5.22.0",
     "@trpc/server": "^11.0.0",
     "next": "^15.1.0",
     "react": "^18.3.1",

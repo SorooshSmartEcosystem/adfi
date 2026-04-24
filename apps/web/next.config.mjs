@@ -9,16 +9,22 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
 
-  // Monorepo root — lets Next's file tracer reach sibling packages.
+  // Externalize Prisma — load at runtime from node_modules instead of bundling.
+  // This avoids the need to rewrite its internal dynamic loader for the query
+  // engine binary path.
+  serverExternalPackages: ["@prisma/client", ".prisma/client"],
+
+  // Monorepo root — tells Next's file tracer where the project actually starts
+  // (Vercel mounts this at /var/task at runtime).
   outputFileTracingRoot: path.join(__dirname, "../../"),
 
-  // Prisma's generated client + rhel query engine binary live deep inside
-  // pnpm's nested layout; Vercel's bundle tracer doesn't follow them by
-  // default, so include them explicitly.
+  // Include the generated Prisma client + the rhel query-engine binary in the
+  // deployed bundle. Paths are relative to outputFileTracingRoot.
   outputFileTracingIncludes: {
     "/**/*": [
-      "../../node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
-      "../../node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/**/*",
+      "node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
+      "node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/**/*",
+      "node_modules/.pnpm/@prisma+engines@*/node_modules/@prisma/engines/**/*",
     ],
   },
 };

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
+    "prebuild": "pnpm --filter @orb/db exec prisma generate",
     "build": "next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
@@ -12,7 +13,9 @@
   "dependencies": {
     "@orb/api": "workspace:*",
     "@orb/auth": "workspace:*",
+    "@orb/db": "workspace:*",
     "@orb/ui": "workspace:*",
+    "@prisma/client": "^5.22.0",
     "@tanstack/react-query": "^5.60.0",
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",

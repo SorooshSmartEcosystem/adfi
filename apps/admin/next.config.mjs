@@ -9,12 +9,15 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
 
+  serverExternalPackages: ["@prisma/client", ".prisma/client"],
+
   outputFileTracingRoot: path.join(__dirname, "../../"),
 
   outputFileTracingIncludes: {
     "/**/*": [
-      "../../node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
-      "../../node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/**/*",
+      "node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
+      "node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/**/*",
+      "node_modules/.pnpm/@prisma+engines@*/node_modules/@prisma/engines/**/*",
     ],
   },
 };

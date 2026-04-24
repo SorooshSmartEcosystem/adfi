@@ -15,9 +15,15 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const initial = user?.email?.charAt(0).toUpperCase() ?? "M";
+
   return (
     <main className="min-h-screen bg-bg">
-      <LandingNav isAuthed={Boolean(user)} />
+      <LandingNav
+        isAuthed={Boolean(user)}
+        userInitial={initial}
+        userLabel={user?.email ?? null}
+      />
       <Hero />
       <WhatSection />
       <HowSection />

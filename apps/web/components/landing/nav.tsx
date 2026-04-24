@@ -1,6 +1,14 @@
 import Link from "next/link";
 
-export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
+export function LandingNav({
+  isAuthed = false,
+  userInitial = "M",
+  userLabel = null,
+}: {
+  isAuthed?: boolean;
+  userInitial?: string;
+  userLabel?: string | null;
+}) {
   return (
     <nav className="sticky top-0 z-50 topbar-blur border-b-hairline border-border">
       <div className="max-w-[1080px] mx-auto px-lg flex items-center justify-between py-md">
@@ -21,9 +29,11 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
           {isAuthed ? (
             <Link
               href="/dashboard"
-              className="bg-ink text-white px-md py-[8px] rounded-full text-sm font-medium"
+              aria-label={userLabel ? `open dashboard (${userLabel})` : "open dashboard"}
+              title={userLabel ?? "open dashboard"}
+              className="w-9 h-9 rounded-full bg-ink text-white flex items-center justify-center font-medium text-sm hover:opacity-85 transition-opacity"
             >
-              go to dashboard →
+              {userInitial}
             </Link>
           ) : (
             <>

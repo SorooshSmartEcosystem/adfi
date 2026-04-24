@@ -20,9 +20,15 @@ export function LandingNav() {
           </a>
           <Link
             href="/signin"
+            className="text-sm text-ink3 hover:text-ink transition-colors"
+          >
+            log in
+          </Link>
+          <Link
+            href="/signin"
             className="bg-ink text-white px-md py-[8px] rounded-full text-sm font-medium"
           >
-            get the app
+            get started
           </Link>
         </div>
       </div>

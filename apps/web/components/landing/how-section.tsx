@@ -29,8 +29,11 @@ export function HowSection() {
         />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
           {STEPS.map((s) => (
-            <div key={s.num}>
-              <div className="font-mono text-sm text-ink4 tracking-[0.15em] mb-sm">
+            <div
+              key={s.num}
+              className="border-hairline border-border rounded-2xl p-lg bg-bg"
+            >
+              <div className="font-mono text-sm text-ink4 tracking-[0.15em] mb-md">
                 {s.num}
               </div>
               <div className="text-lg font-medium mb-sm">{s.title}</div>

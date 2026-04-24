@@ -25,7 +25,7 @@ export function HireMeCta() {
           </p>
           <div className="flex gap-sm justify-center flex-wrap mb-lg">
             <Link
-              href="/signin"
+              href="/signup"
               className="bg-white text-ink px-[26px] py-md rounded-full text-base font-medium"
             >
               start my 7 days free

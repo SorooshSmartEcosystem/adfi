@@ -52,6 +52,7 @@ const preset = {
         "2xl": "23px",
         "3xl": "28px",
         "4xl": "36px",
+        "5xl": "44px",
       },
       borderRadius: {
         sm: "8px",

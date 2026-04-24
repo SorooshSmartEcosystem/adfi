@@ -45,6 +45,7 @@ export const fontSizes = {
   "2xl": 23,
   "3xl": 28,
   "4xl": 36,
+  "5xl": 44,
 } as const;
 
 export const radii = {

@@ -132,7 +132,20 @@ export const onboardingRouter = router({
       });
       return { number: provisioned.number };
     } catch (error) {
-      console.error("Phone provisioning failed:", error);
+      // TEMP diag for 20003 debugging: log shape (no secrets) on every failure
+      const sid = process.env.TWILIO_ACCOUNT_SID;
+      const token = process.env.TWILIO_AUTH_TOKEN;
+      const base = process.env.NEXT_PUBLIC_WEB_URL;
+      console.error(
+        "Phone provisioning failed:",
+        error,
+        " | DIAG sid=",
+        sid ? `${sid.slice(0, 2)}***len=${sid.length}` : "MISSING",
+        "token=",
+        token ? `***len=${token.length}` : "MISSING",
+        "webhookBase=",
+        base ?? "FALLBACK_VERCEL_URL",
+      );
       throw OrbError.EXTERNAL_API("Twilio");
     }
   }),

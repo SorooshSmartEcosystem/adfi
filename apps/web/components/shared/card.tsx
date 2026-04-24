@@ -11,7 +11,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`bg-white border-hairline border-border rounded-2xl ${padded ? "p-xl" : ""} ${className}`}
+      className={`bg-white border-hairline border-border rounded-[16px] ${padded ? "p-[20px]" : ""} ${className}`}
     >
       {children}
     </div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { OnboardingProgress } from "./onboarding-progress";
+import { AuthHomeLink } from "../auth/auth-home-link";
 
 export function OnboardingShell({
   step,
@@ -11,9 +12,10 @@ export function OnboardingShell({
   children: ReactNode;
 }) {
   return (
-    <main className="min-h-screen bg-bg flex items-center justify-center px-lg py-2xl">
+    <main className="min-h-screen bg-bg flex flex-col items-center justify-center px-lg py-2xl">
+      <AuthHomeLink />
       <div
-        className={`w-full ${wide ? "max-w-[560px]" : "max-w-[440px]"} bg-white border-hairline border-border rounded-2xl p-xl`}
+        className={`w-full ${wide ? "max-w-[560px]" : "max-w-[440px]"} bg-white border-hairline border-border rounded-[16px] p-[20px]`}
       >
         <OnboardingProgress step={step} />
         {children}

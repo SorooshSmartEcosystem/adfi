@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export function Topbar({
   title,
   sub,
@@ -27,6 +29,12 @@ export function Topbar({
         </div>
       </div>
       <div className="flex items-center gap-sm shrink-0">
+        <Link
+          href="/"
+          className="font-mono text-xs text-ink3 hover:text-ink transition-colors px-sm"
+        >
+          adfi.ca ↗
+        </Link>
         <form action="/auth/signout" method="post">
           <button
             type="submit"

@@ -6,6 +6,15 @@ export function twilio(): Twilio {
   if (!client) {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
+    // TEMP diagnostic for 20003 debugging — no secrets revealed, just shape.
+    console.log(
+      "[Twilio diag] sid=",
+      accountSid
+        ? `${accountSid.slice(0, 2)}*** len=${accountSid.length}`
+        : "MISSING",
+      "token=",
+      authToken ? `*** len=${authToken.length}` : "MISSING",
+    );
     if (!accountSid || !authToken) {
       throw new Error(
         "TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set to use the Twilio service",

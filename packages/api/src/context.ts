@@ -46,17 +46,20 @@ export async function createContext(
     };
   }
 
-  // Cookie path (web + admin).
+  // Cookie path (web + admin). Use getUser() — it contacts Supabase Auth to
+  // verify the access token and silently refreshes it via refresh_token if
+  // expired. getSession() just reads local storage, which can be stale and
+  // triggers the "insecure" warning Supabase logs.
   const supabase = await createServerClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return {
     db,
     supabase,
-    session,
-    user: session?.user ?? null,
+    session: null,
+    user: user ?? null,
     headers: opts.headers,
   };
 }

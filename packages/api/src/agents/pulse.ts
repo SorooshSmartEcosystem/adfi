@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db, Agent, FindingSeverity } from "@orb/db";
 import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import { fetchNewsForQueries, type NewsItem } from "../services/news";
 import { PULSE_SYSTEM_PROMPT } from "./prompts/pulse";
 
 const PulseOutputSchema = z.object({
@@ -11,6 +12,7 @@ const PulseOutputSchema = z.object({
       relevanceToBusiness: z.string(),
       severity: z.enum(["info", "act_fast"]),
       suggestedAction: z.string().nullable(),
+      sourceUrl: z.string().nullable(),
     }),
   ),
 });
@@ -20,11 +22,22 @@ export type PulseOutput = z.infer<typeof PulseOutputSchema>;
 export async function runPulse(args: {
   businessDescription: string;
   brandVoice: unknown;
+  newsFeed: NewsItem[];
   currentDate?: Date;
 }): Promise<PulseOutput> {
   const dateLine = args.currentDate
     ? `Current date: ${args.currentDate.toISOString().slice(0, 10)}`
     : "";
+
+  const feedText =
+    args.newsFeed.length === 0
+      ? "(no news items collected today — rely on calendar/seasonal signals only)"
+      : args.newsFeed
+          .map(
+            (n, i) =>
+              `[${i + 1}] ${n.title}\n    source: ${n.source || "unknown"} · ${n.pubDate}\n    link: ${n.link}\n    snippet: ${n.snippet || "(no snippet)"}`,
+          )
+          .join("\n\n");
 
   const userMessage = `Business:
 ${args.businessDescription || "(not set)"}
@@ -33,6 +46,9 @@ Brand voice fingerprint:
 ${JSON.stringify(args.brandVoice ?? {}, null, 2)}
 
 ${dateLine}
+
+News feed (pick from these first; only add calendar signals if truly nothing fits):
+${feedText}
 
 Surface the signals this solopreneur should know about this week.`;
 
@@ -66,10 +82,45 @@ Surface the signals this solopreneur should know about this week.`;
   return PulseOutputSchema.parse(raw);
 }
 
-// Orchestration: run Pulse for a given user, persist findings + agent events.
+// Derives 3–5 Google News search queries from the user's brand voice +
+// business description. Falls back to a single generic query if the brand
+// voice is sparse.
+function deriveQueries(args: {
+  businessDescription: string;
+  brandVoice: unknown;
+}): string[] {
+  const bv = (args.brandVoice ?? {}) as {
+    contentPillars?: string[];
+    audienceSegments?: { name: string }[];
+  };
+
+  const pillars = (bv.contentPillars ?? []).slice(0, 3);
+  const audiences = (bv.audienceSegments ?? []).slice(0, 2).map((a) => a.name);
+
+  // Pull the first comma/period-delimited chunk of the business description
+  // as a topical seed (typically the category: "handmade ceramics studio", etc.)
+  const seed =
+    args.businessDescription
+      ?.split(/[.,\n]/)[0]
+      ?.trim()
+      .slice(0, 60) ?? "small business";
+
+  const queries = [
+    seed,
+    ...pillars.map((p) => `${seed} ${p}`),
+    ...audiences.map((a) => `${a} ${seed}`),
+  ]
+    .map((q) => q.trim())
+    .filter((q) => q.length > 0);
+
+  // Dedupe + cap
+  return Array.from(new Set(queries)).slice(0, 5);
+}
+
+// Orchestration: fetch real news, run Pulse, persist findings + agent events.
 export async function generatePulseSignals(
   userId: string,
-): Promise<{ findingsCreated: number }> {
+): Promise<{ findingsCreated: number; newsItems: number }> {
   const user = await db.user.findUnique({
     where: { id: userId },
     include: { agentContext: true },
@@ -79,9 +130,22 @@ export async function generatePulseSignals(
     throw new Error("Brand voice not set — run Strategist first");
   }
 
+  const queries = deriveQueries({
+    businessDescription: user.businessDescription ?? "",
+    brandVoice: user.agentContext.strategistOutput,
+  });
+
+  const newsFeed = await fetchNewsForQueries(queries, 5, 25).catch((err) => {
+    // News fetch is best-effort; fall back to empty feed so Claude can still
+    // return calendar signals if available.
+    console.warn("Pulse news fetch failed:", err);
+    return [] as NewsItem[];
+  });
+
   const result = await runPulse({
     businessDescription: user.businessDescription ?? "",
     brandVoice: user.agentContext.strategistOutput,
+    newsFeed,
     currentDate: new Date(),
   });
 
@@ -99,6 +163,7 @@ export async function generatePulseSignals(
           summary: signal.summary,
           relevance: signal.relevanceToBusiness,
           suggestedAction: signal.suggestedAction,
+          sourceUrl: signal.sourceUrl,
         },
       },
     });
@@ -109,6 +174,8 @@ export async function generatePulseSignals(
     data: {
       pulseSignals: {
         generatedAt: new Date().toISOString(),
+        queries,
+        newsItems: newsFeed.length,
         signals: result.signals,
       } as object,
     },
@@ -121,9 +188,11 @@ export async function generatePulseSignals(
       eventType: "sweep_complete",
       payload: {
         signalsCount: result.signals.length,
+        queriesRun: queries.length,
+        newsItemsFetched: newsFeed.length,
       },
     },
   });
 
-  return { findingsCreated: result.signals.length };
+  return { findingsCreated: result.signals.length, newsItems: newsFeed.length };
 }

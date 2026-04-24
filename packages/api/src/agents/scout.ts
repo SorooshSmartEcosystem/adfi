@@ -6,6 +6,7 @@ import {
   type Prisma,
 } from "@orb/db";
 import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import { fetchGoogleNews, type NewsItem } from "../services/news";
 import { SCOUT_SYSTEM_PROMPT } from "./prompts/scout";
 
 const ScoutOutputSchema = z.object({
@@ -17,32 +18,47 @@ const ScoutOutputSchema = z.object({
       recentIntuition: z.string().nullable(),
       surfaceableAsFinding: z.boolean(),
       findingSummary: z.string().nullable(),
+      sourceUrl: z.string().nullable(),
     }),
   ),
 });
 
 export type ScoutOutput = z.infer<typeof ScoutOutputSchema>;
 
+type CompetitorWithFeed = {
+  id: string;
+  name: string;
+  handle: string | null;
+  platform: string;
+  feed: NewsItem[];
+};
+
 export async function runScout(args: {
   businessDescription: string;
   brandVoice: unknown;
-  competitors: {
-    id: string;
-    name: string;
-    handle: string | null;
-    platform: string;
-  }[];
+  competitors: CompetitorWithFeed[];
 }): Promise<ScoutOutput> {
   if (args.competitors.length === 0) {
     return { observations: [] };
   }
 
-  const competitorsList = args.competitors
-    .map(
-      (c) =>
-        `- id: ${c.id}, name: ${c.name}${c.handle ? `, handle: ${c.handle}` : ""} (${c.platform})`,
-    )
-    .join("\n");
+  const blocks = args.competitors.map((c) => {
+    const feed =
+      c.feed.length === 0
+        ? "  (no recent news items found)"
+        : c.feed
+            .map(
+              (n) =>
+                `  - ${n.title}\n    source: ${n.source || "unknown"} · ${n.pubDate}\n    link: ${n.link}\n    snippet: ${n.snippet || "(no snippet)"}`,
+            )
+            .join("\n");
+    return `Competitor:
+  id: ${c.id}
+  name: ${c.name}${c.handle ? `\n  handle: ${c.handle}` : ""}
+  platform: ${c.platform}
+  recent news feed:
+${feed}`;
+  });
 
   const userMessage = `Business:
 ${args.businessDescription || "(not set)"}
@@ -50,8 +66,9 @@ ${args.businessDescription || "(not set)"}
 Brand voice fingerprint:
 ${JSON.stringify(args.brandVoice ?? {}, null, 2)}
 
-Competitors being tracked:
-${competitorsList}
+Competitors being tracked (with recent news):
+
+${blocks.join("\n\n")}
 
 Produce one observation per competitor.`;
 
@@ -85,10 +102,12 @@ Produce one observation per competitor.`;
   return ScoutOutputSchema.parse(raw);
 }
 
-// Orchestration: run Scout for a given user, persist findings + agent events.
+// Orchestration: fetch recent news per competitor, run Scout, persist findings
+// + agent events. News fetch is best-effort per competitor — if one fails, the
+// others still proceed.
 export async function generateCompetitorIntel(
   userId: string,
-): Promise<{ findingsCreated: number }> {
+): Promise<{ findingsCreated: number; newsItemsFetched: number }> {
   const user = await db.user.findUnique({
     where: { id: userId },
     include: {
@@ -101,22 +120,34 @@ export async function generateCompetitorIntel(
     throw new Error("Brand voice not set — run Strategist first");
   }
   if (user.competitors.length === 0) {
-    return { findingsCreated: 0 };
+    return { findingsCreated: 0, newsItemsFetched: 0 };
   }
+
+  const withFeeds: CompetitorWithFeed[] = await Promise.all(
+    user.competitors.map(async (c) => {
+      const query = `${c.name} announcement OR launch OR news`;
+      const feed = await fetchGoogleNews(query, 4).catch((err) => {
+        console.warn(`Scout news fetch failed for ${c.name}:`, err);
+        return [] as NewsItem[];
+      });
+      return {
+        id: c.id,
+        name: c.name,
+        handle: c.handle,
+        platform: c.platform,
+        feed,
+      };
+    }),
+  );
+
+  const newsItemsFetched = withFeeds.reduce((n, c) => n + c.feed.length, 0);
 
   const result = await runScout({
     businessDescription: user.businessDescription ?? "",
     brandVoice: user.agentContext.strategistOutput,
-    competitors: user.competitors.map((c) => ({
-      id: c.id,
-      name: c.name,
-      handle: c.handle,
-      platform: c.platform,
-    })),
+    competitors: withFeeds,
   });
 
-  // Update each competitor's recentActivity with their watchFor list, and
-  // create findings for surfaceable observations.
   let findingsCreated = 0;
   for (const obs of result.observations) {
     const competitor = user.competitors.find((c) => c.id === obs.competitorId);
@@ -128,6 +159,7 @@ export async function generateCompetitorIntel(
         recentActivity: {
           watchFor: obs.watchFor,
           recentIntuition: obs.recentIntuition,
+          sourceUrl: obs.sourceUrl,
           updatedAt: new Date().toISOString(),
         } as Prisma.InputJsonValue,
         lastCheckedAt: new Date(),
@@ -145,6 +177,7 @@ export async function generateCompetitorIntel(
             competitorId: competitor.id,
             competitorName: competitor.name,
             watchFor: obs.watchFor,
+            sourceUrl: obs.sourceUrl,
           },
         },
       });
@@ -160,9 +193,10 @@ export async function generateCompetitorIntel(
       payload: {
         competitorsChecked: user.competitors.length,
         findingsCreated,
+        newsItemsFetched,
       },
     },
   });
 
-  return { findingsCreated };
+  return { findingsCreated, newsItemsFetched };
 }

@@ -6,4 +6,56 @@ body {
   @apply bg-bg text-ink;
   font-family: -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv01";
+}
+
+/* Breathing dot — subtle pulse that signals "ADFI is alive and working".
+   Slower and smaller than Tailwind's built-in pulse. */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.animate-breathe {
+  animation: breathe 3.5s ease-in-out infinite;
+}
+
+/* Halo — faint ring that pulses around the breathing dot on the landing.
+   Gives the hero orb more weight without shadows. */
+@keyframes halo {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(1.6);
+  }
+}
+
+.animate-halo {
+  animation: halo 3.5s ease-in-out infinite;
+}
+
+/* Long-form reading width for thesis prose */
+.prose-reading {
+  max-width: 54ch;
+  line-height: 1.55;
+}
+
+/* Hairline separator — the single thin line style used throughout */
+.hairline-top {
+  border-top: 0.5px solid theme("colors.border");
+}
+.hairline-bottom {
+  border-bottom: 0.5px solid theme("colors.border");
 }

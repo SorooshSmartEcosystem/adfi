@@ -1,0 +1,85 @@
+import { Card } from "../shared/card";
+
+type Slot = {
+  day: string;
+  dateNum: number;
+  platform: string;
+  status: "published" | "needs-you" | "drafted" | "quiet";
+  title: string;
+  metric: string;
+};
+
+const STATUS_COLOR: Record<Slot["status"], string> = {
+  published: "text-aliveDark",
+  "needs-you": "text-attentionText",
+  drafted: "text-ink3",
+  quiet: "text-ink5",
+};
+
+const STATUS_BG: Record<Slot["status"], string> = {
+  published: "bg-white",
+  "needs-you": "bg-attentionBg",
+  drafted: "bg-white",
+  quiet: "bg-surface",
+};
+
+export function WeekGrid({
+  rangeLabel,
+  slots,
+}: {
+  rangeLabel: string;
+  slots: Slot[];
+}) {
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-lg">
+        <div>
+          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-xs">
+            {rangeLabel}
+          </div>
+          <div className="text-lg font-medium">this week&apos;s plan</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-sm">
+        {slots.map((s, i) => (
+          <div
+            key={i}
+            className={`rounded-md p-md min-h-[110px] border-hairline ${
+              s.status === "needs-you" ? "border-attentionBorder" : "border-border"
+            } ${STATUS_BG[s.status]}`}
+          >
+            <div className="flex items-start justify-between mb-sm">
+              <div>
+                <div className="font-mono text-sm text-ink4 tracking-[0.1em]">
+                  {s.day}
+                </div>
+                <div className="text-md font-medium">{s.dateNum}</div>
+              </div>
+              {s.platform ? (
+                <span
+                  className={`font-mono text-[10px] ${STATUS_COLOR[s.status]}`}
+                >
+                  {s.platform}
+                </span>
+              ) : null}
+            </div>
+            {s.title ? (
+              <>
+                <div className="text-sm font-medium leading-tight mb-xs">
+                  {s.title}
+                </div>
+                <div
+                  className={`font-mono text-[10px] tracking-[0.1em] ${STATUS_COLOR[s.status]}`}
+                >
+                  {s.status === "needs-you" ? "● NEEDS YOU" : s.metric}
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-ink5">quiet day</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}

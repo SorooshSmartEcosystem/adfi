@@ -3,6 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { skipToken } from "@tanstack/react-query";
 import { trpc } from "../../../lib/trpc";
+import {
+  OnboardingShell,
+  OnboardingHeading,
+} from "../../../components/onboarding/onboarding-shell";
+import { PrimaryButton } from "../../../components/onboarding/primary-button";
 
 type Stage = "thinking" | "done" | "error";
 
@@ -13,6 +18,13 @@ type BrandVoice = {
   contentPillars: string[];
   doNotDoList: string[];
 };
+
+const THINKING_STEPS = [
+  "reading your business description",
+  "learning how you sound",
+  "finding your real audience",
+  "spotting your biggest opportunity",
+];
 
 export function AnalysisClient() {
   const router = useRouter();
@@ -66,125 +78,112 @@ export function AnalysisClient() {
 
   if (stage === "thinking") {
     return (
-      <div className="flex flex-col items-center gap-md w-full max-w-md">
-        <div className="flex items-center gap-md mb-lg">
-          <span
-            className="inline-block w-sm h-sm rounded-full bg-alive animate-pulse"
-            aria-hidden
-          />
-          <h1 className="text-2xl font-medium tracking-tight">ADFI</h1>
+      <OnboardingShell step={3}>
+        <OnboardingHeading
+          title="give me 30 seconds."
+          sub="i'll look at your business and tell you what i see."
+        />
+        <div className="bg-ink text-white rounded-xl p-lg mb-lg">
+          <div className="flex items-center gap-sm mb-md">
+            <span className="w-[7px] h-[7px] rounded-full bg-alive animate-pulse-dot" />
+            <span className="font-mono text-[10px] tracking-[0.2em] opacity-80">
+              ANALYZING
+            </span>
+          </div>
+          <div className="flex flex-col gap-[9px]">
+            {THINKING_STEPS.map((step, i) => (
+              <div
+                key={step}
+                className={`text-xs flex gap-md ${i === 0 ? "" : "opacity-50"}`}
+              >
+                <span className="font-mono opacity-60">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span>{step}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <p className="text-sm text-ink3 font-mono text-center">
-          I'm reading about your business and figuring out how you sound.
-          <br />
-          one second...
+        <p className="font-mono text-[10px] text-ink4 text-center">
+          hold tight — i'll show you what i found in a moment
         </p>
-      </div>
+      </OnboardingShell>
     );
   }
 
   if (stage === "error") {
     return (
-      <div className="flex flex-col items-center gap-md w-full max-w-md">
-        <div className="flex items-center gap-md mb-lg">
-          <span
-            className="inline-block w-sm h-sm rounded-full bg-urgent"
-            aria-hidden
-          />
-          <h1 className="text-2xl font-medium tracking-tight">ADFI</h1>
-        </div>
-        <p className="text-sm text-urgent font-mono text-center">
-          something's off — {errorMessage}
-        </p>
-        <button
-          onClick={handleRetry}
-          className="px-md py-sm bg-ink text-bg rounded-md font-medium mt-md"
-        >
-          try again
-        </button>
-      </div>
+      <OnboardingShell step={3}>
+        <OnboardingHeading
+          title="something went sideways."
+          sub={errorMessage || "couldn't finish the analysis."}
+        />
+        <PrimaryButton type="button" onClick={handleRetry}>
+          try again →
+        </PrimaryButton>
+      </OnboardingShell>
     );
   }
 
   if (!brandVoice) return null;
 
   return (
-    <div className="flex flex-col gap-lg w-full max-w-md">
-      <div className="flex items-center gap-md">
-        <span
-          className="inline-block w-sm h-sm rounded-full bg-alive"
-          aria-hidden
-        />
-        <h1 className="text-2xl font-medium tracking-tight">ADFI</h1>
+    <OnboardingShell step={3} wide>
+      <OnboardingHeading
+        title="here's what i see."
+        sub={<em>nice business.</em>}
+      />
+
+      <div className="bg-white border-hairline border-border rounded-lg p-md mb-sm">
+        <div className="font-mono text-[10px] text-aliveDark tracking-[0.2em] mb-sm">
+          ● HOW I'LL REPRESENT YOU
+        </div>
+        <p className="text-sm leading-relaxed">
+          you sound <strong>{brandVoice.voiceTone.join(" · ")}</strong>. values
+          i'll keep front-and-centre: {brandVoice.brandValues.join(", ")}.
+        </p>
       </div>
-      <p className="text-sm text-ink3 font-mono">
-        here's how I'll represent you:
-      </p>
 
-      <section className="flex flex-col gap-sm">
-        <p className="text-xs font-mono text-ink3 uppercase tracking-wide">
-          voice
-        </p>
-        <p className="text-md text-ink">{brandVoice.voiceTone.join(" · ")}</p>
-      </section>
-
-      <section className="flex flex-col gap-sm">
-        <p className="text-xs font-mono text-ink3 uppercase tracking-wide">
-          values
-        </p>
-        <p className="text-md text-ink">
-          {brandVoice.brandValues.join(" · ")}
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-sm">
-        <p className="text-xs font-mono text-ink3 uppercase tracking-wide">
-          audience
-        </p>
-        <ul className="flex flex-col gap-xs">
+      <div className="bg-attentionBg border-hairline border-attentionBorder rounded-lg p-md mb-sm">
+        <div className="font-mono text-[10px] text-attentionText tracking-[0.2em] mb-sm">
+          ● YOUR REAL AUDIENCE
+        </div>
+        <ul className="text-sm leading-relaxed flex flex-col gap-xs">
           {brandVoice.audienceSegments.map((segment) => (
             <li key={segment.name}>
-              <span className="text-md text-ink font-medium">
-                {segment.name}
-              </span>
-              <span className="text-sm text-ink3"> — {segment.description}</span>
+              <strong>{segment.name}</strong>
+              <span className="text-ink3"> — {segment.description}</span>
             </li>
           ))}
         </ul>
-      </section>
+      </div>
 
-      <section className="flex flex-col gap-sm">
-        <p className="text-xs font-mono text-ink3 uppercase tracking-wide">
-          content pillars
-        </p>
-        <ul className="flex flex-col gap-xs">
+      <div className="bg-white border-hairline border-border rounded-lg p-md mb-lg">
+        <div className="font-mono text-[10px] text-ink4 tracking-[0.2em] mb-sm">
+          ● WHAT I'LL POST ABOUT
+        </div>
+        <div className="flex flex-col gap-xs text-sm">
           {brandVoice.contentPillars.map((pillar) => (
-            <li key={pillar} className="text-md text-ink">
-              · {pillar}
-            </li>
+            <div key={pillar}>· {pillar}</div>
           ))}
-        </ul>
-      </section>
+        </div>
+      </div>
 
-      <section className="flex flex-col gap-sm">
-        <p className="text-xs font-mono text-ink3 uppercase tracking-wide">
-          things I'll avoid
+      <div className="bg-surface rounded-md p-md mb-md text-center">
+        <p className="text-sm font-medium mb-[2px]">
+          want me to actually do this for you?
         </p>
-        <ul className="flex flex-col gap-xs">
-          {brandVoice.doNotDoList.map((item) => (
-            <li key={item} className="text-sm text-ink3 font-mono">
-              · {item}
-            </li>
-          ))}
-        </ul>
-      </section>
+        <p className="text-xs text-ink3">
+          7 days free · i won't charge until i've proven i'm working
+        </p>
+      </div>
 
-      <button
-        onClick={() => router.push("/dashboard")}
-        className="px-md py-sm bg-ink text-bg rounded-md font-medium mt-lg"
+      <PrimaryButton
+        type="button"
+        onClick={() => router.push("/onboarding/plan")}
       >
-        looks right → continue
-      </button>
-    </div>
+        start my free trial →
+      </PrimaryButton>
+    </OnboardingShell>
   );
 }

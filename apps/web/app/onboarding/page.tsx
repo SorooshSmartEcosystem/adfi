@@ -14,9 +14,5 @@ export default async function OnboardingPage() {
   const trpc = await trpcServer();
   const user = await trpc.user.me();
 
-  return (
-    <main className="min-h-screen flex items-center justify-center px-lg">
-      <OnboardingForm initialText={user.businessDescription ?? ""} />
-    </main>
-  );
+  return <OnboardingForm initialText={user.businessDescription ?? ""} />;
 }

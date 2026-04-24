@@ -2,24 +2,29 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../../lib/trpc";
+import {
+  OnboardingShell,
+  OnboardingHeading,
+} from "../../../components/onboarding/onboarding-shell";
+import { PrimaryButton } from "../../../components/onboarding/primary-button";
 
 type GoalValue = "MORE_CUSTOMERS" | "MORE_REPEAT_BUYERS" | "MORE_VISIBILITY";
 
-const OPTIONS: { value: GoalValue; label: string; hint: string }[] = [
+const OPTIONS: { value: GoalValue; title: string; desc: string }[] = [
   {
     value: "MORE_CUSTOMERS",
-    label: "more new customers",
-    hint: "people who haven't heard of me yet",
+    title: "more customers",
+    desc: "new people discovering you",
   },
   {
     value: "MORE_REPEAT_BUYERS",
-    label: "more repeat buyers",
-    hint: "my existing customers buying again",
+    title: "more repeat buyers",
+    desc: "existing customers coming back",
   },
   {
     value: "MORE_VISIBILITY",
-    label: "more visibility",
-    hint: "being known in my space",
+    title: "more visibility",
+    desc: "just grow the brand first",
   },
 ];
 
@@ -30,54 +35,53 @@ export function GoalForm({ initialGoal }: { initialGoal: GoalValue | null }) {
     onSuccess: () => router.push("/onboarding/analysis"),
   });
 
-  function handleSelect(value: GoalValue) {
-    setChoice(value);
-    mutation.mutate({ goal: value });
+  function handleContinue() {
+    if (!choice) return;
+    mutation.mutate({ goal: choice });
   }
 
   return (
-    <div className="flex flex-col gap-md w-full max-w-md">
-      <div className="flex items-center gap-md mb-lg">
-        <span
-          className="inline-block w-sm h-sm rounded-full bg-alive"
-          aria-hidden
-        />
-        <h1 className="text-2xl font-medium tracking-tight">ADFI</h1>
-      </div>
+    <OnboardingShell step={2}>
+      <OnboardingHeading
+        title="what do you want more of?"
+        sub="pick the one that matters most. this shapes what i prioritize each week."
+      />
 
-      <p className="text-sm font-mono text-ink3 mb-md">what do you want more of?</p>
-
-      <div className="flex flex-col gap-sm">
+      <div className="flex flex-col gap-sm mb-lg">
         {OPTIONS.map((option) => {
           const isActive = choice === option.value;
-          const isPending = mutation.isPending && isActive;
           return (
             <button
               key={option.value}
-              onClick={() => handleSelect(option.value)}
+              type="button"
+              onClick={() => setChoice(option.value)}
               disabled={mutation.isPending}
-              className={
-                "flex flex-col items-start gap-xs px-md py-md rounded-md border text-left transition-colors disabled:opacity-50 " +
-                (isActive
-                  ? "border-ink bg-surface"
-                  : "border-border bg-bg hover:bg-surface")
-              }
+              className={`text-left px-md py-[14px] rounded-lg transition-all ${
+                isActive
+                  ? "border-[1.5px] border-ink bg-white"
+                  : "border-hairline border-border bg-bg hover:bg-surface"
+              }`}
             >
-              <span className="text-md font-medium text-ink">
-                {option.label}
-                {isPending && " ..."}
-              </span>
-              <span className="text-xs font-mono text-ink3">{option.hint}</span>
+              <div className="text-base font-medium mb-[2px]">{option.title}</div>
+              <div className="text-xs text-ink3">{option.desc}</div>
             </button>
           );
         })}
       </div>
 
+      <PrimaryButton
+        type="button"
+        onClick={handleContinue}
+        disabled={!choice || mutation.isPending}
+      >
+        {mutation.isPending ? "saving..." : "continue →"}
+      </PrimaryButton>
+
       {mutation.error && (
-        <p className="text-sm text-urgent font-mono" role="alert">
+        <p className="text-sm text-urgent font-mono mt-md" role="alert">
           {mutation.error.message}
         </p>
       )}
-    </div>
+    </OnboardingShell>
   );
 }

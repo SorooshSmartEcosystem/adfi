@@ -16,9 +16,5 @@ export default async function OnboardingGoalPage() {
 
   if (!user.businessDescription) redirect("/onboarding");
 
-  return (
-    <main className="min-h-screen flex items-center justify-center px-lg">
-      <GoalForm initialGoal={user.goal} />
-    </main>
-  );
+  return <GoalForm initialGoal={user.goal} />;
 }

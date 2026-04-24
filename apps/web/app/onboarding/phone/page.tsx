@@ -21,9 +21,5 @@ export default async function OnboardingPhonePage() {
   const home = await trpc.user.getHomeData();
   const existingNumber = home.phoneStatus.active ? home.phoneStatus.number : null;
 
-  return (
-    <main className="min-h-screen flex items-center justify-center px-lg py-2xl">
-      <PhoneForm existingNumber={existingNumber} />
-    </main>
-  );
+  return <PhoneForm existingNumber={existingNumber} />;
 }

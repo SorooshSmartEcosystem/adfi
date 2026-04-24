@@ -180,7 +180,7 @@ export function AnalysisClient() {
       </section>
 
       <button
-        onClick={() => router.push("/me")}
+        onClick={() => router.push("/dashboard")}
         className="px-md py-sm bg-ink text-bg rounded-md font-medium mt-lg"
       >
         looks right → continue

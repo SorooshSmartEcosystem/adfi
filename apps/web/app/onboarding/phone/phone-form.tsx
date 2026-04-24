@@ -35,7 +35,7 @@ export function PhoneForm({ existingNumber }: { existingNumber: string | null })
         </p>
 
         <button
-          onClick={() => router.push("/me")}
+          onClick={() => router.push("/dashboard")}
           className="px-md py-sm bg-ink text-bg rounded-md font-medium mt-lg"
         >
           continue →

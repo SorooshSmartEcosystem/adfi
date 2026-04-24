@@ -1,0 +1,49 @@
+import { redirect } from "next/navigation";
+import { createServerClient } from "@orb/auth/server";
+import { trpcServer } from "../../lib/trpc-server";
+import { AppShell } from "../../components/app-shell/app-shell";
+
+function initialsFrom(name: string): string {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p.charAt(0).toUpperCase()).join("") || "—";
+}
+
+export default async function DashLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = await createServerClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser) redirect("/signin");
+
+  const trpc = await trpcServer();
+  const [user, home] = await Promise.all([
+    trpc.user.me(),
+    trpc.user.getHomeData(),
+  ]);
+
+  const businessName =
+    user.businessDescription?.split(/[.\n]/)[0]?.slice(0, 30)?.trim() ||
+    (user.email?.split("@")[0] ?? "your business");
+  const userName = user.email?.split("@")[0] ?? "you";
+
+  return (
+    <AppShell
+      business={{
+        name: businessName,
+        initials: initialsFrom(businessName),
+      }}
+      user={{
+        name: userName,
+        planLabel: "trial plan",
+      }}
+      navBadges={home.navBadges}
+    >
+      {children}
+    </AppShell>
+  );
+}

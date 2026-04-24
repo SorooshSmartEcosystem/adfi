@@ -1,9 +1,10 @@
 export const colors = {
   bg: "#FAFAF7",
   ink: "#111",
-  ink2: "#666",
-  ink3: "#888",
-  ink4: "#999",
+  ink2: "#444",
+  ink3: "#666",
+  ink4: "#888",
+  ink5: "#999",
   surface: "#F2EFE5",
   border: "#E5E3DB",
   border2: "#EEEBE0",

@@ -8,7 +8,7 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const cta = user ? { href: "/me", label: "home →" } : { href: "/signin", label: "sign in →" };
+  const cta = user ? { href: "/dashboard", label: "home →" } : { href: "/signin", label: "sign in →" };
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -147,7 +147,7 @@ export default async function Home() {
           <span>
             {user ? (
               <Link
-                href="/me"
+                href="/dashboard"
                 className="hover:text-ink3 transition-colors"
               >
                 your home

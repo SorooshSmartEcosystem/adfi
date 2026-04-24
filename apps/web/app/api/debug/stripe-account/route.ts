@@ -26,7 +26,9 @@ async function checkPrice(id: string | undefined) {
 
 export async function GET() {
   try {
-    const account = await stripe().accounts.retrieve();
+    // Use balance.retrieve() as a cheap ping — tells us the key is valid and
+    // returns livemode. Avoids the SDK-version mismatch around accounts.retrieve().
+    const balance = await stripe().balance.retrieve();
     const [solo, team, studio] = await Promise.all([
       checkPrice(process.env.STRIPE_PRICE_SOLO),
       checkPrice(process.env.STRIPE_PRICE_TEAM),
@@ -34,13 +36,7 @@ export async function GET() {
     ]);
     return NextResponse.json(
       {
-        account: {
-          id: account.id,
-          email: account.email,
-          country: account.country,
-          business_profile: account.business_profile?.name,
-          livemode: account.charges_enabled,
-        },
+        key_livemode: balance.livemode,
         prices: { solo, team, studio },
       },
       { status: 200 },

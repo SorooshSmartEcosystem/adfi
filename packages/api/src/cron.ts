@@ -1,7 +1,8 @@
-import { db } from "@orb/db";
+import { db, Agent } from "@orb/db";
 
 export type CronRunResult = {
   totalEligible: number;
+  skippedPaused: number;
   successful: number;
   failed: number;
   errors: { userId: string; message: string }[];
@@ -9,9 +10,11 @@ export type CronRunResult = {
 };
 
 // Runs an agent orchestration function for every eligible user (active
-// subscription + brand voice set). Catches per-user errors so one bad run
-// doesn't abort the batch. Called by cron route handlers in apps/web.
+// subscription + brand voice set), skipping users who have paused this
+// specific agent. Catches per-user errors so one bad run doesn't abort the
+// batch. Called by cron route handlers in apps/web.
 export async function runAgentForAllEligibleUsers(
+  agent: Agent,
   agentFn: (userId: string) => Promise<unknown>,
 ): Promise<CronRunResult> {
   const started = Date.now();
@@ -24,11 +27,15 @@ export async function runAgentForAllEligibleUsers(
         some: { status: { in: ["TRIALING", "ACTIVE"] } },
       },
     },
-    select: { id: true },
+    select: {
+      id: true,
+      agentContext: { select: { pausedAgents: true } },
+    },
   });
 
   const result: CronRunResult = {
     totalEligible: users.length,
+    skippedPaused: 0,
     successful: 0,
     failed: 0,
     errors: [],
@@ -36,6 +43,10 @@ export async function runAgentForAllEligibleUsers(
   };
 
   for (const user of users) {
+    if (user.agentContext?.pausedAgents?.includes(agent)) {
+      result.skippedPaused++;
+      continue;
+    }
     try {
       await agentFn(user.id);
       result.successful++;

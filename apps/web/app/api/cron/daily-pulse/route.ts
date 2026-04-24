@@ -3,6 +3,7 @@ import {
   generatePulseSignals,
   runAgentForAllEligibleUsers,
 } from "@orb/api";
+import { Agent } from "@orb/db";
 
 function unauthorized(): NextResponse {
   return new NextResponse("unauthorized", { status: 401 });
@@ -15,6 +16,9 @@ export async function GET(request: Request) {
     return unauthorized();
   }
 
-  const result = await runAgentForAllEligibleUsers(generatePulseSignals);
+  const result = await runAgentForAllEligibleUsers(
+    Agent.PULSE,
+    generatePulseSignals,
+  );
   return NextResponse.json(result);
 }

@@ -116,6 +116,8 @@ model AgentContext {
   scoutWatching      Json?     @map("scout_watching")
   pulseSignals       Json?     @map("pulse_signals")
   voiceFingerprint   Json?     @map("voice_fingerprint")
+  pausedAgents       Agent[]   @default([]) @map("paused_agents")
+  lastManualRun      Json?     @map("last_manual_run")
   lastRefreshedAt    DateTime? @map("last_refreshed_at")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")

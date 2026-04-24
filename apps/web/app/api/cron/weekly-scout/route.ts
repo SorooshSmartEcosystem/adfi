@@ -3,6 +3,7 @@ import {
   generateCompetitorIntel,
   runAgentForAllEligibleUsers,
 } from "@orb/api";
+import { Agent } from "@orb/db";
 
 function unauthorized(): NextResponse {
   return new NextResponse("unauthorized", { status: 401 });
@@ -15,6 +16,9 @@ export async function GET(request: Request) {
     return unauthorized();
   }
 
-  const result = await runAgentForAllEligibleUsers(generateCompetitorIntel);
+  const result = await runAgentForAllEligibleUsers(
+    Agent.SCOUT,
+    generateCompetitorIntel,
+  );
   return NextResponse.json(result);
 }

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createServerClient } from "@orb/auth/server";
 import { trpcServer } from "../../../../lib/trpc-server";
 import { AGENTS, TIER_COLOR } from "../../../../components/specialists/agent-config";
+import { AgentControls } from "../../../../components/specialists/agent-controls";
 import { Card } from "../../../../components/shared/card";
 
 function timeLabel(at: Date): string {
@@ -70,6 +71,8 @@ export default async function SpecialistPage({
         </div>
       ) : (
         <>
+          {agent.dbAgent ? <AgentControls agent={agent.dbAgent} /> : null}
+
           <Card className="mb-lg">
             <div className="flex items-center justify-between mb-sm">
               <div className="font-mono text-sm text-ink4 tracking-[0.2em]">

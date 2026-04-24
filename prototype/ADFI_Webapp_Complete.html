@@ -1,0 +1,2071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ADFI · Your marketing team, hired.</title>
+<style>
+  /* ===================================================
+     ADFI WEB APP — DESIGN SYSTEM
+     Fully responsive: desktop, tablet, mobile web
+     =================================================== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    background: #FAFAF7;
+    color: #111;
+    font-weight: 400;
+    line-height: 1.5;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  input, textarea, select { font-family: inherit; font-size: 14px; color: #111; }
+  input:focus, textarea:focus, select:focus, button:focus { outline: none; }
+  .mono { font-family: "SF Mono", "JetBrains Mono", "Courier New", monospace; }
+
+  /* CSS variables for design tokens */
+  :root {
+    --bg: #FAFAF7;
+    --ink: #111;
+    --ink2: #444;
+    --ink3: #666;
+    --ink4: #888;
+    --ink5: #999;
+    --surface: #F2EFE5;
+    --surface2: #F8F5EA;
+    --border: #E5E3DB;
+    --border2: #EEEBE0;
+    --alive: #7CE896;
+    --alive-dark: #3a9d5c;
+    --attn-bg: #FFF9ED;
+    --attn-border: #F0D98C;
+    --attn-text: #8a6a1e;
+    --urgent: #C84A3E;
+    --sidebar-w: 240px;
+    --topbar-h: 56px;
+  }
+
+  /* ===================================================
+     ANIMATIONS
+     =================================================== */
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-5px) scale(1.02); }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+  @keyframes pulse-ring {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 0; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  /* ===================================================
+     LAYOUT — LOGGED OUT (marketing + auth)
+     =================================================== */
+  .page { min-height: 100vh; display: flex; flex-direction: column; animation: fade-in 0.3s ease; }
+
+  .marketing-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(250, 250, 247, 0.92);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    border-bottom: 0.5px solid var(--border);
+  }
+  .marketing-nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    max-width: 1200px; margin: 0 auto;
+    padding: 14px 24px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 500; font-size: 15px; letter-spacing: -0.01em;
+  }
+  .logo-orb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #333 0%, #111 60%);
+    animation: breathe 3s ease-in-out infinite;
+  }
+  .marketing-nav-links {
+    display: flex; align-items: center; gap: 20px;
+  }
+  .nav-link-text {
+    font-size: 13px; color: var(--ink3);
+    transition: color 0.15s;
+  }
+  .nav-link-text:hover { color: var(--ink); }
+  .btn-nav-cta {
+    background: var(--ink); color: white;
+    padding: 8px 14px; border-radius: 100px;
+    font-size: 13px; font-weight: 500;
+    transition: transform 0.15s;
+  }
+  .btn-nav-cta:active { transform: scale(0.97); }
+
+  /* Hero */
+  .hero {
+    padding: 80px 24px 60px;
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .hero-orb {
+    width: 96px; height: 96px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #2a2a2a 0%, #111 60%);
+    margin: 0 auto 32px;
+    animation: float 4s ease-in-out infinite;
+    position: relative;
+  }
+  .hero-orb::after {
+    content: ''; position: absolute; inset: -10px;
+    border-radius: 50%; border: 0.5px solid rgba(17,17,17,0.08);
+    animation: pulse-ring 3s ease-in-out infinite;
+  }
+  .hero h1 {
+    font-size: clamp(32px, 6vw, 52px);
+    font-weight: 500; letter-spacing: -0.035em; line-height: 1.05;
+    margin-bottom: 16px;
+  }
+  .hero .sub {
+    font-size: clamp(15px, 2vw, 17px);
+    color: var(--ink3); max-width: 520px;
+    margin: 0 auto 32px; line-height: 1.55;
+  }
+  .hero-ctas {
+    display: flex; gap: 10px; justify-content: center;
+    flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .btn-primary {
+    background: var(--ink); color: white;
+    padding: 13px 24px; border-radius: 100px;
+    font-size: 14px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: transform 0.15s;
+  }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-secondary {
+    background: transparent; color: var(--ink);
+    padding: 13px 22px; border-radius: 100px;
+    font-size: 14px; font-weight: 500;
+    border: 0.5px solid var(--border);
+    transition: border-color 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+  .hero-note {
+    font-family: "SF Mono", monospace;
+    font-size: 11px; color: var(--ink5);
+    letter-spacing: 0.05em;
+  }
+
+  /* Section base */
+  .section {
+    padding: 60px 24px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .section-label {
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: var(--ink4);
+    letter-spacing: 0.2em; text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::before {
+    content: ''; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--ink);
+  }
+  .section-title {
+    font-size: clamp(26px, 4vw, 36px);
+    font-weight: 500; letter-spacing: -0.025em;
+    line-height: 1.15; margin-bottom: 16px;
+    max-width: 640px;
+  }
+  .section-intro {
+    font-size: 15px; color: var(--ink3);
+    max-width: 560px; line-height: 1.6;
+    margin-bottom: 40px;
+  }
+
+  /* What I do grid */
+  .what-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 0.5px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+  @media (min-width: 768px) {
+    .what-grid { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  .what-item {
+    background: var(--bg);
+    padding: 24px 22px;
+    transition: background 0.2s;
+  }
+  .what-item:hover { background: white; }
+  .what-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .pulsing-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--alive);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  .what-label {
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: var(--alive-dark);
+    letter-spacing: 0.2em;
+  }
+  .what-title {
+    font-size: 17px; font-weight: 500;
+    margin-bottom: 6px; letter-spacing: -0.01em;
+  }
+  .what-desc {
+    font-size: 13px; color: var(--ink3);
+    line-height: 1.55;
+  }
+
+  /* How it works */
+  .how-steps {
+    display: grid; grid-template-columns: 1fr; gap: 12px;
+  }
+  @media (min-width: 768px) {
+    .how-steps { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  .how-step {
+    background: white; border: 0.5px solid var(--border);
+    border-radius: 18px; padding: 22px;
+  }
+  .how-num {
+    font-family: "SF Mono", monospace;
+    font-size: 11px; color: var(--ink5);
+    letter-spacing: 0.2em; margin-bottom: 10px;
+  }
+  .how-title {
+    font-size: 17px; font-weight: 500;
+    margin-bottom: 6px; letter-spacing: -0.01em;
+  }
+  .how-desc {
+    font-size: 13px; color: var(--ink3);
+    line-height: 1.55;
+  }
+
+  /* Pricing */
+  .pricing-grid {
+    display: grid; grid-template-columns: 1fr; gap: 12px;
+  }
+  @media (min-width: 768px) {
+    .pricing-grid { grid-template-columns: 1fr 1fr 1fr; align-items: start; }
+  }
+  .price-card {
+    background: white; border: 0.5px solid var(--border);
+    border-radius: 18px; padding: 22px; position: relative;
+  }
+  .price-card.featured { border: 1.5px solid var(--ink); }
+  @media (min-width: 768px) {
+    .price-card.featured { transform: translateY(-8px); }
+  }
+  .price-badge {
+    position: absolute; top: -9px; left: 18px;
+    background: var(--ink); color: white;
+    padding: 3px 10px; border-radius: 100px;
+    font-family: "SF Mono", monospace;
+    font-size: 10px; letter-spacing: 0.15em;
+  }
+  .price-head {
+    display: flex; justify-content: space-between;
+    align-items: baseline; margin-bottom: 4px;
+  }
+  .price-name { font-size: 16px; font-weight: 500; }
+  .price-amt { font-size: 16px; }
+  .price-amt .per { font-size: 11px; color: var(--ink4); }
+  .price-tagline {
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: var(--ink4);
+    letter-spacing: 0.1em; margin-bottom: 14px;
+  }
+  .price-list {
+    list-style: none; display: flex; flex-direction: column;
+    gap: 7px; margin-bottom: 16px;
+  }
+  .price-list li {
+    font-size: 12.5px; color: var(--ink2);
+    line-height: 1.5; padding-left: 12px; position: relative;
+  }
+  .price-list li::before {
+    content: '•'; position: absolute; left: 0; color: var(--ink4);
+  }
+  .price-cta {
+    display: block; width: 100%; text-align: center;
+    padding: 11px; border-radius: 100px;
+    font-size: 13px; font-weight: 500;
+    background: var(--surface); color: var(--ink);
+    transition: background 0.15s;
+  }
+  .price-cta:hover { background: #EAE6D8; }
+  .price-card.featured .price-cta {
+    background: var(--ink); color: white;
+  }
+
+  /* FAQ */
+  .faq-list {
+    background: white; border: 0.5px solid var(--border);
+    border-radius: 18px; overflow: hidden;
+  }
+  .faq-item { border-bottom: 0.5px solid var(--border2); }
+  .faq-item:last-child { border-bottom: none; }
+  .faq-q {
+    width: 100%; text-align: left;
+    padding: 18px 22px;
+    font-size: 14px; font-weight: 500;
+    display: flex; justify-content: space-between;
+    align-items: center; gap: 12px;
+    transition: background 0.15s;
+  }
+  .faq-q:hover { background: #F8F6EF; }
+  .faq-toggle {
+    font-family: "SF Mono", monospace;
+    font-size: 17px; color: var(--ink5);
+    transition: transform 0.2s;
+  }
+  .faq-item.open .faq-toggle { transform: rotate(45deg); }
+  .faq-a {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .faq-item.open .faq-a { max-height: 400px; }
+  .faq-a-inner {
+    padding: 0 22px 20px;
+    font-size: 13px; color: var(--ink3);
+    line-height: 1.65;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 0.5px solid var(--border);
+    padding: 28px 24px 36px;
+    margin-top: 40px;
+  }
+  .footer-inner {
+    max-width: 1080px; margin: 0 auto;
+    display: flex; flex-direction: column;
+    gap: 16px; align-items: center;
+    text-align: center;
+  }
+  @media (min-width: 768px) {
+    .footer-inner {
+      flex-direction: row; justify-content: space-between;
+      text-align: left;
+    }
+  }
+  .footer-logo {
+    font-family: "SF Mono", monospace;
+    font-size: 13px; letter-spacing: 0.05em;
+  }
+  .footer-links {
+    display: flex; gap: 22px; flex-wrap: wrap;
+    justify-content: center;
+  }
+  .footer-links a {
+    font-size: 12px; color: var(--ink4);
+    transition: color 0.15s;
+  }
+  .footer-links a:hover { color: var(--ink); }
+  .footer-copy {
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: var(--ink5);
+    letter-spacing: 0.08em;
+  }
+
+  /* ===================================================
+     AUTH / ONBOARDING screens
+     =================================================== */
+  .auth-page {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px 24px;
+    animation: fade-in 0.3s ease;
+  }
+  .auth-card {
+    width: 100%; max-width: 420px;
+    background: white; border: 0.5px solid var(--border);
+    border-radius: 20px; padding: 32px 28px;
+  }
+  .auth-orb {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #333 0%, #111 60%);
+    margin: 0 auto 20px;
+    animation: breathe 3s ease-in-out infinite;
+  }
+  .auth-title {
+    font-size: 22px; font-weight: 500;
+    letter-spacing: -0.02em; text-align: center;
+    margin-bottom: 6px;
+  }
+  .auth-sub {
+    font-size: 13px; color: var(--ink3);
+    text-align: center; margin-bottom: 24px;
+    line-height: 1.55;
+  }
+  .auth-field {
+    margin-bottom: 12px;
+  }
+  .auth-field label {
+    display: block;
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: var(--ink4);
+    letter-spacing: 0.2em; margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .auth-input {
+    width: 100%; padding: 12px 14px;
+    background: var(--bg); border: 0.5px solid var(--border);
+    border-radius: 12px; font-size: 14px;
+    transition: border-color 0.15s;
+  }
+  .auth-input:focus { border-color: var(--ink); }
+  .auth-divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 20px 0;
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: var(--ink5);
+    letter-spacing: 0.15em;
+  }
+  .auth-divider::before, .auth-divider::after {
+    content: ''; flex: 1; height: 0.5px; background: var(--border);
+  }
+  .auth-btn {
+    width: 100%; padding: 13px;
+    background: var(--ink); color: white;
+    border-radius: 100px;
+    font-size: 14px; font-weight: 500;
+    transition: transform 0.15s;
+  }
+  .auth-btn:active { transform: scale(0.98); }
+  .auth-btn.secondary {
+    background: transparent; color: var(--ink);
+    border: 0.5px solid var(--border);
+  }
+  .auth-btn.secondary:hover { border-color: var(--ink); }
+  .auth-footer {
+    margin-top: 18px; text-align: center;
+    font-size: 12px; color: var(--ink4);
+  }
+  .auth-footer a { color: var(--ink); text-decoration: underline; }
+
+  /* Progress bar for onboarding */
+  .onb-progress {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 24px;
+  }
+  .onb-progress-text {
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: var(--ink4);
+    letter-spacing: 0.15em;
+  }
+  .onb-progress-dots {
+    display: flex; gap: 4px;
+  }
+  .onb-dot {
+    width: 14px; height: 3px;
+    background: var(--border); border-radius: 2px;
+  }
+  .onb-dot.active { background: var(--ink); }
+
+  /* ===================================================
+     LOGGED-IN APP LAYOUT
+     =================================================== */
+  .app-layout {
+    min-height: 100vh;
+    display: flex;
+    animation: fade-in 0.3s ease;
+  }
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg);
+    border-right: 0.5px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 16px;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    overflow-y: auto;
+    z-index: 50;
+    transition: transform 0.25s ease;
+  }
+  .sidebar-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 8px 16px;
+    border-bottom: 0.5px solid var(--border2);
+    margin-bottom: 12px;
+  }
+  .sidebar-biz {
+    display: flex; align-items: center; gap: 10px;
+    flex: 1; min-width: 0;
+  }
+  .sidebar-biz-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: #111; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "SF Mono", monospace;
+    font-size: 11px; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .sidebar-biz-meta {
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .sidebar-biz-name {
+    font-size: 13px; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sidebar-biz-status {
+    display: flex; align-items: center; gap: 5px;
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: var(--alive-dark);
+  }
+  .sidebar-biz-status::before {
+    content: ''; width: 5px; height: 5px;
+    border-radius: 50%; background: var(--alive);
+  }
+
+  .sidebar-section {
+    padding: 12px 0 8px;
+  }
+  .sidebar-section-label {
+    font-family: "SF Mono", monospace;
+    font-size: 9px; color: var(--ink5);
+    letter-spacing: 0.2em;
+    padding: 0 8px 8px;
+    text-transform: uppercase;
+  }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--ink2);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    border: none; width: 100%; text-align: left;
+    background: transparent;
+  }
+  .sidebar-link:hover { background: var(--surface); }
+  .sidebar-link.active {
+    background: var(--ink); color: white;
+  }
+  .sidebar-link-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; opacity: 0.5;
+    flex-shrink: 0;
+  }
+  .sidebar-link.active .sidebar-link-dot { opacity: 0.7; }
+  .sidebar-link-badge {
+    margin-left: auto;
+    font-family: "SF Mono", monospace;
+    font-size: 10px;
+    background: var(--attn-bg); color: var(--attn-text);
+    padding: 1px 6px; border-radius: 100px;
+  }
+  .sidebar-link.active .sidebar-link-badge {
+    background: rgba(255,255,255,0.12); color: white;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 0.5px solid var(--border2);
+  }
+  .sidebar-user {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .sidebar-user:hover { background: var(--surface); }
+  .sidebar-user-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--surface); color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .sidebar-user-meta {
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .sidebar-user-name {
+    font-size: 12px; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sidebar-user-plan {
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: var(--ink4);
+  }
+
+  /* Main content area */
+  .app-main {
+    flex: 1;
+    margin-left: var(--sidebar-w);
+    min-width: 0;
+    display: flex; flex-direction: column;
+    min-height: 100vh;
+  }
+  .app-topbar {
+    height: var(--topbar-h);
+    border-bottom: 0.5px solid var(--border);
+    background: rgba(250, 250, 247, 0.92);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    position: sticky; top: 0; z-index: 40;
+  }
+  .app-topbar-left {
+    display: flex; align-items: center; gap: 12px;
+    flex: 1; min-width: 0;
+  }
+  .app-topbar-title {
+    font-size: 15px; font-weight: 500;
+  }
+  .app-topbar-sub {
+    font-family: "SF Mono", monospace;
+    font-size: 11px; color: var(--ink4);
+  }
+  .app-topbar-right {
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .topbar-btn {
+    padding: 7px 12px; border-radius: 100px;
+    font-size: 12px; font-weight: 500;
+    background: transparent; color: var(--ink2);
+    border: 0.5px solid var(--border);
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .topbar-btn:hover {
+    border-color: var(--ink); color: var(--ink);
+  }
+  .topbar-btn.primary {
+    background: var(--ink); color: white; border-color: var(--ink);
+  }
+
+  .mobile-menu-btn {
+    display: none;
+    width: 32px; height: 32px;
+    background: transparent; border: none;
+    padding: 0;
+  }
+  .mobile-menu-btn div {
+    width: 18px; height: 1.5px; background: var(--ink);
+    margin: 4px auto; transition: transform 0.2s;
+  }
+
+  .app-content {
+    flex: 1;
+    padding: 28px 24px 80px;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  /* Mobile responsive for app */
+  @media (max-width: 900px) {
+    .sidebar {
+      transform: translateX(-100%);
+      box-shadow: 8px 0 40px rgba(0,0,0,0.08);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .app-main { margin-left: 0; }
+    .mobile-menu-btn { display: block; }
+    .sidebar-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 49;
+    }
+    .sidebar-backdrop.open { display: block; }
+  }
+
+  /* ===================================================
+     COMPONENTS — cards, chips, etc
+     =================================================== */
+  .card {
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .card-hover { transition: border-color 0.15s, transform 0.15s; cursor: pointer; }
+  .card-hover:hover { border-color: var(--ink); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 100px;
+    font-family: "SF Mono", monospace;
+    font-size: 11px; color: var(--ink2);
+    background: transparent;
+    border: 0.5px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .chip:hover { border-color: var(--ink); color: var(--ink); }
+  .chip.active {
+    background: var(--ink); color: white;
+    border-color: var(--ink);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-dot.alive { background: var(--alive); animation: pulse-dot 2s ease-in-out infinite; }
+  .status-dot.attn { background: var(--attn-border); }
+  .status-dot.urgent { background: var(--urgent); animation: pulse-dot 1s ease-in-out infinite; }
+  .status-dot.neutral { background: var(--ink5); }
+
+  .amber-card {
+    background: var(--attn-bg);
+    border: 0.5px solid var(--attn-border);
+    border-radius: 18px; padding: 18px;
+    transition: transform 0.15s;
+    cursor: pointer;
+  }
+  .amber-card:hover { transform: translateY(-1px); }
+
+  /* Demo switcher (for prototype only) */
+  .demo-switcher {
+    position: fixed;
+    top: 12px; right: 12px;
+    z-index: 200;
+    background: #111;
+    border-radius: 100px;
+    padding: 4px;
+    display: flex;
+    gap: 2px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+  .demo-switcher button {
+    padding: 6px 10px; border-radius: 100px;
+    font-family: "SF Mono", monospace;
+    font-size: 10px; color: rgba(255,255,255,0.5);
+    letter-spacing: 0.1em;
+    transition: color 0.15s, background 0.15s;
+  }
+  .demo-switcher button.active {
+    background: white; color: #111;
+  }
+  @media (max-width: 600px) {
+    .demo-switcher { top: auto; bottom: 12px; }
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    background: #111; color: white;
+    padding: 10px 18px; border-radius: 100px;
+    font-size: 13px;
+    z-index: 300;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-4px);
+  }
+
+  /* Helper classes */
+  .grid-2 {
+    display: grid; grid-template-columns: 1fr; gap: 16px;
+  }
+  @media (min-width: 768px) {
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+  }
+  .grid-3 {
+    display: grid; grid-template-columns: 1fr; gap: 16px;
+  }
+  @media (min-width: 640px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 1024px) { .grid-3 { grid-template-columns: 1fr 1fr 1fr; } }
+
+  .flex-row { display: flex; align-items: center; gap: 10px; }
+  .flex-between { display: flex; align-items: center; justify-content: space-between; }
+  .flex-col { display: flex; flex-direction: column; }
+  .gap-xs { gap: 4px; } .gap-sm { gap: 8px; } .gap-md { gap: 12px; } .gap-lg { gap: 16px; } .gap-xl { gap: 24px; }
+  .mt-sm { margin-top: 8px; } .mt-md { margin-top: 12px; } .mt-lg { margin-top: 16px; } .mt-xl { margin-top: 24px; } .mt-2xl { margin-top: 32px; }
+  .mb-xs { margin-bottom: 4px; } .mb-sm { margin-bottom: 8px; } .mb-md { margin-bottom: 12px; } .mb-lg { margin-bottom: 16px; } .mb-xl { margin-bottom: 24px; } .mb-2xl { margin-bottom: 32px; }
+  .text-sm { font-size: 12px; } .text-md { font-size: 14px; } .text-lg { font-size: 16px; } .text-xl { font-size: 19px; } .text-2xl { font-size: 23px; } .text-3xl { font-size: 28px; }
+  .text-ink3 { color: var(--ink3); } .text-ink4 { color: var(--ink4); } .text-ink5 { color: var(--ink5); }
+  .fw-500 { font-weight: 500; }
+</style>
+</head>
+<body>
+
+<!-- Demo switcher (prototype only) -->
+<div class="demo-switcher" id="demo-switcher">
+  <button data-state="marketing" class="active">marketing</button>
+  <button data-state="auth">sign up</button>
+  <button data-state="onboarding">onboarding</button>
+  <button data-state="app">app</button>
+</div>
+
+<!-- All content rendered here by JS -->
+<div id="root"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================================================
+   ADFI WEB APP — APPLICATION STATE + ROUTING
+   =================================================== */
+
+const state = {
+  screen: 'marketing-home',     // current screen identifier
+  onbStep: 1,                   // onboarding step 1-6
+  selectedPlan: 'team',
+  selectedGoal: null,
+  analysisRun: false,
+  cardEntered: false,
+  igConnected: false,
+  appRoute: 'dashboard',        // dashboard | inbox | content | specialist | settings | report
+  selectedAgent: 'signal',
+  selectedThread: null,
+  sidebarOpen: false,
+  navBadges: { inbox: 3, content: 1 },
+  sheet: null,                  // any modal sheet
+  faqOpen: null,
+};
+
+function setState(updates) {
+  Object.assign(state, updates);
+  render();
+}
+
+function render() {
+  const root = document.getElementById('root');
+  const screen = state.screen;
+
+  if (screen === 'marketing-home') {
+    root.innerHTML = renderMarketing();
+    attachMarketingHandlers();
+  } else if (screen === 'auth-login' || screen === 'auth-signup') {
+    root.innerHTML = renderAuth();
+    attachAuthHandlers();
+  } else if (screen === 'onboarding') {
+    root.innerHTML = renderOnboarding();
+    attachOnboardingHandlers();
+  } else if (screen === 'app') {
+    root.innerHTML = renderApp();
+    attachAppHandlers();
+  }
+
+  // Update demo switcher active state
+  document.querySelectorAll('.demo-switcher button').forEach(btn => {
+    const target = btn.dataset.state;
+    const isActive =
+      (target === 'marketing' && screen === 'marketing-home') ||
+      (target === 'auth' && (screen === 'auth-login' || screen === 'auth-signup')) ||
+      (target === 'onboarding' && screen === 'onboarding') ||
+      (target === 'app' && screen === 'app');
+    btn.classList.toggle('active', isActive);
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastT);
+  window._toastT = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// Demo switcher handlers
+document.getElementById('demo-switcher').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const target = btn.dataset.state;
+  if (target === 'marketing') setState({ screen: 'marketing-home' });
+  else if (target === 'auth') setState({ screen: 'auth-signup' });
+  else if (target === 'onboarding') setState({ screen: 'onboarding', onbStep: 1 });
+  else if (target === 'app') setState({ screen: 'app', appRoute: 'dashboard' });
+});
+
+/* ===================================================
+   RENDER FUNCTIONS — one per major screen family
+   More added in next batches
+   =================================================== */
+
+// ===== Marketing home =====
+function renderMarketing() {
+  return `
+    <div class="page">
+      <nav class="marketing-nav">
+        <div class="marketing-nav-inner">
+          <a href="#" class="logo">
+            <span class="logo-orb"></span>
+            <span>adfi</span>
+          </a>
+          <div class="marketing-nav-links">
+            <a href="#what" class="nav-link-text" style="display:none">what it does</a>
+            <a href="#pricing" class="nav-link-text">pricing</a>
+            <a href="#faq" class="nav-link-text">faq</a>
+            <button class="nav-link-text" data-action="go-login" style="padding:0">log in</button>
+            <button class="btn-nav-cta" data-action="go-signup">get started</button>
+          </div>
+        </div>
+      </nav>
+
+      <section class="hero">
+        <div class="hero-orb"></div>
+        <h1>Your marketing team, hired.</h1>
+        <p class="sub">adfi is a team of ai agents that run your marketing end to end. calls, posts, messages, competitor watch. you focus on your craft. we handle the rest.</p>
+        <div class="hero-ctas">
+          <button class="btn-primary" data-action="go-signup">
+            start free trial
+          </button>
+          <button class="btn-secondary" data-action="scroll-how">
+            see how it works
+          </button>
+        </div>
+        <p class="hero-note">7 days free · no charge until it's working · cancel anytime</p>
+      </section>
+
+      <section class="section" id="what">
+        <div class="section-label">what i do</div>
+        <h2 class="section-title">I run the parts of your business that aren't your craft.</h2>
+        <p class="section-intro">you didn't start your business to write captions or answer dms. i did. here's what i quietly handle while you work on what matters.</p>
+
+        <div class="what-grid">
+          <div class="what-item">
+            <div class="what-head">
+              <span class="pulsing-dot"></span>
+              <span class="what-label">SIGNAL</span>
+            </div>
+            <div class="what-title">I catch your calls.</div>
+            <p class="what-desc">when a customer calls and you can't pick up, i answer in your voice. book appointments, answer questions, save the lead.</p>
+          </div>
+          <div class="what-item">
+            <div class="what-head">
+              <span class="pulsing-dot"></span>
+              <span class="what-label">ECHO</span>
+            </div>
+            <div class="what-title">I post for you.</div>
+            <p class="what-desc">instagram, linkedin, email. i write in your voice, draft in your style, and publish on the rhythm that actually works for your industry.</p>
+          </div>
+          <div class="what-item">
+            <div class="what-head">
+              <span class="pulsing-dot"></span>
+              <span class="what-label">SCOUT</span>
+            </div>
+            <div class="what-title">I watch your rivals.</div>
+            <p class="what-desc">every week, i check what your competitors are doing and surface what's worth copying — and what's worth ignoring.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="how">
+        <div class="section-label">how it works</div>
+        <h2 class="section-title">Three steps. Then I start working.</h2>
+        <p class="section-intro">no calls with account managers, no onboarding checklists. tell me about your business and i'll be running inside of an hour.</p>
+
+        <div class="how-steps">
+          <div class="how-step">
+            <div class="how-num">01</div>
+            <div class="how-title">tell me about your business.</div>
+            <p class="how-desc">in one sentence. two if it's complex. i'll fill in the rest from your instagram, website, and what i already know about your industry.</p>
+          </div>
+          <div class="how-step">
+            <div class="how-num">02</div>
+            <div class="how-title">pick what you want more of.</div>
+            <p class="how-desc">more customers? more repeat buyers? more visibility? your answer shapes what i prioritize each week.</p>
+          </div>
+          <div class="how-step">
+            <div class="how-num">03</div>
+            <div class="how-title">i start working.</div>
+            <p class="how-desc">within minutes i've analyzed your business, picked your rivals to track, and drafted your first week of posts. you approve the first few. then i go on autopilot.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="pricing">
+        <div class="section-label">pricing</div>
+        <h2 class="section-title">Pay when it's working.</h2>
+        <p class="section-intro">7 days free. no charge until i've shown real results. cancel any time.</p>
+
+        <div class="pricing-grid">
+          <div class="price-card">
+            <div class="price-head">
+              <span class="price-name">starter</span>
+              <span class="price-amt">$39<span class="per">/mo</span></span>
+            </div>
+            <div class="price-tagline">THE ESSENTIALS</div>
+            <ul class="price-list">
+              <li>i answer your calls and texts</li>
+              <li>i give you business insights each week</li>
+              <li>no content, no ads — yet</li>
+            </ul>
+            <button class="price-cta" data-action="go-signup">start 7 days free</button>
+          </div>
+          <div class="price-card featured">
+            <div class="price-badge">MOST POPULAR</div>
+            <div class="price-head">
+              <span class="price-name">team</span>
+              <span class="price-amt">$99<span class="per">/mo</span></span>
+            </div>
+            <div class="price-tagline">MOST SOLOPRENEURS PICK THIS</div>
+            <ul class="price-list">
+              <li>everything in starter</li>
+              <li>i post to instagram and linkedin</li>
+              <li>i watch your competitors</li>
+              <li>i run your weekly business review</li>
+            </ul>
+            <button class="price-cta" data-action="go-signup">start 7 days free</button>
+          </div>
+          <div class="price-card">
+            <div class="price-head">
+              <span class="price-name">studio</span>
+              <span class="price-amt">$299<span class="per">/mo</span></span>
+            </div>
+            <div class="price-tagline">A FULL MARKETING TEAM</div>
+            <ul class="price-list">
+              <li>everything in team</li>
+              <li>i run your paid ad campaigns</li>
+              <li>i build and update your website</li>
+              <li>unlimited everything</li>
+            </ul>
+            <button class="price-cta" data-action="go-signup">start 7 days free</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="faq">
+        <div class="section-label">honest answers</div>
+        <h2 class="section-title">What you're probably wondering.</h2>
+        ${faqListHtml()}
+      </section>
+
+      <footer>
+        <div class="footer-inner">
+          <div class="footer-logo">adfi.</div>
+          <div class="footer-links">
+            <a href="#">privacy</a>
+            <a href="#">terms</a>
+            <a href="#">contact</a>
+            <a href="#">status</a>
+          </div>
+          <div class="footer-copy">© 2026 ADFI · MADE FOR SOLOPRENEURS</div>
+        </div>
+      </footer>
+    </div>
+  `;
+}
+
+function faqListHtml() {
+  const items = [
+    { q: "can i trust an ai with my calls and posts?", a: "for the first 7 days, i work in shadow mode — i draft everything, but nothing goes out without your approval. that's enough time for you to see how i work. after that, you can switch to autopilot, stay on manual, or anywhere in between. you're always in control." },
+    { q: "what if i want to take over a call or a dm?", a: "one tap and the conversation is yours. i never lock you out." },
+    { q: "what's this \"adfi number\" i keep hearing about?", a: "during signup i give you a dedicated phone number. forward your business line to it, and any call you miss rings me. i answer in your voice and book when i can." },
+    { q: "what platforms do you support?", a: "at launch: instagram, linkedin, email, sms, and phone calls. facebook and google business are coming soon." },
+    { q: "how does billing work?", a: "card on file at signup, but no charge for 7 days. on day 3-7 i'll show you what i've done. if you're happy, billing starts. if not, cancel in one tap and you're not charged." },
+    { q: "what about my data?", a: "your call recordings, messages, and customer data are yours. we encrypt them at rest, never sell them, and never use your content to train general models." }
+  ];
+  return `
+    <div class="faq-list">
+      ${items.map((item, i) => `
+        <div class="faq-item ${state.faqOpen === i ? 'open' : ''}">
+          <button class="faq-q" data-faq="${i}">
+            <span>${item.q}</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-a">
+            <div class="faq-a-inner">${item.a}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function attachMarketingHandlers() {
+  document.querySelectorAll('[data-action]').forEach(el => {
+    el.onclick = () => {
+      const a = el.dataset.action;
+      if (a === 'go-signup') setState({ screen: 'auth-signup' });
+      else if (a === 'go-login') setState({ screen: 'auth-login' });
+      else if (a === 'scroll-how') {
+        document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+  });
+  document.querySelectorAll('[data-faq]').forEach(el => {
+    el.onclick = () => {
+      const idx = Number(el.dataset.faq);
+      setState({ faqOpen: state.faqOpen === idx ? null : idx });
+    };
+  });
+}
+
+/* ===== Auth (login + signup) =====
+   Minimal shared UI — OTP flow simulated
+*/
+function renderAuth() {
+  const isLogin = state.screen === 'auth-login';
+  return `
+    <div class="page auth-page">
+      <div class="auth-card">
+        <div class="auth-orb"></div>
+        <h2 class="auth-title">${isLogin ? 'welcome back.' : "let's get you hired."}</h2>
+        <p class="auth-sub">${isLogin ? 'sign in to adfi.' : "start your 7-day free trial. no charge until it's working."}</p>
+
+        <div class="auth-field">
+          <label>phone or email</label>
+          <input type="text" class="auth-input" placeholder="+1 (416) 555-0172 or you@example.com" />
+        </div>
+
+        <button class="auth-btn" data-action="auth-submit">
+          ${isLogin ? 'send login code' : 'continue →'}
+        </button>
+
+        <div class="auth-divider">OR</div>
+
+        <button class="auth-btn secondary" data-action="auth-google">
+          continue with google
+        </button>
+
+        <div class="auth-footer">
+          ${isLogin
+            ? `don't have an account? <a href="#" data-action="go-signup">sign up</a>`
+            : `already have an account? <a href="#" data-action="go-login">log in</a>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function attachAuthHandlers() {
+  document.querySelectorAll('[data-action]').forEach(el => {
+    el.onclick = (e) => {
+      e.preventDefault();
+      const a = el.dataset.action;
+      if (a === 'auth-submit') {
+        if (state.screen === 'auth-signup') {
+          showToast('check your phone for the code');
+          setTimeout(() => setState({ screen: 'onboarding', onbStep: 1 }), 900);
+        } else {
+          showToast('welcome back');
+          setTimeout(() => setState({ screen: 'app', appRoute: 'dashboard' }), 900);
+        }
+      }
+      else if (a === 'auth-google') {
+        showToast('connecting to google...');
+        setTimeout(() => setState({ screen: 'onboarding', onbStep: 1 }), 900);
+      }
+      else if (a === 'go-signup') setState({ screen: 'auth-signup' });
+      else if (a === 'go-login') setState({ screen: 'auth-login' });
+    };
+  });
+}
+
+/* ===== ONBOARDING — 6 steps, desktop-optimized ===== */
+function renderOnboarding() {
+  const step = state.onbStep || 1;
+  const progress = `
+    <div class="onb-progress">
+      <span class="onb-progress-text">0${step} / 06</span>
+      <div class="onb-progress-dots">
+        ${[1,2,3,4,5,6].map(n => `<span class="onb-dot ${step >= n ? 'active' : ''}"></span>`).join('')}
+      </div>
+    </div>
+  `;
+
+  const wrap = (content, wide = false) => `
+    <div class="page auth-page">
+      <div class="auth-card" style="${wide ? 'max-width: 560px;' : ''}">
+        ${progress}
+        ${content}
+      </div>
+    </div>
+  `;
+
+  if (step === 1) {
+    return wrap(`
+      <h2 class="auth-title" style="text-align: left;">what does your business do?</h2>
+      <p class="auth-sub" style="text-align: left;">one sentence. two if it's complex. i'll figure out the rest.</p>
+      <div class="auth-field">
+        <textarea id="biz-desc" class="auth-input" rows="4" placeholder="e.g. i run a ceramics studio in toronto — i make tableware and teach classes." style="resize: none; font-family: inherit;"></textarea>
+      </div>
+      <p class="mono" style="font-size: 10px; color: var(--ink4); letter-spacing: 0.15em; margin-bottom: 14px;">OR PICK AN EXAMPLE</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px;">
+        <span class="chip" data-example="handmade ceramics studio in toronto">ceramics studio</span>
+        <span class="chip" data-example="freelance photography">photographer</span>
+        <span class="chip" data-example="plant shop">plant shop</span>
+        <span class="chip" data-example="yoga instructor with private classes">yoga instructor</span>
+        <span class="chip" data-example="bakery specializing in sourdough">bakery</span>
+      </div>
+      <button class="auth-btn" data-action="onb-next">continue →</button>
+    `);
+  }
+
+  if (step === 2) {
+    const goals = [
+      { id: 'customers', title: 'more customers', desc: 'new people discovering you' },
+      { id: 'repeat', title: 'more repeat buyers', desc: 'existing customers coming back' },
+      { id: 'visibility', title: 'more visibility', desc: 'just grow the brand first' }
+    ];
+    return wrap(`
+      <h2 class="auth-title" style="text-align: left;">what do you want more of?</h2>
+      <p class="auth-sub" style="text-align: left;">pick the one that matters most. this shapes what i prioritize each week.</p>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+        ${goals.map(g => {
+          const sel = state.selectedGoal === g.id;
+          return `<div data-goal="${g.id}" style="padding: 14px; border: ${sel ? '1.5px solid var(--ink)' : '0.5px solid var(--border)'}; border-radius: 14px; cursor: pointer; background: ${sel ? 'white' : 'var(--bg)'}; transition: all 0.15s;">
+            <div style="font-weight: 500; font-size: 14px; margin-bottom: 2px;">${g.title}</div>
+            <div style="font-size: 12px; color: var(--ink3);">${g.desc}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <button class="auth-btn" data-action="onb-next" ${state.selectedGoal ? '' : 'disabled style="opacity: 0.4; pointer-events: none;"'}>continue →</button>
+    `);
+  }
+
+  if (step === 3) {
+    if (!state.analysisRun) {
+      return wrap(`
+        <h2 class="auth-title" style="text-align: left;">give me 30 seconds.</h2>
+        <p class="auth-sub" style="text-align: left;">i'll look at your business and tell you what i see.</p>
+        <div style="background: #111; color: white; border-radius: 16px; padding: 20px; margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+            <div class="pulsing-dot"></div>
+            <span class="mono" style="font-size: 10px; opacity: 0.8; letter-spacing: 0.2em;">ANALYZING</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 9px;">
+            <div style="font-size: 12px; display: flex; gap: 10px;"><span class="mono" style="opacity: 0.5;">01</span><span>reading your business description</span></div>
+            <div style="font-size: 12px; display: flex; gap: 10px; opacity: 0.5;"><span class="mono">02</span><span>finding similar businesses</span></div>
+            <div style="font-size: 12px; display: flex; gap: 10px; opacity: 0.5;"><span class="mono">03</span><span>checking industry benchmarks</span></div>
+            <div style="font-size: 12px; display: flex; gap: 10px; opacity: 0.5;"><span class="mono">04</span><span>spotting your biggest opportunity</span></div>
+          </div>
+        </div>
+        <button class="auth-btn" data-action="run-analysis">see what i found →</button>
+      `);
+    }
+    return wrap(`
+      <h2 class="auth-title" style="text-align: left;">here's what i see.</h2>
+      <p class="auth-sub" style="text-align: left;"><em>nice business.</em></p>
+
+      <div style="background: white; border: 0.5px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px;">
+        <div class="mono" style="font-size: 10px; color: var(--alive-dark); letter-spacing: 0.2em; margin-bottom: 6px;">● YOUR BIGGEST OPPORTUNITY</div>
+        <p style="font-size: 13px; line-height: 1.5; margin: 0;">your real customer is <strong>interior designers + boutique stores</strong>, not retail buyers. you could <strong>3× wholesale in 6 months.</strong></p>
+      </div>
+
+      <div style="background: var(--attn-bg); border: 0.5px solid var(--attn-border); border-radius: 14px; padding: 14px; margin-bottom: 10px;">
+        <div class="mono" style="font-size: 10px; color: var(--attn-text); letter-spacing: 0.2em; margin-bottom: 6px;">● YOUR BIGGEST RISK</div>
+        <p style="font-size: 13px; line-height: 1.5; margin: 0;">businesses like yours miss <strong>4–6 calls per week</strong>. at your price point, that's <strong>$8k–$20k/year</strong> walking past.</p>
+      </div>
+
+      <div style="background: white; border: 0.5px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 16px;">
+        <div class="mono" style="font-size: 10px; color: var(--ink4); letter-spacing: 0.2em; margin-bottom: 8px;">● RIVALS I'LL WATCH</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px;"><span>east fork · asheville</span><span class="mono" style="color: var(--alive-dark);">+30%</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 12px;"><span>heath ceramics · sf</span><span class="mono" style="color: var(--alive-dark);">+32%</span></div>
+        </div>
+      </div>
+
+      <div style="background: var(--surface); border-radius: 12px; padding: 12px; margin-bottom: 16px; text-align: center;">
+        <p style="font-size: 13px; font-weight: 500; margin-bottom: 2px;">want me to actually do this for you?</p>
+        <p style="font-size: 11px; color: var(--ink3); margin: 0;">7 days free · i won't charge until i've proven i'm working</p>
+      </div>
+
+      <button class="auth-btn" data-action="onb-next">start my free trial →</button>
+    `);
+  }
+
+  if (step === 4) {
+    const plans = [
+      { id: 'starter', name: 'starter', price: 39, tagline: 'the essentials' },
+      { id: 'team', name: 'team', price: 99, tagline: 'most solopreneurs pick this', recommended: true },
+      { id: 'studio', name: 'studio', price: 299, tagline: 'a full marketing team' }
+    ];
+    return wrap(`
+      <h2 class="auth-title" style="text-align: left;">start my free trial.</h2>
+      <p class="auth-sub" style="text-align: left;">7 days free. pick what you want me to do. change this anytime.</p>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+        ${plans.map(p => {
+          const sel = state.selectedPlan === p.id;
+          return `<div data-plan="${p.id}" style="position: relative; background: white; border: ${sel ? '1.5px solid var(--ink)' : '0.5px solid var(--border)'}; border-radius: 14px; padding: 14px; cursor: pointer; transition: all 0.15s;">
+            ${p.recommended ? `<div style="position: absolute; top: -8px; left: 14px; background: var(--ink); color: white; padding: 2px 8px; border-radius: 100px; font-family: 'SF Mono', monospace; font-size: 9px; letter-spacing: 0.15em;">MOST POPULAR</div>` : ''}
+            <div style="display: flex; justify-content: space-between; align-items: baseline; ${p.recommended ? 'margin-top: 3px;' : ''}">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 14px; height: 14px; border-radius: 50%; border: ${sel ? '4px solid var(--ink)' : '1.5px solid var(--ink5)'}; transition: all 0.15s;"></div>
+                <span style="font-size: 14px; font-weight: 500;">${p.name}</span>
+              </div>
+              <span style="font-size: 14px;"><span style="font-weight: 500;">$${p.price}</span><span style="font-size: 11px; color: var(--ink4);">/mo</span></span>
+            </div>
+            <div class="mono" style="font-size: 10px; color: var(--ink4); margin-top: 4px; padding-left: 22px; letter-spacing: 0.1em;">${p.tagline}</div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <p class="mono" style="font-size: 10px; color: var(--ink4); letter-spacing: 0.2em; margin-bottom: 6px;">CARD ON FILE</p>
+      <div style="background: white; border: 0.5px solid var(--border); border-radius: 12px; padding: 2px; margin-bottom: 10px;">
+        <div style="padding: 12px; display: flex; align-items: center; gap: 10px;">
+          <div style="width: 32px; height: 20px; background: var(--surface); border-radius: 4px; display: flex; align-items: center; justify-content: center;"><span class="mono" style="font-size: 9px; color: var(--ink3);">CARD</span></div>
+          <input type="text" placeholder="card number" style="flex: 1; border: none; outline: none; font-size: 13px; background: transparent;" />
+        </div>
+        <div style="display: flex; border-top: 0.5px solid var(--border2);">
+          <div style="flex: 1; padding: 12px; border-right: 0.5px solid var(--border2);"><input type="text" placeholder="mm / yy" style="width: 100%; border: none; outline: none; font-size: 13px; background: transparent;" /></div>
+          <div style="flex: 1; padding: 12px;"><input type="text" placeholder="cvc" style="width: 100%; border: none; outline: none; font-size: 13px; background: transparent;" /></div>
+        </div>
+      </div>
+
+      <div style="background: var(--surface); border-radius: 10px; padding: 10px 12px; margin-bottom: 16px;">
+        <p style="font-size: 11px; color: var(--ink3); line-height: 1.5; margin: 0;"><strong style="color: var(--ink);">you won't be charged today.</strong> your card will only be used after i've shown real results.</p>
+      </div>
+
+      <button class="auth-btn" data-action="enter-card">start my 7 days free →</button>
+      <p class="mono" style="font-size: 10px; color: var(--ink5); text-align: center; margin-top: 10px;">🔒 stripe · cancel anytime</p>
+    `);
+  }
+
+  if (step === 5) {
+    return wrap(`
+      <h2 class="auth-title" style="text-align: left;">here's your adfi number.</h2>
+      <p class="auth-sub" style="text-align: left;">this is how i catch calls and texts for you.</p>
+
+      <div style="background: #111; color: white; border-radius: 16px; padding: 20px; margin-bottom: 14px; text-align: center;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <div class="pulsing-dot"></div>
+          <span class="mono" style="font-size: 10px; opacity: 0.7; letter-spacing: 0.2em;">ACTIVE · READY FOR CALLS</span>
+        </div>
+        <p class="mono" style="font-size: 20px; font-weight: 500; margin: 0 0 4px; letter-spacing: -0.01em;">+1 (416) 555-0172</p>
+        <p style="font-size: 11px; opacity: 0.5; margin: 0;">local · toronto</p>
+      </div>
+
+      <div style="background: white; border: 0.5px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+        <div class="mono" style="font-size: 10px; color: var(--ink4); letter-spacing: 0.2em; margin-bottom: 10px;">TWO WAYS TO USE IT</div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; gap: 10px; align-items: start;"><span class="mono" style="font-size: 11px; color: var(--ink);">01</span><div><div style="font-size: 13px; font-weight: 500;">forward your business line to this</div><div style="font-size: 12px; color: var(--ink3); margin-top: 2px;">when you miss a call, it rings me. i answer in your voice.</div></div></div>
+          <div style="display: flex; gap: 10px; align-items: start;"><span class="mono" style="font-size: 11px; color: var(--ink);">02</span><div><div style="font-size: 13px; font-weight: 500;">put it on your website or google business</div><div style="font-size: 12px; color: var(--ink3); margin-top: 2px;">new inquiries hit me directly — i qualify, answer, and book.</div></div></div>
+        </div>
+      </div>
+
+      <button class="auth-btn" data-action="onb-next">continue →</button>
+      <p style="text-align: center; margin-top: 10px; font-family: 'SF Mono', monospace; font-size: 11px; color: var(--ink5); cursor: pointer;" data-action="onb-next">i'll set it up later</p>
+    `);
+  }
+
+  if (step === 6) {
+    return wrap(`
+      <h2 class="auth-title" style="text-align: left;">one last thing — instagram.</h2>
+      <p class="auth-sub" style="text-align: left;">connect it so i can post for you too. totally optional — you can do this later.</p>
+
+      <div data-action="connect-ig" style="background: white; border: 0.5px solid ${state.igConnected ? 'var(--alive)' : 'var(--border)'}; border-radius: 14px; padding: 16px; margin-bottom: 14px; cursor: pointer; transition: border-color 0.15s;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--surface); display: flex; align-items: center; justify-content: center;"><div style="width: 16px; height: 16px; border-radius: 5px; border: 2px solid var(--ink);"></div></div>
+          <div style="flex: 1;">
+            <div style="font-size: 14px; font-weight: 500;">Instagram</div>
+            <div class="mono" style="font-size: 10px; color: ${state.igConnected ? 'var(--alive-dark)' : 'var(--ink4)'}; margin-top: 2px;">${state.igConnected ? '✓ connected · @ceramicsco' : 'tap to connect'}</div>
+          </div>
+          ${state.igConnected ? `<div class="status-dot alive"></div>` : `<span class="mono" style="font-size: 13px;">→</span>`}
+        </div>
+      </div>
+
+      <div style="background: var(--surface); border-radius: 12px; padding: 12px; margin-bottom: 18px;">
+        <p style="font-size: 11px; color: var(--ink3); line-height: 1.55; margin: 0;">we never see your password. more platforms later — for now, one is enough.</p>
+      </div>
+
+      <button class="auth-btn" data-action="onb-done">${state.igConnected ? 'start working →' : 'skip & start working →'}</button>
+    `);
+  }
+
+  return '';
+}
+
+function attachOnboardingHandlers() {
+  document.querySelectorAll('[data-action]').forEach(el => {
+    el.onclick = (e) => {
+      e.preventDefault();
+      const a = el.dataset.action;
+      if (a === 'onb-next') setState({ onbStep: (state.onbStep || 1) + 1 });
+      else if (a === 'run-analysis') setState({ analysisRun: true });
+      else if (a === 'enter-card') {
+        showToast('card saved · no charge yet');
+        setTimeout(() => setState({ onbStep: 5 }), 900);
+      }
+      else if (a === 'connect-ig') {
+        setState({ igConnected: true });
+        showToast('instagram connected');
+      }
+      else if (a === 'onb-done') {
+        showToast("i'm starting to work on your business now");
+        setTimeout(() => setState({ screen: 'app', appRoute: 'dashboard', onbStep: 1, analysisRun: false }), 900);
+      }
+    };
+  });
+  document.querySelectorAll('[data-goal]').forEach(el => {
+    el.onclick = () => setState({ selectedGoal: el.dataset.goal });
+  });
+  document.querySelectorAll('[data-plan]').forEach(el => {
+    el.onclick = () => setState({ selectedPlan: el.dataset.plan });
+  });
+  document.querySelectorAll('[data-example]').forEach(el => {
+    el.onclick = () => {
+      const ta = document.getElementById('biz-desc');
+      if (ta) ta.value = el.dataset.example;
+    };
+  });
+}
+
+/* ===== APP SHELL — sidebar + topbar + content routing ===== */
+function renderApp() {
+  const route = state.appRoute || 'dashboard';
+
+  const navPrimary = [
+    { id: 'dashboard', label: 'dashboard' },
+    { id: 'inbox', label: 'inbox', badge: state.navBadges.inbox },
+    { id: 'content', label: 'content', badge: state.navBadges.content },
+    { id: 'report', label: 'weekly report' }
+  ];
+  const navAgents = [
+    { id: 'specialist-strategist', label: 'strategist' },
+    { id: 'specialist-signal', label: 'signal' },
+    { id: 'specialist-echo', label: 'echo' },
+    { id: 'specialist-scout', label: 'scout' },
+    { id: 'specialist-pulse', label: 'pulse' }
+  ];
+  const navBottom = [
+    { id: 'settings', label: 'settings' }
+  ];
+
+  const sidebarHtml = `
+    <aside class="sidebar ${state.sidebarOpen ? 'open' : ''}">
+      <div class="sidebar-header">
+        <div class="sidebar-biz">
+          <div class="sidebar-biz-icon">CC</div>
+          <div class="sidebar-biz-meta">
+            <div class="sidebar-biz-name">Ceramics Co.</div>
+            <div class="sidebar-biz-status">everything is running</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">your business</div>
+        ${navPrimary.map(n => `
+          <button class="sidebar-link ${route === n.id ? 'active' : ''}" data-app-route="${n.id}">
+            <span class="sidebar-link-dot"></span>
+            <span>${n.label}</span>
+            ${n.badge ? `<span class="sidebar-link-badge">${n.badge}</span>` : ''}
+          </button>
+        `).join('')}
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">specialists</div>
+        ${navAgents.map(n => `
+          <button class="sidebar-link ${route === n.id ? 'active' : ''}" data-app-route="${n.id}">
+            <span class="sidebar-link-dot"></span>
+            <span>${n.label}</span>
+          </button>
+        `).join('')}
+      </div>
+
+      <div class="sidebar-footer">
+        ${navBottom.map(n => `
+          <button class="sidebar-link ${route === n.id ? 'active' : ''}" data-app-route="${n.id}">
+            <span class="sidebar-link-dot"></span>
+            <span>${n.label}</span>
+          </button>
+        `).join('')}
+        <div class="sidebar-user" data-app-route="settings">
+          <div class="sidebar-user-avatar">M</div>
+          <div class="sidebar-user-meta">
+            <div class="sidebar-user-name">maya kim</div>
+            <div class="sidebar-user-plan">team plan · $99</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop ${state.sidebarOpen ? 'open' : ''}" data-action="toggle-sidebar"></div>
+  `;
+
+  let pageContent = '';
+  if (route === 'dashboard') pageContent = renderDashboard();
+  else if (route === 'inbox') pageContent = renderInbox();
+  else if (route === 'content') pageContent = renderContent();
+  else if (route === 'report') pageContent = renderReport();
+  else if (route === 'settings') pageContent = renderSettings();
+  else if (route.startsWith('specialist-')) pageContent = renderSpecialist(route.replace('specialist-', ''));
+
+  const topbarTitle = {
+    'dashboard': { t: 'dashboard', s: 'your business, at a glance' },
+    'inbox': { t: 'inbox', s: 'messages and calls' },
+    'content': { t: 'content', s: "what i'm posting for you" },
+    'report': { t: 'weekly report', s: 'your week in numbers' },
+    'settings': { t: 'settings', s: 'account · billing · integrations' },
+    'specialist-strategist': { t: 'strategist', s: 'your business strategy' },
+    'specialist-signal': { t: 'signal', s: 'calls · sms · dms' },
+    'specialist-echo': { t: 'echo', s: 'content creation' },
+    'specialist-scout': { t: 'scout', s: 'competitor tracking' },
+    'specialist-pulse': { t: 'pulse', s: 'market signals' }
+  }[route] || { t: 'adfi', s: '' };
+
+  return `
+    <div class="app-layout">
+      ${sidebarHtml}
+      <main class="app-main">
+        <div class="app-topbar">
+          <div class="app-topbar-left">
+            <button class="mobile-menu-btn" data-action="toggle-sidebar">
+              <div></div><div></div><div></div>
+            </button>
+            <div>
+              <div class="app-topbar-title">${topbarTitle.t}</div>
+              <div class="app-topbar-sub">${topbarTitle.s}</div>
+            </div>
+          </div>
+          <div class="app-topbar-right">
+            <button class="topbar-btn" data-action="log-out">log out</button>
+          </div>
+        </div>
+        <div class="app-content">
+          ${pageContent}
+        </div>
+      </main>
+    </div>
+  `;
+}
+
+/* ===== DASHBOARD ===== */
+function renderDashboard() {
+  return `
+    <div style="margin-bottom: 32px;">
+      <div class="flex-row" style="margin-bottom: 12px;">
+        <span class="status-dot alive"></span>
+        <span class="mono text-sm" style="color: var(--alive-dark); letter-spacing: 0.2em;">EVERYTHING IS RUNNING</span>
+      </div>
+      <h1 style="font-size: clamp(28px, 4vw, 40px); font-weight: 500; letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 8px;">I posted 3 things this week.</h1>
+      <p class="text-lg text-ink3">8,400 people saw them. 3 customers messaged you — I handled them.</p>
+    </div>
+
+    <div class="amber-card mb-2xl" data-app-route="inbox">
+      <div class="flex-row" style="margin-bottom: 10px;">
+        <span class="status-dot attn"></span>
+        <span class="mono text-sm" style="color: var(--attn-text); letter-spacing: 0.2em;">ONE THING NEEDS YOU</span>
+      </div>
+      <p style="font-size: 16px; font-weight: 500; margin-bottom: 8px; line-height: 1.4;">I want to post about your new terracotta pieces on Wednesday.</p>
+      <p class="text-md text-ink3 mb-md">I need a few photos from you.</p>
+      <span class="mono text-sm" style="color: var(--attn-text);">tap to help →</span>
+    </div>
+
+    <div class="grid-3 mb-2xl">
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">CALLS THIS WEEK</div>
+        <div style="font-size: 28px; font-weight: 500; letter-spacing: -0.02em;">7</div>
+        <div class="text-sm text-ink3 mt-sm">i handled all of them. 2 booked appointments.</div>
+      </div>
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">MESSAGES</div>
+        <div style="font-size: 28px; font-weight: 500; letter-spacing: -0.02em;">14</div>
+        <div class="text-sm text-ink3 mt-sm">all answered. shipping · pricing · wholesale.</div>
+      </div>
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">REACH</div>
+        <div style="font-size: 28px; font-weight: 500; letter-spacing: -0.02em;">8.4k</div>
+        <div class="text-sm text-ink3 mt-sm"><span style="color: var(--alive-dark);">+23%</span> vs last week</div>
+      </div>
+    </div>
+
+    <div class="mb-xl">
+      <div class="flex-between mb-lg">
+        <h2 class="text-xl fw-500" style="letter-spacing: -0.01em;">recent activity</h2>
+        <button class="chip" data-app-route="report">full report →</button>
+      </div>
+      <div class="card" style="padding: 0;">
+        ${[
+          { agent: 'SIGNAL', time: 'TUE 2:14PM', title: 'i caught a missed call', desc: 'designer asked about custom dinnerware. booked for thursday.', value: '$850 saved' },
+          { agent: 'ECHO', time: 'MON 11:02AM', title: 'i posted your wheel-throwing reel', desc: 'it is outperforming 80% of your past posts.', value: '1,240 reach' },
+          { agent: 'SCOUT', time: 'MON 9:00AM', title: 'east fork ran a wholesale campaign', desc: 'they offered 20% off to interior designers. worth considering.', value: '' },
+          { agent: 'DMS', time: 'ONGOING', title: 'i answered 4 dms', desc: 'shipping · pricing · restock · wholesale. all handled.', value: '' }
+        ].map((item, i, arr) => `
+          <div style="padding: 18px 20px; ${i < arr.length - 1 ? 'border-bottom: 0.5px solid var(--border2);' : ''}">
+            <div class="flex-between mb-sm">
+              <div class="flex-row gap-sm">
+                <span class="status-dot alive"></span>
+                <span class="mono text-sm" style="color: var(--alive-dark); letter-spacing: 0.2em;">${item.agent} · ${item.time}</span>
+              </div>
+              ${item.value ? `<span class="mono text-sm text-ink3">${item.value}</span>` : ''}
+            </div>
+            <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">${item.title}</div>
+            <div class="text-sm text-ink3">${item.desc}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+/* ===== INBOX ===== */
+function renderInbox() {
+  const threads = [
+    { id: 1, name: 'sarah (designer)', channel: 'CALL', last: 'asked about custom dinnerware', time: '2h ago', status: 'handled', booked: true },
+    { id: 2, name: '+1 (416) 555-0934', channel: 'SMS', last: 'can you do rush orders?', time: '5h ago', status: 'handled' },
+    { id: 3, name: '@studioloft', channel: 'DM', last: 'pricing for 20 pieces', time: 'yesterday', status: 'handled' },
+    { id: 4, name: 'hana@eatery.co', channel: 'EMAIL', last: 'wholesale inquiry — 100 pieces', time: 'yesterday', status: 'needs-you' },
+    { id: 5, name: '@clayhome', channel: 'DM', last: 'do you ship to the us?', time: '2d ago', status: 'handled' },
+    { id: 6, name: '+1 (647) 555-0211', channel: 'CALL', last: 'class schedule question', time: '3d ago', status: 'handled' }
+  ];
+
+  const activeThread = state.selectedThread || 1;
+  const thread = threads.find(t => t.id === activeThread) || threads[0];
+
+  return `
+    <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="flex-between" style="padding: 14px 18px; border-bottom: 0.5px solid var(--border2);">
+          <div class="flex-row gap-sm">
+            <span class="mono text-sm text-ink4" style="letter-spacing: 0.2em;">ALL CONVERSATIONS</span>
+            <span class="mono text-sm text-ink4">· ${threads.length}</span>
+          </div>
+          <div class="flex-row gap-sm">
+            <span class="chip active">all</span>
+            <span class="chip">calls</span>
+            <span class="chip">texts</span>
+            <span class="chip">dms</span>
+          </div>
+        </div>
+        ${threads.map((t, i) => `
+          <div data-thread="${t.id}" style="padding: 14px 18px; cursor: pointer; ${i < threads.length - 1 ? 'border-bottom: 0.5px solid var(--border2);' : ''} background: ${activeThread === t.id ? 'var(--surface)' : 'white'};">
+            <div class="flex-between mb-xs">
+              <div class="flex-row gap-sm" style="flex: 1; min-width: 0;">
+                <span class="mono text-sm" style="color: ${t.status === 'needs-you' ? 'var(--attn-text)' : 'var(--alive-dark)'}; letter-spacing: 0.15em;">${t.channel}</span>
+                <span class="text-md fw-500" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.name}</span>
+                ${t.booked ? `<span class="mono text-sm" style="background: var(--alive); color: #1a4a2c; padding: 1px 6px; border-radius: 100px; font-size: 9px;">BOOKED</span>` : ''}
+                ${t.status === 'needs-you' ? `<span class="mono text-sm" style="background: var(--attn-bg); color: var(--attn-text); padding: 1px 6px; border-radius: 100px; font-size: 9px;">NEEDS YOU</span>` : ''}
+              </div>
+              <span class="mono text-sm text-ink4">${t.time}</span>
+            </div>
+            <div class="text-sm text-ink3" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.last}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="card">
+        <div class="flex-between mb-lg">
+          <div>
+            <div class="mono text-sm text-ink4 mb-xs" style="letter-spacing: 0.15em;">${thread.channel} · ${thread.time}</div>
+            <div class="text-lg fw-500">${thread.name}</div>
+          </div>
+          <div class="flex-row gap-sm">
+            <button class="chip">take over</button>
+            <button class="chip">mark spam</button>
+          </div>
+        </div>
+
+        ${thread.channel === 'CALL' ? `
+          <div class="card" style="background: var(--surface); margin-bottom: 16px;">
+            <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.15em;">I ANSWERED THE CALL</div>
+            <p class="text-md" style="line-height: 1.6; margin-bottom: 10px;">caller: "hi, i'm a designer with an interior design studio. do you do custom dinnerware for clients?"</p>
+            <p class="text-md" style="line-height: 1.6; margin-bottom: 10px;"><strong>me:</strong> "absolutely — we take on 3-4 custom projects a quarter. can you tell me a bit about the project and timeline?"</p>
+            <p class="text-md" style="line-height: 1.6; margin-bottom: 10px;">caller: "it's a restaurant opening in november. looking for ~80 place settings in a custom glaze."</p>
+            <p class="text-md" style="line-height: 1.6;"><strong>me:</strong> "that's a great fit. i booked a design consultation for thursday 2pm to walk through samples. you'll get a confirmation text from maya shortly."</p>
+          </div>
+          <div class="card" style="background: var(--attn-bg); border-color: var(--attn-border); margin-bottom: 0;">
+            <div class="flex-between mb-sm">
+              <span class="mono text-sm" style="color: var(--attn-text); letter-spacing: 0.15em;">APPOINTMENT BOOKED</span>
+              <span class="mono text-sm" style="color: var(--attn-text);">EST. $4–8K</span>
+            </div>
+            <p class="text-md fw-500">thursday, 2:00pm · 30 min · design consultation</p>
+            <p class="text-sm text-ink3 mt-sm">added to your calendar. sarah will get a reminder 1 hour before.</p>
+          </div>
+        ` : `
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex;">
+              <div style="max-width: 70%; background: var(--surface); padding: 10px 14px; border-radius: 16px 16px 16px 4px;">
+                <div class="text-md">${thread.last}</div>
+                <div class="mono text-sm text-ink4 mt-xs">them · ${thread.time}</div>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+              <div style="max-width: 70%; background: var(--ink); color: white; padding: 10px 14px; border-radius: 16px 16px 4px 16px;">
+                <div class="text-md">hi! happy to help — let me pull together some options for you. what's your timeline looking like?</div>
+                <div class="mono text-sm" style="opacity: 0.5; margin-top: 4px;">me · ${thread.time}</div>
+              </div>
+            </div>
+          </div>
+          <div class="flex-row gap-sm mt-lg" style="border-top: 0.5px solid var(--border2); padding-top: 14px;">
+            <input type="text" placeholder="type a reply..." style="flex: 1; padding: 10px 14px; background: var(--bg); border: 0.5px solid var(--border); border-radius: 100px; font-size: 13px;" />
+            <button class="auth-btn" style="padding: 10px 20px; width: auto;">send</button>
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+/* ===== CONTENT ===== */
+function renderContent() {
+  const posts = [
+    { day: 'MON', date: 22, platform: 'IG', status: 'published', title: 'wheel throwing reel', metric: '1.2k reach' },
+    { day: 'TUE', date: 23, platform: 'LI', status: 'published', title: 'behind the glaze', metric: '340 views' },
+    { day: 'WED', date: 24, platform: 'IG', status: 'needs-you', title: 'terracotta collection', metric: 'awaiting photos' },
+    { day: 'THU', date: 25, platform: 'IG', status: 'drafted', title: 'customer testimonial', metric: 'scheduled 10am' },
+    { day: 'FRI', date: 26, platform: 'EMAIL', status: 'drafted', title: 'newsletter: april picks', metric: 'scheduled 8am' },
+    { day: 'SAT', date: 27, platform: 'IG', status: 'drafted', title: 'studio tour', metric: 'scheduled 11am' },
+    { day: 'SUN', date: 28, platform: '', status: 'quiet', title: '', metric: '' }
+  ];
+
+  return `
+    <div class="flex-row mb-xl" style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+      <div class="flex-row gap-sm">
+        <span class="chip active">this week</span>
+        <span class="chip">drafts · 4</span>
+        <span class="chip">performance</span>
+        <span class="chip">trends</span>
+      </div>
+      <button class="auth-btn" style="padding: 8px 16px; width: auto; font-size: 13px;">+ new post</button>
+    </div>
+
+    <div class="card mb-xl">
+      <div class="flex-between mb-lg">
+        <div>
+          <div class="mono text-sm text-ink4 mb-xs" style="letter-spacing: 0.2em;">APR 22 — APR 28</div>
+          <div class="text-lg fw-500">this week's plan</div>
+        </div>
+        <div class="flex-row gap-sm">
+          <button class="chip">← prev</button>
+          <button class="chip">next →</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+        ${posts.map(p => {
+          const statusColor = {
+            'published': 'var(--alive-dark)',
+            'needs-you': 'var(--attn-text)',
+            'drafted': 'var(--ink3)',
+            'quiet': 'var(--ink5)'
+          }[p.status];
+          const statusBg = {
+            'published': 'white',
+            'needs-you': 'var(--attn-bg)',
+            'drafted': 'white',
+            'quiet': 'var(--surface)'
+          }[p.status];
+          return `
+            <div style="background: ${statusBg}; border: ${p.status === 'needs-you' ? '0.5px solid var(--attn-border)' : '0.5px solid var(--border)'}; border-radius: 12px; padding: 12px; min-height: 110px;">
+              <div class="flex-between mb-sm">
+                <div>
+                  <div class="mono text-sm text-ink4" style="letter-spacing: 0.1em;">${p.day}</div>
+                  <div style="font-size: 15px; font-weight: 500;">${p.date}</div>
+                </div>
+                ${p.platform ? `<span class="mono text-sm" style="color: ${statusColor}; font-size: 10px;">${p.platform}</span>` : ''}
+              </div>
+              ${p.title ? `
+                <div class="text-sm" style="line-height: 1.4; margin-bottom: 4px; font-weight: 500;">${p.title}</div>
+                <div class="mono text-sm" style="color: ${statusColor}; font-size: 10px; letter-spacing: 0.1em;">${p.status === 'needs-you' ? '● NEEDS YOU' : p.metric}</div>
+              ` : `<div class="text-sm text-ink5" style="line-height: 1.4;">quiet day</div>`}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="grid-2 mb-xl">
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">BEST POST THIS MONTH</div>
+        <div style="height: 120px; background: linear-gradient(135deg, #F2EFE5 0%, #E5E3DB 100%); border-radius: 12px; margin-bottom: 12px; display: flex; align-items: center; justify-content: center;"><span class="mono text-sm text-ink4">IG REEL · WHEEL THROWING</span></div>
+        <div class="flex-between">
+          <div>
+            <div class="text-md fw-500">wheel throwing reel</div>
+            <div class="mono text-sm text-ink4 mt-xs">APR 15 · INSTAGRAM</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="text-lg fw-500">3.4k</div>
+            <div class="mono text-sm text-ink4">REACH</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">WHAT'S WORKING</div>
+        <div class="flex-col" style="gap: 10px;">
+          <div class="flex-between"><span class="text-sm">process videos</span><span class="mono text-sm" style="color: var(--alive-dark);">+85%</span></div>
+          <div class="flex-between"><span class="text-sm">mornings (8-10am)</span><span class="mono text-sm" style="color: var(--alive-dark);">+42%</span></div>
+          <div class="flex-between"><span class="text-sm">behind-the-scenes</span><span class="mono text-sm" style="color: var(--alive-dark);">+30%</span></div>
+          <div class="flex-between"><span class="text-sm">product-only shots</span><span class="mono text-sm" style="color: var(--ink4);">-12%</span></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ===== SPECIALIST DETAIL ===== */
+function renderSpecialist(id) {
+  const agents = {
+    strategist: { name: 'strategist', tier: 'starter', role: 'business structure · brand voice · weekly plan', coming: false },
+    signal: { name: 'signal', tier: 'starter', role: 'calls · sms · dms · appointments', coming: false },
+    echo: { name: 'echo', tier: 'team', role: 'content creation · posting · performance', coming: false },
+    scout: { name: 'scout', tier: 'team', role: 'competitor tracking · market intel', coming: false },
+    pulse: { name: 'pulse', tier: 'team', role: 'market signals · news · trends', coming: false },
+    ads: { name: 'ads', tier: 'studio', role: 'paid campaigns · budget optimization', coming: true },
+    site: { name: 'site', tier: 'studio', role: 'website building · landing pages', coming: true }
+  };
+  const a = agents[id] || agents.signal;
+  const tierColors = { starter: 'var(--alive-dark)', team: 'var(--ink)', studio: 'var(--attn-text)' };
+
+  return `
+    <div class="flex-row mb-md" style="gap: 12px;">
+      <div style="width: 12px; height: 12px; border-radius: 50%; background: var(--ink);"></div>
+      <h1 style="font-size: 28px; font-weight: 500; letter-spacing: -0.02em;">${a.name}</h1>
+      <span class="mono text-sm" style="background: ${tierColors[a.tier]}; color: white; padding: 3px 8px; border-radius: 100px; letter-spacing: 0.1em; font-size: 9px;">${a.tier.toUpperCase()}</span>
+      ${a.coming ? `<span class="mono text-sm" style="background: var(--attn-bg); color: var(--attn-text); border: 0.5px solid var(--attn-border); padding: 3px 8px; border-radius: 100px; letter-spacing: 0.1em; font-size: 9px;">COMING SOON</span>` : ''}
+    </div>
+    <p class="text-md text-ink3 mb-xl">${a.role}</p>
+
+    ${a.coming ? `
+      <div class="amber-card mb-xl" style="cursor: default;">
+        <div class="mono text-sm mb-sm" style="color: var(--attn-text); letter-spacing: 0.2em;">NOT LIVE YET</div>
+        <p class="text-md">i'm building this one next. everyone on the <strong>studio</strong> plan will get it automatically when it ships — no upgrade needed.</p>
+      </div>
+    ` : `
+      <div class="card mb-lg">
+        <div class="flex-between mb-sm">
+          <div class="mono text-sm text-ink4" style="letter-spacing: 0.2em;">CURRENTLY</div>
+          <span class="mono text-sm" style="color: var(--alive-dark);">ACTIVE</span>
+        </div>
+        <p class="text-md mb-md">${
+          id === 'signal' ? 'monitoring your adfi number for calls and texts' :
+          id === 'echo' ? "drafting your next 3 posts based on this week's performance" :
+          id === 'scout' ? 'running weekly competitor sweep — next check monday 9am' :
+          id === 'pulse' ? 'watching 14 signals relevant to ceramics and craft businesses' :
+          'refreshing your brand voice based on recent posts'
+        }</p>
+        <div style="height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden;">
+          <div style="height: 100%; width: 70%; background: var(--ink); animation: pulse-dot 2s ease-in-out infinite;"></div>
+        </div>
+      </div>
+
+      <div class="card mb-xl" style="padding: 0;">
+        <div style="padding: 14px 18px; border-bottom: 0.5px solid var(--border2);">
+          <div class="mono text-sm text-ink4" style="letter-spacing: 0.2em;">THIS WEEK'S FINDINGS</div>
+        </div>
+        ${[
+          { t: 'new competitor spotted in toronto', sub: 'thu · signal-strength: moderate' },
+          { t: 'customer mentioned "custom dinnerware" 3x this week', sub: 'tue · opportunity' },
+          { t: 'engagement up 23% on reels vs static', sub: 'mon · content insight' }
+        ].map((f, i, arr) => `
+          <div style="padding: 14px 18px; cursor: pointer; ${i < arr.length - 1 ? 'border-bottom: 0.5px solid var(--border2);' : ''}">
+            <div class="text-md fw-500 mb-xs">${f.t}</div>
+            <div class="mono text-sm text-ink4" style="letter-spacing: 0.1em;">${f.sub}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="flex-row gap-md">
+        <button class="auth-btn" style="padding: 10px 18px; width: auto; font-size: 13px;">brief ${a.name}</button>
+        <button class="auth-btn secondary" style="padding: 10px 18px; width: auto; font-size: 13px;">pause agent</button>
+      </div>
+    `}
+  `;
+}
+
+/* ===== WEEKLY REPORT ===== */
+function renderReport() {
+  return `
+    <div class="mb-2xl">
+      <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">WEEK OF APR 22 · SENT EVERY SUNDAY</div>
+      <h1 style="font-size: clamp(26px, 4vw, 36px); font-weight: 500; letter-spacing: -0.025em; line-height: 1.15;">your week, at a glance.</h1>
+    </div>
+
+    <div class="grid-3 mb-xl">
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">REVENUE IMPACT</div>
+        <div style="font-size: 28px; font-weight: 500; letter-spacing: -0.02em;">$4.2k</div>
+        <div class="text-sm text-ink3 mt-sm">est. from appointments i booked</div>
+      </div>
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">REACH</div>
+        <div style="font-size: 28px; font-weight: 500; letter-spacing: -0.02em;">8,400</div>
+        <div class="text-sm text-ink3 mt-sm"><span style="color: var(--alive-dark);">+23%</span> vs last week</div>
+      </div>
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">TIME YOU SAVED</div>
+        <div style="font-size: 28px; font-weight: 500; letter-spacing: -0.02em;">~6 hrs</div>
+        <div class="text-sm text-ink3 mt-sm">vs doing it all yourself</div>
+      </div>
+    </div>
+
+    <div class="card mb-xl" style="padding: 22px;">
+      <div class="mono text-sm text-ink4 mb-md" style="letter-spacing: 0.2em;">THIS WEEK'S STORY</div>
+      <p class="text-lg" style="line-height: 1.6; font-weight: 400;">monday i noticed your competitors are leaning into wholesale. i quietly shifted your content to highlight what makes your process better for designers. by wednesday your reels were outperforming 80% of your past posts. friday, a designer called — i booked her for a <strong>$4–8k project</strong>.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-lg" style="letter-spacing: 0.2em;">WHAT I DID</div>
+        <div class="flex-col" style="gap: 10px;">
+          <div class="flex-row gap-sm"><span class="status-dot alive"></span><span class="text-md">3 posts published</span></div>
+          <div class="flex-row gap-sm"><span class="status-dot alive"></span><span class="text-md">7 calls answered</span></div>
+          <div class="flex-row gap-sm"><span class="status-dot alive"></span><span class="text-md">14 messages handled</span></div>
+          <div class="flex-row gap-sm"><span class="status-dot alive"></span><span class="text-md">2 appointments booked</span></div>
+          <div class="flex-row gap-sm"><span class="status-dot alive"></span><span class="text-md">1 weekly business review</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="mono text-sm text-ink4 mb-lg" style="letter-spacing: 0.2em;">WHAT I NOTICED</div>
+        <div class="flex-col" style="gap: 10px;">
+          <div class="flex-row gap-sm"><span class="status-dot alive"></span><span class="text-md">process videos are your superpower</span></div>
+          <div class="flex-row gap-sm"><span class="status-dot attn"></span><span class="text-md">saturdays are quiet — worth posting?</span></div>
+          <div class="flex-row gap-sm"><span class="status-dot alive"></span><span class="text-md">designers are your best leads</span></div>
+          <div class="flex-row gap-sm"><span class="status-dot attn"></span><span class="text-md">heath ceramics running a promo</span></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ===== SETTINGS ===== */
+function renderSettings() {
+  return `
+    <div style="max-width: 680px;">
+      <div class="mb-2xl">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">ACCOUNT</div>
+        <div class="card" style="padding: 0;">
+          <div class="flex-between" style="padding: 14px 18px; border-bottom: 0.5px solid var(--border2);">
+            <span class="text-md text-ink3">name</span>
+            <span class="text-md">maya kim</span>
+          </div>
+          <div class="flex-between" style="padding: 14px 18px; border-bottom: 0.5px solid var(--border2);">
+            <span class="text-md text-ink3">email</span>
+            <span class="text-md">maya@ceramicsco.ca</span>
+          </div>
+          <div class="flex-between" style="padding: 14px 18px; border-bottom: 0.5px solid var(--border2);">
+            <span class="text-md text-ink3">your adfi number</span>
+            <span class="mono text-md">+1 (416) 555-0172</span>
+          </div>
+          <div class="flex-between" style="padding: 14px 18px;">
+            <span class="text-md text-ink3">business</span>
+            <span class="text-md">Ceramics Co.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-2xl">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">PLAN</div>
+        <div class="card mb-sm">
+          <div class="flex-between mb-md">
+            <div>
+              <div class="text-lg fw-500">team · monthly</div>
+              <div class="mono text-sm text-ink4 mt-xs">MOST POPULAR · $99/MO</div>
+            </div>
+            <span class="mono text-sm" style="background: var(--alive); color: #1a4a2c; padding: 3px 10px; border-radius: 100px; letter-spacing: 0.1em; font-size: 10px;">ACTIVE</span>
+          </div>
+          <div class="flex-row gap-md">
+            <button class="chip">change plan</button>
+            <button class="chip">billing history</button>
+            <button class="chip">update card</button>
+          </div>
+        </div>
+        <div class="text-sm text-ink4">next bill: may 22 · $99</div>
+      </div>
+
+      <div class="mb-2xl">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">CONNECTED ACCOUNTS</div>
+        <div class="card" style="padding: 0;">
+          <div class="flex-between" style="padding: 14px 18px; border-bottom: 0.5px solid var(--border2);">
+            <div class="flex-row gap-md">
+              <div style="width: 28px; height: 28px; background: var(--surface); border-radius: 8px; display: flex; align-items: center; justify-content: center;"><span class="mono text-sm" style="font-weight: 500;">IG</span></div>
+              <div>
+                <div class="text-md fw-500">Instagram</div>
+                <div class="mono text-sm text-ink4">@ceramicsco · connected</div>
+              </div>
+            </div>
+            <span class="status-dot alive"></span>
+          </div>
+          <div class="flex-between" style="padding: 14px 18px; border-bottom: 0.5px solid var(--border2);">
+            <div class="flex-row gap-md">
+              <div style="width: 28px; height: 28px; background: var(--surface); border-radius: 8px; display: flex; align-items: center; justify-content: center;"><span class="mono text-sm" style="font-weight: 500;">LI</span></div>
+              <div>
+                <div class="text-md fw-500">LinkedIn</div>
+                <div class="mono text-sm text-ink4">not connected</div>
+              </div>
+            </div>
+            <button class="chip">connect</button>
+          </div>
+          <div class="flex-between" style="padding: 14px 18px;">
+            <div class="flex-row gap-md">
+              <div style="width: 28px; height: 28px; background: var(--surface); border-radius: 8px; display: flex; align-items: center; justify-content: center;"><span class="mono text-sm" style="font-weight: 500;">FB</span></div>
+              <div>
+                <div class="text-md fw-500">Facebook</div>
+                <div class="mono text-sm text-ink4">coming soon</div>
+              </div>
+            </div>
+            <span class="mono text-sm text-ink5" style="letter-spacing: 0.1em;">SOON</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-xl">
+        <div class="mono text-sm text-ink4 mb-sm" style="letter-spacing: 0.2em;">DANGER ZONE</div>
+        <div class="card">
+          <div class="flex-between">
+            <div>
+              <div class="text-md fw-500 mb-xs">delete account</div>
+              <div class="text-sm text-ink3">this cannot be undone. you'll have 30 days to change your mind.</div>
+            </div>
+            <button class="chip" style="color: var(--urgent); border-color: var(--urgent);">delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function attachAppHandlers() {
+  document.querySelectorAll('[data-app-route]').forEach(el => {
+    el.onclick = () => {
+      const route = el.dataset.appRoute;
+      setState({ appRoute: route, sidebarOpen: false, selectedThread: null });
+    };
+  });
+  document.querySelectorAll('[data-action]').forEach(el => {
+    el.onclick = (e) => {
+      e.preventDefault();
+      const a = el.dataset.action;
+      if (a === 'toggle-sidebar') setState({ sidebarOpen: !state.sidebarOpen });
+      else if (a === 'log-out') {
+        showToast('logged out');
+        setTimeout(() => setState({ screen: 'marketing-home' }), 700);
+      }
+    };
+  });
+  document.querySelectorAll('[data-thread]').forEach(el => {
+    el.onclick = () => setState({ selectedThread: Number(el.dataset.thread) });
+  });
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>

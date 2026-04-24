@@ -43,6 +43,8 @@ const schema = z.object({
 
   CRON_SECRET: z.string().min(16).optional(),
 
+  ADMIN_EMAILS: z.string().optional(),
+
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   DISABLE_WEBHOOKS: z.enum(["0", "1"]).default("0"),
   MOCK_LLM: z.enum(["0", "1"]).default("0"),

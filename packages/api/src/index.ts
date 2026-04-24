@@ -38,3 +38,15 @@ export {
   runAgentForAllEligibleUsers,
   type CronRunResult,
 } from "./cron";
+
+// Pricing + cost estimation (used by admin financial reports)
+export {
+  MODEL_PRICING,
+  AVG_EVENT_COST_CENTS,
+  TWILIO_CENTS,
+  PLAN_PRICING_CENTS,
+  FIXED_OVERHEAD_CENTS,
+  estimateAnthropicCostCents,
+  estimateEventCostCents,
+  formatCents,
+} from "./services/pricing";

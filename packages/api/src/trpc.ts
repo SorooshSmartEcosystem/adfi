@@ -24,7 +24,13 @@ const isAdmin = middleware(({ ctx, next }) => {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Please sign in" });
   }
   const role = ctx.user.app_metadata?.["role"];
-  if (role !== "admin") {
+  const allowedEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const emailAllowed =
+    ctx.user.email && allowedEmails.includes(ctx.user.email.toLowerCase());
+  if (role !== "admin" && !emailAllowed) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
   }
   return next({

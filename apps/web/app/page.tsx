@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { createServerClient } from "@orb/auth/server";
 import { LandingNav } from "../components/landing/nav";
 import { Hero } from "../components/landing/hero";
@@ -16,11 +15,9 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) redirect("/dashboard");
-
   return (
     <main className="min-h-screen bg-bg">
-      <LandingNav />
+      <LandingNav isAuthed={Boolean(user)} />
       <Hero />
       <WhatSection />
       <HowSection />

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export function LandingNav() {
+export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
   return (
     <nav className="sticky top-0 z-50 topbar-blur border-b-hairline border-border">
       <div className="max-w-[1080px] mx-auto px-lg flex items-center justify-between py-md">
@@ -18,18 +18,29 @@ export function LandingNav() {
           <a href="#faq" className="text-sm text-ink3 hover:text-ink transition-colors">
             faq
           </a>
-          <Link
-            href="/signin"
-            className="text-sm text-ink3 hover:text-ink transition-colors"
-          >
-            log in
-          </Link>
-          <Link
-            href="/signup"
-            className="bg-ink text-white px-md py-[8px] rounded-full text-sm font-medium"
-          >
-            get started
-          </Link>
+          {isAuthed ? (
+            <Link
+              href="/dashboard"
+              className="bg-ink text-white px-md py-[8px] rounded-full text-sm font-medium"
+            >
+              go to dashboard →
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/signin"
+                className="text-sm text-ink3 hover:text-ink transition-colors"
+              >
+                log in
+              </Link>
+              <Link
+                href="/signup"
+                className="bg-ink text-white px-md py-[8px] rounded-full text-sm font-medium"
+              >
+                get started
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>

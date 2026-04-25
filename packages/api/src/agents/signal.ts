@@ -9,7 +9,12 @@ import {
   PhoneNumberStatus,
   type Prisma,
 } from "@orb/db";
-import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import {
+  anthropic,
+  jsonSchemaForAnthropic,
+  MODELS,
+  recordAnthropicUsage,
+} from "../services/anthropic";
 import { sendSms } from "../services/twilio";
 import { SIGNAL_SYSTEM_PROMPT } from "./prompts/signal";
 
@@ -43,6 +48,7 @@ export async function runSignal(args: {
   businessDescription: string;
   threadHistory: ThreadMessage[];
   inboundMessage: string;
+  userId?: string;
 }): Promise<SignalOutput> {
   const historyText = args.threadHistory
     .map(
@@ -80,6 +86,15 @@ ${args.inboundMessage}`;
       },
     },
   });
+
+  if (args.userId) {
+    void recordAnthropicUsage({
+      userId: args.userId,
+      agent: Agent.SIGNAL,
+      eventType: "signal_run",
+      response,
+    });
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
@@ -155,6 +170,7 @@ export async function processInboundSms(args: {
     businessDescription: user.businessDescription ?? "",
     threadHistory: history,
     inboundMessage: args.body,
+    userId: user.id,
   });
 
   await db.message.create({

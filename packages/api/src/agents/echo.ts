@@ -8,7 +8,12 @@ import {
   Platform,
   Prisma,
 } from "@orb/db";
-import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import {
+  anthropic,
+  jsonSchemaForAnthropic,
+  MODELS,
+  recordAnthropicUsage,
+} from "../services/anthropic";
 import {
   performanceForPrompt,
   summarizePerformance,
@@ -186,6 +191,7 @@ export async function runEcho(args: {
   // When provided, Echo writes a deliberately different angle from this
   // first attempt — used for A/B variant generation.
   primaryAttempt?: EchoOutput;
+  userId?: string;
 }): Promise<EchoOutput> {
   const recentText =
     args.recentCaptions.length > 0
@@ -248,6 +254,16 @@ Write the next post.`;
       },
     },
   });
+
+  if (args.userId) {
+    void recordAnthropicUsage({
+      userId: args.userId,
+      agent: Agent.ECHO,
+      eventType: args.primaryAttempt ? "echo_variant" : "echo_draft",
+      response,
+      meta: { format: args.format, platform: args.platform },
+    });
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
@@ -341,6 +357,7 @@ export async function generateDailyContent(
     recentCaptions,
     performance,
     hint,
+    userId,
   };
 
   const primary = await runEcho(baseArgs);
@@ -439,6 +456,7 @@ export async function regenerateDraftContent(
     recentCaptions,
     performance,
     hint: combinedHint || undefined,
+    userId: draft.userId,
   });
 
   await db.contentDraft.update({
@@ -566,6 +584,7 @@ export async function draftPlanItem(
     recentCaptions,
     performance,
     hint: richHint,
+    userId: user.id,
   });
 
   // If a draft already exists for this item, replace it; otherwise create.

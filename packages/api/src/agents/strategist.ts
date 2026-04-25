@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import { Agent } from "@orb/db";
+import {
+  anthropic,
+  jsonSchemaForAnthropic,
+  MODELS,
+  recordAnthropicUsage,
+} from "../services/anthropic";
 import { STRATEGIST_SYSTEM_PROMPT } from "./prompts/strategist";
 
 const BrandVoiceSchema = z.object({
@@ -23,6 +29,7 @@ export type BrandVoice = z.infer<typeof BrandVoiceSchema>;
 export async function runStrategist(args: {
   businessDescription: string;
   goal: string;
+  userId?: string;
 }): Promise<BrandVoice> {
   const userMessage = `Business description:\n${args.businessDescription}\n\nPrimary goal: ${args.goal}`;
 
@@ -44,6 +51,15 @@ export async function runStrategist(args: {
       },
     },
   });
+
+  if (args.userId) {
+    void recordAnthropicUsage({
+      userId: args.userId,
+      agent: Agent.STRATEGIST,
+      eventType: "strategist_run",
+      response,
+    });
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {

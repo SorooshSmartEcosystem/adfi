@@ -112,6 +112,7 @@ export const agentRouter = router({
             const voice = await runStrategist({
               businessDescription: user.businessDescription,
               goal: user.goal,
+              userId: ctx.user.id,
             });
             await db.agentContext.update({
               where: { userId: ctx.user.id },

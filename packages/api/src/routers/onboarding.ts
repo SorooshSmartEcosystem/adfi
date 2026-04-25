@@ -40,6 +40,7 @@ export const onboardingRouter = router({
       result = await runStrategist({
         businessDescription: user.businessDescription,
         goal: user.goal,
+        userId: ctx.user.id,
       });
     } catch (error) {
       console.error("Strategist failed:", error);

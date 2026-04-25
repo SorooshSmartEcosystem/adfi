@@ -57,7 +57,18 @@ export function estimateAnthropicCostCents(args: {
   return Math.round(inputCost + outputCost);
 }
 
-export function estimateEventCostCents(eventType: string, agent: string): number {
+// Prefers the real cost logged in payload.costCents (written by
+// recordAnthropicUsage) when available, falling back to observed
+// averages for legacy events that pre-date usage logging.
+export function estimateEventCostCents(
+  eventType: string,
+  agent: string,
+  payload?: unknown,
+): number {
+  if (payload && typeof payload === "object") {
+    const p = payload as Record<string, unknown>;
+    if (typeof p.costCents === "number") return Math.round(p.costCents);
+  }
   if (agent === "STRATEGIST") return AVG_EVENT_COST_CENTS.STRATEGIST;
   if (agent === "ECHO" && eventType === "draft_created")
     return AVG_EVENT_COST_CENTS.ECHO_DRAFT;

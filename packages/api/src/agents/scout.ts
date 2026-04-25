@@ -5,7 +5,12 @@ import {
   FindingSeverity,
   type Prisma,
 } from "@orb/db";
-import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import {
+  anthropic,
+  jsonSchemaForAnthropic,
+  MODELS,
+  recordAnthropicUsage,
+} from "../services/anthropic";
 import { fetchGoogleNews, type NewsItem } from "../services/news";
 import { CREDIT_COSTS, consumeCredits } from "../services/quota";
 import { SCOUT_SYSTEM_PROMPT } from "./prompts/scout";
@@ -38,6 +43,7 @@ export async function runScout(args: {
   businessDescription: string;
   brandVoice: unknown;
   competitors: CompetitorWithFeed[];
+  userId?: string;
 }): Promise<ScoutOutput> {
   if (args.competitors.length === 0) {
     return { observations: [] };
@@ -91,6 +97,16 @@ Produce one observation per competitor.`;
       },
     },
   });
+
+  if (args.userId) {
+    void recordAnthropicUsage({
+      userId: args.userId,
+      agent: Agent.SCOUT,
+      eventType: "scout_run",
+      response,
+      meta: { competitorsChecked: args.competitors.length },
+    });
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
@@ -149,6 +165,7 @@ export async function generateCompetitorIntel(
     businessDescription: user.businessDescription ?? "",
     brandVoice: user.agentContext.strategistOutput,
     competitors: withFeeds,
+    userId,
   });
 
   let findingsCreated = 0;

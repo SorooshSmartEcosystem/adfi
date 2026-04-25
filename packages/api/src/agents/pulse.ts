@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { db, Agent, FindingSeverity } from "@orb/db";
-import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import {
+  anthropic,
+  jsonSchemaForAnthropic,
+  MODELS,
+  recordAnthropicUsage,
+} from "../services/anthropic";
 import { fetchNewsForQueries, type NewsItem } from "../services/news";
 import { CREDIT_COSTS, consumeCredits } from "../services/quota";
 import { PULSE_SYSTEM_PROMPT } from "./prompts/pulse";
@@ -25,6 +30,7 @@ export async function runPulse(args: {
   brandVoice: unknown;
   newsFeed: NewsItem[];
   currentDate?: Date;
+  userId?: string;
 }): Promise<PulseOutput> {
   const dateLine = args.currentDate
     ? `Current date: ${args.currentDate.toISOString().slice(0, 10)}`
@@ -71,6 +77,16 @@ Surface the signals this solopreneur should know about this week.`;
       },
     },
   });
+
+  if (args.userId) {
+    void recordAnthropicUsage({
+      userId: args.userId,
+      agent: Agent.PULSE,
+      eventType: "pulse_run",
+      response,
+      meta: { newsItems: args.newsFeed.length },
+    });
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
@@ -150,6 +166,7 @@ export async function generatePulseSignals(
     brandVoice: user.agentContext.strategistOutput,
     newsFeed,
     currentDate: new Date(),
+    userId,
   });
 
   for (const signal of result.signals) {

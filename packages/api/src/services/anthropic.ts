@@ -65,3 +65,73 @@ function stripUnsupportedConstraints(value: unknown): unknown {
   }
   return result;
 }
+
+// =============================================================
+// Usage logging — agents call this after every Anthropic response so
+// admin financials read real costs, not estimates. Best-effort:
+// never throws into the caller.
+// =============================================================
+
+// Loose because the SDK's Message type evolves and we don't want to pin
+// internal types here — we only read 4 fields.
+type AnthropicResponseLike = {
+  model?: string;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_read_input_tokens?: number | null;
+    cache_creation_input_tokens?: number | null;
+  } | null;
+};
+
+export async function recordAnthropicUsage(args: {
+  userId: string;
+  agent: import("@orb/db").Agent;
+  eventType: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  response: any;
+  meta?: Record<string, unknown>;
+}): Promise<void> {
+  const r = args.response as AnthropicResponseLike;
+  // Lazy imports avoid a circular dep with services/pricing.ts.
+  const { db } = await import("@orb/db");
+  const { estimateAnthropicCostCents, MODEL_PRICING } = await import("./pricing");
+
+  const usage = r.usage ?? {};
+  const inputTokens = usage.input_tokens ?? 0;
+  const outputTokens = usage.output_tokens ?? 0;
+  const cacheReadTokens = usage.cache_read_input_tokens ?? 0;
+  const cacheCreationTokens = usage.cache_creation_input_tokens ?? 0;
+
+  const model = r.model ?? "";
+  const knownModel =
+    model in MODEL_PRICING ? (model as keyof typeof MODEL_PRICING) : null;
+  const costCents = knownModel
+    ? estimateAnthropicCostCents({
+        model: knownModel,
+        inputTokens,
+        outputTokens,
+      })
+    : 0;
+
+  try {
+    await db.agentEvent.create({
+      data: {
+        userId: args.userId,
+        agent: args.agent,
+        eventType: args.eventType,
+        payload: {
+          model,
+          inputTokens,
+          outputTokens,
+          cacheReadTokens,
+          cacheCreationTokens,
+          costCents,
+          ...args.meta,
+        },
+      },
+    });
+  } catch (err) {
+    console.warn("recordAnthropicUsage failed:", err);
+  }
+}

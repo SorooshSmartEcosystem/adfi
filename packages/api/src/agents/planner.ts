@@ -8,7 +8,12 @@ import {
   Platform,
   type Prisma,
 } from "@orb/db";
-import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import {
+  anthropic,
+  jsonSchemaForAnthropic,
+  MODELS,
+  recordAnthropicUsage,
+} from "../services/anthropic";
 import {
   performanceForPrompt,
   summarizePerformance,
@@ -61,6 +66,7 @@ export async function runPlanner(args: {
   weekStart: Date;
   weekEnd: Date;
   previousPlan?: { thesis: string; angles: string[] } | null;
+  userId?: string;
 }): Promise<PlannerOutput> {
   const performanceText = performanceForPrompt(args.performance);
 
@@ -102,6 +108,15 @@ Brief Echo on this week's plan.`;
       },
     },
   });
+
+  if (args.userId) {
+    void recordAnthropicUsage({
+      userId: args.userId,
+      agent: Agent.STRATEGIST,
+      eventType: "planner_run",
+      response,
+    });
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
@@ -172,6 +187,7 @@ export async function generateWeeklyPlan(
     weekStart,
     weekEnd,
     previousPlan: previousPlanArg,
+    userId,
   });
 
   // Archive any existing plan for this user/week (defensive — there's a

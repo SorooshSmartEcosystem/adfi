@@ -160,10 +160,10 @@ export const adminRouter = router({
     // Anthropic cost — per-event estimates this month
     const events = await ctx.db.agentEvent.findMany({
       where: { createdAt: { gte: periodStart } },
-      select: { eventType: true, agent: true },
+      select: { eventType: true, agent: true, payload: true },
     });
     const anthropicCents = events.reduce(
-      (sum, e) => sum + estimateEventCostCents(e.eventType, e.agent),
+      (sum, e) => sum + estimateEventCostCents(e.eventType, e.agent, e.payload),
       0,
     );
 
@@ -246,12 +246,12 @@ export const adminRouter = router({
       // Fetch events + aggregate per user
       const events = await ctx.db.agentEvent.findMany({
         where: { createdAt: { gte: periodStart } },
-        select: { userId: true, eventType: true, agent: true },
+        select: { userId: true, eventType: true, agent: true, payload: true },
       });
       const costByUser = new Map<string, number>();
       const eventsByUser = new Map<string, number>();
       for (const e of events) {
-        const c = estimateEventCostCents(e.eventType, e.agent);
+        const c = estimateEventCostCents(e.eventType, e.agent, e.payload);
         costByUser.set(e.userId, (costByUser.get(e.userId) ?? 0) + c);
         eventsByUser.set(e.userId, (eventsByUser.get(e.userId) ?? 0) + 1);
       }
@@ -371,7 +371,7 @@ export const adminRouter = router({
           costCents: 0,
         };
         prev.count += 1;
-        prev.costCents += estimateEventCostCents(e.eventType, e.agent);
+        prev.costCents += estimateEventCostCents(e.eventType, e.agent, e.payload);
         summary.set(key, prev);
       }
 
@@ -439,7 +439,7 @@ export const adminRouter = router({
 
     const events = await ctx.db.agentEvent.findMany({
       where: { createdAt: { gte: periodStart } },
-      select: { eventType: true, agent: true },
+      select: { eventType: true, agent: true, payload: true },
     });
     const agentBreakdown = {
       STRATEGIST: 0,
@@ -451,7 +451,7 @@ export const adminRouter = router({
     };
     for (const e of events) {
       agentBreakdown[e.agent as keyof typeof agentBreakdown] +=
-        estimateEventCostCents(e.eventType, e.agent);
+        estimateEventCostCents(e.eventType, e.agent, e.payload);
     }
 
     const activeNumbers = await ctx.db.phoneNumber.count({

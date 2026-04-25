@@ -28,6 +28,19 @@ export const agentRouter = router({
     };
   }),
 
+  // Used by /specialist/strategist on web + mobile to render the actual
+  // brand voice (the artifact) instead of the empty findings list.
+  getStrategistVoice: authedProc.input(z.void()).query(async ({ ctx }) => {
+    const ctxRow = await ctx.db.agentContext.findUnique({
+      where: { userId: ctx.user.id },
+      select: { strategistOutput: true, lastRefreshedAt: true },
+    });
+    return {
+      voice: (ctxRow?.strategistOutput as Record<string, unknown> | null) ?? null,
+      lastRefreshedAt: ctxRow?.lastRefreshedAt ?? null,
+    };
+  }),
+
   pause: authedProc
     .input(z.object({ agent: ControllableAgent }))
     .mutation(async ({ ctx, input }) => {

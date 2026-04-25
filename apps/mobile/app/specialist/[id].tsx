@@ -16,6 +16,8 @@ import {
 } from "../../components/specialists/agent-config";
 import { LiveDot } from "../../components/shared/live-dot";
 import { TabbedScreen } from "../../components/shared/tabbed-screen";
+import { BrandVoiceView } from "../../components/specialists/brand-voice-view";
+import { RecentDraftsView } from "../../components/specialists/recent-drafts-view";
 
 function timeLabel(at: Date): string {
   const weekday = at
@@ -36,6 +38,9 @@ export default function SpecialistScreen() {
     { agent: agent.dbAgent ?? "SIGNAL", limit: 6 },
     { enabled: !agent.coming && agent.dbAgent !== null },
   );
+  const voiceQuery = trpc.agent.getStrategistVoice.useQuery(undefined, {
+    enabled: agent.dbAgent === "STRATEGIST" && !agent.coming,
+  });
 
   return (
     <TabbedScreen>
@@ -113,30 +118,48 @@ export default function SpecialistScreen() {
             <Text style={styles.nowBody}>{agent.currently}</Text>
           </View>
 
-          <Text style={styles.sectionLabel}>RECENT FINDINGS</Text>
-          {findingsQuery.isLoading ? (
-            <ActivityIndicator color={colors.ink4} style={styles.loading} />
-          ) : (findingsQuery.data ?? []).length === 0 ? (
-            <Text style={styles.empty}>
-              nothing surfaced yet — check back after the next run.
-            </Text>
+          {agent.dbAgent === "STRATEGIST" ? (
+            <BrandVoiceView
+              voice={
+                (voiceQuery.data?.voice as Parameters<
+                  typeof BrandVoiceView
+                >[0]["voice"]) ?? null
+              }
+              lastRefreshedAt={voiceQuery.data?.lastRefreshedAt ?? null}
+            />
+          ) : agent.dbAgent === "ECHO" ? (
+            <RecentDraftsView />
           ) : (
-            <View style={styles.findings}>
-              {(findingsQuery.data ?? []).map((f, i, arr) => (
-                <View
-                  key={f.id}
-                  style={[
-                    styles.finding,
-                    i < arr.length - 1 && styles.findingDivider,
-                  ]}
-                >
-                  <Text style={styles.findingTitle}>{f.summary}</Text>
-                  <Text style={styles.findingMeta}>
-                    {timeLabel(f.createdAt)} · {f.severity.toLowerCase()}
-                  </Text>
+            <>
+              <Text style={styles.sectionLabel}>RECENT FINDINGS</Text>
+              {findingsQuery.isLoading ? (
+                <ActivityIndicator
+                  color={colors.ink4}
+                  style={styles.loading}
+                />
+              ) : (findingsQuery.data ?? []).length === 0 ? (
+                <Text style={styles.empty}>
+                  nothing surfaced yet — check back after the next run.
+                </Text>
+              ) : (
+                <View style={styles.findings}>
+                  {(findingsQuery.data ?? []).map((f, i, arr) => (
+                    <View
+                      key={f.id}
+                      style={[
+                        styles.finding,
+                        i < arr.length - 1 && styles.findingDivider,
+                      ]}
+                    >
+                      <Text style={styles.findingTitle}>{f.summary}</Text>
+                      <Text style={styles.findingMeta}>
+                        {timeLabel(f.createdAt)} · {f.severity.toLowerCase()}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
+              )}
+            </>
           )}
         </>
       )}

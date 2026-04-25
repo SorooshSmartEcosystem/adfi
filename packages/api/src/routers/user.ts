@@ -15,15 +15,27 @@ export const userRouter = router({
   updateProfile: authedProc
     .input(
       z.object({
+        businessName: z.string().max(80).optional(),
         businessDescription: z.string().max(500).optional(),
+        businessLogoUrl: z.string().url().max(500).nullable().optional(),
+        businessWebsiteUrl: z.string().url().max(500).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const user = await ctx.db.user.update({
         where: { id: ctx.user.id },
         data: {
+          ...(input.businessName !== undefined && {
+            businessName: input.businessName,
+          }),
           ...(input.businessDescription !== undefined && {
             businessDescription: input.businessDescription,
+          }),
+          ...(input.businessLogoUrl !== undefined && {
+            businessLogoUrl: input.businessLogoUrl,
+          }),
+          ...(input.businessWebsiteUrl !== undefined && {
+            businessWebsiteUrl: input.businessWebsiteUrl,
           }),
         },
       });

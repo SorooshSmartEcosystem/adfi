@@ -35,6 +35,22 @@ export async function createServerClient(): Promise<SupabaseClient> {
   });
 }
 
+// Service-role client — bypasses RLS. Use only in server-side route handlers
+// where the request has already been authenticated. Useful for storage
+// uploads and any cross-user admin work.
+export function createServiceRoleClient(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set",
+    );
+  }
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
 // Validates a JWT access token (from mobile clients) and returns the user.
 // Used by the tRPC context when `Authorization: Bearer <token>` is present.
 export async function getUserFromBearer(token: string): Promise<User | null> {

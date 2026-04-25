@@ -3,10 +3,11 @@ import { createServerClient } from "@orb/auth/server";
 import { trpcServer } from "../../../lib/trpc-server";
 import { Card } from "../../../components/shared/card";
 import { Row, Section } from "../../../components/settings/section";
-import { StatusDot } from "../../../components/shared/status-dot";
 import { BillingCard } from "../../../components/settings/billing-card";
 import { SubscribersCard } from "../../../components/settings/subscribers-card";
 import { PreferencesCard } from "../../../components/settings/preferences-card";
+import { BusinessProfileCard } from "../../../components/settings/business-profile-card";
+import { ConnectionsList } from "../../../components/settings/connect-card";
 
 function formatPhone(raw: string | null | undefined): string {
   if (!raw) return "not set up";
@@ -29,12 +30,12 @@ export default async function SettingsPage() {
     trpc.user.getHomeData(),
   ]);
 
-  const businessName =
-    user.businessDescription?.split(/[.\n]/)[0]?.slice(0, 40)?.trim() ||
-    "—";
-
   return (
     <div className="max-w-[680px]">
+      <Section label="BUSINESS">
+        <BusinessProfileCard />
+      </Section>
+
       <Section label="ACCOUNT">
         <Card padded={false}>
           <Row label="email" value={user.email ?? "—"} />
@@ -46,8 +47,8 @@ export default async function SettingsPage() {
                 {formatPhone(home.phoneStatus.active ? home.phoneStatus.number : null)}
               </span>
             }
+            isLast
           />
-          <Row label="business" value={businessName} isLast />
         </Card>
       </Section>
 
@@ -63,28 +64,12 @@ export default async function SettingsPage() {
         <PreferencesCard />
       </Section>
 
-      <Section label="CONNECTED ACCOUNTS">
-        <Card padded={false}>
-          <ConnectionRow
-            code="IG"
-            name="Instagram"
-            status="not connected"
-            connected={false}
-          />
-          <ConnectionRow
-            code="LI"
-            name="LinkedIn"
-            status="not connected"
-            connected={false}
-          />
-          <ConnectionRow
-            code="FB"
-            name="Facebook"
-            status="coming soon"
-            soon
-            isLast
-          />
-        </Card>
+      <Section label="CONNECT YOUR CHANNELS">
+        <p className="text-sm text-ink3 mb-md max-w-[480px]">
+          tap a row to see exactly what to do. instagram and linkedin connect
+          buttons activate as soon as their oauth flows ship.
+        </p>
+        <ConnectionsList />
       </Section>
 
       <Section label="DANGER ZONE">
@@ -108,49 +93,6 @@ export default async function SettingsPage() {
           </div>
         </Card>
       </Section>
-    </div>
-  );
-}
-
-function ConnectionRow({
-  code,
-  name,
-  status,
-  connected = false,
-  soon = false,
-  isLast = false,
-}: {
-  code: string;
-  name: string;
-  status: string;
-  connected?: boolean;
-  soon?: boolean;
-  isLast?: boolean;
-}) {
-  return (
-    <div
-      className={`flex items-center justify-between px-lg py-md ${isLast ? "" : "hairline-b2 border-border2"}`}
-    >
-      <div className="flex items-center gap-md">
-        <div className="w-7 h-7 rounded-md bg-surface flex items-center justify-center font-mono text-sm font-medium">
-          {code}
-        </div>
-        <div>
-          <div className="text-md font-medium">{name}</div>
-          <div className="font-mono text-sm text-ink4">{status}</div>
-        </div>
-      </div>
-      {connected ? (
-        <StatusDot tone="alive" animated />
-      ) : soon ? (
-        <span className="font-mono text-xs text-ink5 tracking-[0.1em]">
-          SOON
-        </span>
-      ) : (
-        <button className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors">
-          connect
-        </button>
-      )}
     </div>
   );
 }

@@ -6,6 +6,10 @@ import {
   MODELS,
   recordAnthropicUsage,
 } from "../services/anthropic";
+import {
+  performanceForPrompt,
+  type PerformanceSummary,
+} from "../services/performance";
 import { STRATEGIST_SYSTEM_PROMPT } from "./prompts/strategist";
 
 const BrandVoiceSchema = z.object({
@@ -30,8 +34,18 @@ export async function runStrategist(args: {
   businessDescription: string;
   goal: string;
   userId?: string;
+  // When provided, Strategist refines this voice instead of starting fresh.
+  previousVoice?: BrandVoice | null;
+  // When provided, Strategist uses recent performance to nudge pillars/voice.
+  performance?: PerformanceSummary | null;
 }): Promise<BrandVoice> {
-  const userMessage = `Business description:\n${args.businessDescription}\n\nPrimary goal: ${args.goal}`;
+  const previousBlock = args.previousVoice
+    ? `\n\nPrevious brand voice (refine this — don't reinvent):\n${JSON.stringify(args.previousVoice, null, 2)}`
+    : "";
+  const performanceBlock = args.performance
+    ? `\n\nRecent performance:\n${performanceForPrompt(args.performance)}`
+    : "";
+  const userMessage = `Business description:\n${args.businessDescription}\n\nPrimary goal: ${args.goal}${previousBlock}${performanceBlock}`;
 
   const response = await anthropic().messages.create({
     model: MODELS.OPUS,

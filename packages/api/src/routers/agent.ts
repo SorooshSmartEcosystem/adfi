@@ -97,6 +97,7 @@ export const agentRouter = router({
           case "STRATEGIST": {
             const user = await ctx.db.user.findUnique({
               where: { id: ctx.user.id },
+              include: { agentContext: true },
             });
             if (!user) throw new Error("user not found");
             if (!user.businessDescription || !user.goal) {
@@ -109,10 +110,21 @@ export const agentRouter = router({
               CREDIT_COSTS.STRATEGIST_REFRESH,
               "strategist_refresh",
             );
+            // Refine previous voice + react to performance — Strategist now
+            // refines instead of cold-starting on subsequent runs.
+            const { summarizePerformance } = await import(
+              "../services/performance"
+            );
+            const performance = await summarizePerformance(ctx.user.id, 90);
             const voice = await runStrategist({
               businessDescription: user.businessDescription,
               goal: user.goal,
               userId: ctx.user.id,
+              previousVoice:
+                (user.agentContext?.strategistOutput as
+                  | Awaited<ReturnType<typeof runStrategist>>
+                  | null) ?? null,
+              performance,
             });
             await db.agentContext.update({
               where: { userId: ctx.user.id },

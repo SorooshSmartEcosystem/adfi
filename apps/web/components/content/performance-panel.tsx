@@ -40,13 +40,23 @@ export function PerformancePanel() {
     return (
       <Card>
         <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
-          NOT ENOUGH DATA YET
+          NO PUBLISHED POSTS YET
         </div>
-        <p className="text-md text-ink3 leading-relaxed">
-          once you&apos;ve published a few posts and metrics roll in,
-          this is where i&apos;ll show what&apos;s working and what
-          isn&apos;t.
+        <p className="text-md text-ink2 leading-relaxed mb-md">
+          performance lives here once you publish. you&apos;ll see best/worst
+          format, best pillar, top posts ranked by reach, and what&apos;s up or
+          down vs your baseline.
         </p>
+        <p className="text-sm text-ink3 leading-relaxed mb-md">
+          to start: approve a draft on the drafts tab, then either send a
+          newsletter or post to instagram once we&apos;ve wired publishing.
+        </p>
+        <a
+          href="/content?tab=drafts"
+          className="bg-ink text-white font-mono text-xs px-md py-[7px] rounded-full inline-block"
+        >
+          go to drafts →
+        </a>
       </Card>
     );
   }

@@ -113,10 +113,17 @@ export function DraftsPanel() {
         {isLoading ? (
           <p className="text-sm text-ink3 font-mono">one second</p>
         ) : awaitingItems.length === 0 ? (
-          <p className="text-sm text-ink3">
-            nothing waiting for review — echo will draft more automatically,
-            or you can hit &apos;write me one&apos; above.
-          </p>
+          <div className="bg-surface rounded-md p-lg">
+            <p className="text-md leading-relaxed mb-sm">
+              inbox zero — nothing waiting for review.
+            </p>
+            <p className="text-sm text-ink3 leading-relaxed">
+              echo drafts on the weekly cadence, or you can pick a format chip
+              above and hit &apos;write me one&apos; for an on-demand draft.
+              tip: pick the format that hasn&apos;t shipped recently to keep
+              your feed varied.
+            </p>
+          </div>
         ) : (
           awaitingItems.map((d) => <DraftCard key={d.id} draft={d} />)
         )}

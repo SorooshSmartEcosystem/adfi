@@ -16,20 +16,28 @@ function headline(postsCount: number): string {
 function subhead({
   reach,
   messagesHandled,
+  postsCount,
 }: {
   reach: number;
   messagesHandled: number;
+  postsCount: number;
 }): string {
+  // Calm, useful tone in the empty state — no "no messages this week."
+  if (postsCount === 0 && messagesHandled === 0) {
+    return "i'm set up and watching. drafts, signals, and inbox activity will land here as it happens.";
+  }
   const reachStr =
     reach >= 1000
       ? `${(reach / 1000).toFixed(1).replace(/\.0$/, "")}k`
       : String(reach);
-  const reachPart = reach > 0 ? `${reachStr} people saw them.` : "";
-  const msgPart =
-    messagesHandled > 0
-      ? `${messagesHandled} customer${messagesHandled === 1 ? "" : "s"} messaged you — i handled them.`
-      : "no messages this week.";
-  return [reachPart, msgPart].filter(Boolean).join(" ");
+  const parts: string[] = [];
+  if (reach > 0) parts.push(`${reachStr} people saw them.`);
+  if (messagesHandled > 0) {
+    parts.push(
+      `${messagesHandled} customer${messagesHandled === 1 ? "" : "s"} messaged you — i handled them.`,
+    );
+  }
+  return parts.join(" ");
 }
 
 function callsCaption({

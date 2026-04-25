@@ -42,8 +42,29 @@ export function RecentActivity({ items }: { items: ActivityItem[] }) {
       </div>
       <Card padded={false}>
         {items.length === 0 ? (
-          <div className="p-xl text-sm text-ink3">
-            nothing yet — as soon as your agents do something, it shows up here.
+          <div className="p-xl">
+            <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
+              FIRST FEW DAYS
+            </div>
+            <p className="text-md leading-relaxed mb-md">
+              your agents are warming up. signal listens for calls + texts,
+              echo drafts content on a weekly cadence, scout sweeps once a
+              week, pulse runs daily. activity shows up here as it happens.
+            </p>
+            <div className="flex items-center gap-sm flex-wrap">
+              <Link
+                href="/specialist/echo"
+                className="bg-ink text-white font-mono text-xs px-md py-[7px] rounded-full"
+              >
+                run echo now →
+              </Link>
+              <Link
+                href="/content"
+                className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors"
+              >
+                plan this week
+              </Link>
+            </div>
           </div>
         ) : (
           items.map((item, i) => (

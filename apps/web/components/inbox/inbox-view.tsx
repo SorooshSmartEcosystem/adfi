@@ -54,8 +54,22 @@ export function InboxView({
       {query.isLoading ? (
         <div className="p-xl text-sm text-ink3 font-mono">one second</div>
       ) : items.length === 0 ? (
-        <div className="p-xl text-sm text-ink3">
-          no messages yet — once calls and texts land, they&apos;ll show up here.
+        <div className="p-xl">
+          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
+            INBOX IS QUIET
+          </div>
+          <p className="text-md leading-relaxed mb-md">
+            no calls or messages yet. once your adfi number starts catching
+            things, signal handles them and you&apos;ll see the conversations
+            here.
+          </p>
+          <p className="text-sm text-ink3 mb-md">
+            two ways to start:
+          </p>
+          <ul className="text-sm text-ink2 leading-relaxed space-y-xs pl-md">
+            <li>· forward your business line to your adfi number (settings → adfi number)</li>
+            <li>· put the adfi number on your website or google business profile</li>
+          </ul>
         </div>
       ) : (
         items.map((item, i) => (

@@ -16,9 +16,32 @@ export async function GET() {
   });
   const accountBody = await accountRes.text();
 
+  // Try a tiny Flux Schnell prediction — surfaces 402/403/etc. directly so
+  // we can see if the issue is specifically with running models vs auth.
+  const predRes = await fetch(
+    "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Prefer: "wait=10",
+      },
+      body: JSON.stringify({
+        input: {
+          prompt: "a small cube on a white background",
+          aspect_ratio: "1:1",
+        },
+      }),
+    },
+  );
+  const predBody = await predRes.text();
+
   return NextResponse.json({
     tokenPrefix,
     accountStatus: accountRes.status,
-    accountBody: accountBody.slice(0, 800),
+    accountBody: accountBody.slice(0, 400),
+    predictionStatus: predRes.status,
+    predictionBody: predBody.slice(0, 800),
   });
 }

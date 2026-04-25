@@ -28,6 +28,8 @@ export function AgentControls({ agent }: { agent: DbAgent }) {
     onSuccess: () => {
       setFlash("done — latest findings below.");
       utils.agent.getSettings.invalidate();
+      utils.content.listDrafts.invalidate();
+      utils.insights.listFindings.invalidate();
       router.refresh();
       setTimeout(() => setFlash(null), 4000);
     },

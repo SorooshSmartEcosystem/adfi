@@ -1,3 +1,5 @@
+import { CarouselArtboard } from "./carousel-artboard";
+
 // Renders the body of a draft based on its format. Each format has its
 // own component so we don't end up with one giant if/else.
 
@@ -71,52 +73,30 @@ export function DraftBody({
   }
 
   if (format === "CAROUSEL") {
-    const cover = c.coverSlide as
-      | { title: string; subtitle: string | null }
-      | undefined;
-    const body = (c.bodySlides as
-      | { headline: string; body: string; visualDirection: string }[]
-      | undefined) ?? [];
-    const closer = c.closerSlide as
-      | { title: string; body: string; cta: string | null }
-      | undefined;
+    const cover = (c.coverSlide ?? {
+      title: "(no cover)",
+      subtitle: null,
+      visualDirection: "",
+      palette: "ink",
+    }) as Parameters<typeof CarouselArtboard>[0]["cover"];
+    const body = (c.bodySlides ?? []) as Parameters<
+      typeof CarouselArtboard
+    >[0]["body"];
+    const closer = (c.closerSlide ?? {
+      title: "",
+      body: "",
+      cta: null,
+      palette: "ink",
+    }) as Parameters<typeof CarouselArtboard>[0]["closer"];
     return (
       <>
         <BriefRow brief={brief} />
-        <div className="font-mono text-xs text-ink4 tracking-[0.2em] mb-sm">
+        <div className="font-mono text-xs text-ink4 tracking-[0.2em] mb-md">
           CAROUSEL · {body.length + 2} SLIDES
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm mb-md">
-          {cover ? (
-            <SlideCard
-              index="01"
-              label="COVER"
-              headline={cover.title}
-              body={cover.subtitle ?? undefined}
-            />
-          ) : null}
-          {body.map((s, i) => (
-            <SlideCard
-              key={i}
-              index={String(i + 2).padStart(2, "0")}
-              label="SLIDE"
-              headline={s.headline}
-              body={s.body}
-              visual={s.visualDirection}
-            />
-          ))}
-          {closer ? (
-            <SlideCard
-              index={String(body.length + 2).padStart(2, "0")}
-              label="CLOSER"
-              headline={closer.title}
-              body={closer.body}
-              cta={closer.cta ?? undefined}
-            />
-          ) : null}
-        </div>
+        <CarouselArtboard cover={cover} body={body} closer={closer} />
         {c.caption ? (
-          <p className="text-md leading-relaxed whitespace-pre-wrap text-ink2 mt-md">
+          <p className="text-md leading-relaxed whitespace-pre-wrap text-ink2 mt-lg">
             {String(c.caption)}
           </p>
         ) : null}
@@ -279,42 +259,3 @@ export function DraftBody({
   );
 }
 
-function SlideCard({
-  index,
-  label,
-  headline,
-  body,
-  visual,
-  cta,
-}: {
-  index: string;
-  label: string;
-  headline: string;
-  body?: string;
-  visual?: string;
-  cta?: string;
-}) {
-  return (
-    <div className="bg-bg border-hairline border-border rounded-md p-md">
-      <div className="flex items-center justify-between mb-sm">
-        <span className="font-mono text-[10px] text-ink4 tracking-[0.2em]">
-          {index} · {label}
-        </span>
-      </div>
-      <div className="text-md font-medium mb-xs leading-tight">{headline}</div>
-      {body ? (
-        <p className="text-sm text-ink2 whitespace-pre-wrap leading-relaxed">
-          {body}
-        </p>
-      ) : null}
-      {visual ? (
-        <p className="font-mono text-[10px] text-ink4 mt-sm italic">
-          📷 {visual}
-        </p>
-      ) : null}
-      {cta ? (
-        <p className="text-sm font-medium text-aliveDark mt-sm">→ {cta}</p>
-      ) : null}
-    </div>
-  );
-}

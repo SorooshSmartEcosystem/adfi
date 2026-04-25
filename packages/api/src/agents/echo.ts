@@ -55,20 +55,46 @@ const SinglePostShape = z.object({
   brief: BriefShape,
 });
 
+const SlideTemplate = z.enum([
+  "cover",       // big hero title
+  "quote",       // dark bg, large pull quote
+  "numbered",    // big number + short headline + body
+  "statement",   // one bold sentence, lots of negative space
+  "image_cue",   // photo placeholder + caption
+  "list",        // 2–4 bullets
+  "closer",      // payoff + CTA
+]);
+
+const SlidePalette = z.enum([
+  "ink",      // black bg, white text
+  "cream",    // surface bg, ink text
+  "white",    // white bg, ink text
+  "alive",    // alive accent on cream
+  "attn",     // amber bg, attentionText
+]);
+
 const CarouselSlideShape = z.object({
+  template: SlideTemplate,
+  palette: SlidePalette,
   headline: z.string(),
   body: z.string(),
+  number: z.string().nullable(),
+  quoteAttribution: z.string().nullable(),
+  bulletPoints: z.array(z.string()).nullable(),
   visualDirection: z.string(),
 });
 
 const CarouselShape = z.object({
   format: z.literal("CAROUSEL"),
   coverSlide: z.object({
+    palette: SlidePalette,
     title: z.string(),
     subtitle: z.string().nullable(),
+    visualDirection: z.string(),
   }),
   bodySlides: z.array(CarouselSlideShape),
   closerSlide: z.object({
+    palette: SlidePalette,
     title: z.string(),
     body: z.string(),
     cta: z.string().nullable(),

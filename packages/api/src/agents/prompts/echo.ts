@@ -45,11 +45,33 @@ SINGLE_POST
 - hashtags: 3–8. Mix 1 broad / 2 niche / 1 location-or-community if relevant. No #hustle, no banned tags.
 
 CAROUSEL (3–8 slides total)
-- coverSlide: { title, subtitle? } — a clear promise of what's inside. The title is the hook.
-- bodySlides: 3–6 slides, each with { headline, body (1–3 short lines), visualDirection (what the slide should show — be specific: "close-up of unfinished bowl on wheel, hands centering clay") }.
-- closerSlide: { title, body, cta? } — pays off the promise; cta is optional.
-- caption: 2–4 sentence post body the user writes underneath the carousel.
-- hashtags: 3–8 same rules as single post.
+You are art-directing the slide deck, not just writing copy. Each slide picks a template + a colour palette, and the rendered slides should feel like a designed deck — not a list of paragraphs.
+
+Templates (pick the right tool for each slide):
+- "cover": the opening hero. Big title, optional subtitle. Use for slide 1.
+- "quote": a single pull-quote that earns the read. Optional attribution. Use sparingly — once per deck max.
+- "numbered": a numbered step or item. number = "01", "02"…. Use this when the deck is a list/sequence/process. headline is the step's verb-led title; body is 1–2 lines.
+- "statement": one bold sentence as the entire slide. Use when one sentence does the work — pattern interrupts, contrarian claims, payoffs.
+- "image_cue": a slide that's primarily a photo. headline = caption underneath the image. visualDirection MUST be specific ("hands centering wet clay on wheel, mid-throw, golden window light from left").
+- "list": 2–4 bullet points. bulletPoints = the bullets. headline frames them.
+- "closer": last slide. headline is the payoff; body is 1–2 lines; cta is optional ("dm me 'wholesale'").
+
+Palettes (alternate so the deck has rhythm — don't ship all-cream or all-ink):
+- "ink": black background, white text. Use for quotes, statements, the cover, or any slide that should feel weighty.
+- "cream": warm cream surface, dark text. The default body slide.
+- "white": clean white, dark text. Use for image_cue and most-spacious statements.
+- "alive": cream with green accent. Use sparingly to highlight a positive payoff.
+- "attn": amber background. Use for warnings/risks/the one-thing-that-matters slide.
+
+DESIGN RULES (these decide whether the deck looks designed or generic):
+- Vary palette across slides. A deck of 5: try (ink cover) → (cream numbered) → (white image_cue) → (cream numbered) → (ink closer with cta). Or (cream cover) → (ink statement) → (cream list) → (ink quote) → (alive closer).
+- Vary template. Don't ship 5 numbered slides in a row. Mix statements/quotes/lists.
+- Body copy on body slides: 1–3 lines max. Carousels are scanned, not read.
+- Headlines: 3–8 words for a designed slide. Don't write essays in the headline field.
+- visualDirection: even on text-only slides, write a 1-sentence note for the photographer/the AI image renderer ("close-up of glaze sample tiles in row, top-down, neutral linen surface"). For image_cue slides this is critical.
+- closerSlide always exists. cta optional.
+
+You output: { coverSlide: { palette, title, subtitle?, visualDirection }, bodySlides: [...], closerSlide: { palette, title, body, cta? }, caption (2–4 sentences for the post body underneath the deck), hashtags (3–8) }.
 
 REEL_SCRIPT (15–60 seconds)
 - hook: first 3 seconds. One line. On-screen text, not voiceover.

@@ -34,7 +34,13 @@ export {
   type PulseOutput,
 } from "./agents/pulse";
 
-// Service helpers (used by webhook route handlers in apps/web)
+// Service helpers (used by webhook + cron route handlers in apps/web)
+export { recordAnthropicUsage } from "./services/anthropic";
+export {
+  summarizePerformance,
+  performanceForPrompt,
+  type PerformanceSummary,
+} from "./services/performance";
 export {
   sendSms,
   validateTwilioSignature,

@@ -65,6 +65,9 @@ export function DraftCard({ draft }: { draft: Draft }) {
       setRegenHint("");
     },
   });
+  const publish = trpc.content.publishDraft.useMutation({
+    onSuccess: () => utils.content.listDrafts.invalidate(),
+  });
 
   const status =
     STATUS_TONE[draft.status as DraftStatus] ?? STATUS_TONE.DRAFT;
@@ -137,6 +140,32 @@ export function DraftCard({ draft }: { draft: Draft }) {
 
       <DraftBody format={draft.format ?? "SINGLE_POST"} content={visibleContent} />
       <div className="mb-md" />
+
+      {draft.status === "APPROVED" && draft.platform === "EMAIL" ? (
+        <div className="flex items-center gap-sm flex-wrap pt-md border-t-hairline border-border2">
+          <button
+            type="button"
+            onClick={() => publish.mutate({ id: draft.id })}
+            disabled={publish.isPending}
+            className="bg-ink text-white font-mono text-xs px-md py-[7px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
+          >
+            {publish.isPending ? "sending..." : "send newsletter →"}
+          </button>
+          {publish.data ? (
+            <span className="font-mono text-xs text-aliveDark">
+              ✓ sent to {publish.data.sent}
+              {publish.data.failed > 0
+                ? ` · ${publish.data.failed} failed`
+                : ""}
+            </span>
+          ) : null}
+          {publish.error ? (
+            <span className="font-mono text-xs text-urgent">
+              {publish.error.message}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {draft.status === "AWAITING_REVIEW" ||
       draft.status === "AWAITING_PHOTOS" ||

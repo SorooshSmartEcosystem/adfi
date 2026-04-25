@@ -9,6 +9,7 @@ import {
 } from "../agents/echo";
 import { generateWeeklyPlan, startOfWeek } from "../agents/planner";
 import { summarizePerformance } from "../services/performance";
+import { publishNewsletter } from "../services/newsletter";
 
 const paginationInput = z.object({
   limit: z.number().min(1).max(100).default(20),
@@ -266,6 +267,36 @@ export const contentRouter = router({
     .input(z.object({ windowDays: z.number().min(7).max(365).default(90) }).optional())
     .query(async ({ ctx, input }) => {
       return summarizePerformance(ctx.user.id, input?.windowDays ?? 90);
+    }),
+
+  publishDraft: authedProc
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const draft = await ctx.db.contentDraft.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+      });
+      if (!draft) throw OrbError.NOT_FOUND("draft");
+      if (draft.status !== DraftStatus.APPROVED) {
+        throw OrbError.VALIDATION(
+          "Approve the draft before publishing it.",
+        );
+      }
+      if (draft.platform !== Platform.EMAIL) {
+        throw OrbError.VALIDATION(
+          "Only email newsletters can be published this way for now.",
+        );
+      }
+      try {
+        const result = await publishNewsletter({
+          draftId: draft.id,
+          userId: ctx.user.id,
+        });
+        return result;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("Newsletter publish failed:", error);
+        throw OrbError.EXTERNAL_API(`SendGrid: ${msg}`);
+      }
     }),
 
   skipPlanItem: authedProc

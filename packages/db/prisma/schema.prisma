@@ -33,6 +33,7 @@ model User {
   contentDrafts         ContentDraft[]
   contentPlans          ContentPlan[]
   contentPosts          ContentPost[]
+  subscribers           Subscriber[]
   messages              Message[]
   calls                 Call[]
   appointments          Appointment[]
@@ -407,6 +408,36 @@ model Competitor {
 
   @@index([userId])
   @@map("competitors")
+}
+
+// =============================================================
+// Subscribers — the user's newsletter list (NOT our paying users).
+// Echo's EMAIL_NEWSLETTER drafts publish via SendGrid to ACTIVE
+// subscribers belonging to this user.
+// =============================================================
+model Subscriber {
+  id            String           @id @default(uuid()) @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  email         String
+  name          String?
+  status        SubscriberStatus @default(ACTIVE)
+  source        String?          // 'manual' | 'csv_import' | 'signup_form' | etc.
+  unsubscribedAt DateTime?       @map("unsubscribed_at")
+  unsubscribeToken String        @unique @default(uuid()) @map("unsubscribe_token")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  user          User             @relation(fields: [userId], references: [id])
+
+  @@unique([userId, email])
+  @@index([userId, status])
+  @@map("subscribers")
+}
+
+enum SubscriberStatus {
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
 }
 
 // =============================================================

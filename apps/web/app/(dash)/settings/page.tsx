@@ -5,6 +5,7 @@ import { Card } from "../../../components/shared/card";
 import { Row, Section } from "../../../components/settings/section";
 import { StatusDot } from "../../../components/shared/status-dot";
 import { BillingCard } from "../../../components/settings/billing-card";
+import { SubscribersCard } from "../../../components/settings/subscribers-card";
 
 function formatPhone(raw: string | null | undefined): string {
   if (!raw) return "not set up";
@@ -51,6 +52,10 @@ export default async function SettingsPage() {
 
       <Section label="PLAN">
         <BillingCard />
+      </Section>
+
+      <Section label="NEWSLETTER LIST">
+        <SubscribersCard />
       </Section>
 
       <Section label="CONNECTED ACCOUNTS">

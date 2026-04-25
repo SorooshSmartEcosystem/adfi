@@ -7,6 +7,7 @@ import {
 } from "@orb/db";
 import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
 import { fetchGoogleNews, type NewsItem } from "../services/news";
+import { CREDIT_COSTS, consumeCredits } from "../services/quota";
 import { SCOUT_SYSTEM_PROMPT } from "./prompts/scout";
 
 const ScoutOutputSchema = z.object({
@@ -122,6 +123,8 @@ export async function generateCompetitorIntel(
   if (user.competitors.length === 0) {
     return { findingsCreated: 0, newsItemsFetched: 0 };
   }
+
+  await consumeCredits(userId, CREDIT_COSTS.SCOUT_RUN, "scout_run");
 
   const withFeeds: CompetitorWithFeed[] = await Promise.all(
     user.competitors.map(async (c) => {

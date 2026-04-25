@@ -1,4 +1,5 @@
 import { db, Agent, Platform, type Prisma } from "@orb/db";
+import { CREDIT_COSTS, consumeCredits } from "./quota";
 import {
   newsletterFromEmail,
   sendgridSend,
@@ -147,6 +148,13 @@ export async function publishNewsletter(args: {
   if (subscribers.length === 0) {
     throw new Error("No active subscribers — add some before publishing");
   }
+
+  // 1 credit per 100 recipients, rounded up. Min 1.
+  const creditCost = Math.max(
+    CREDIT_COSTS.NEWSLETTER_PER_100,
+    Math.ceil(subscribers.length / 100) * CREDIT_COSTS.NEWSLETTER_PER_100,
+  );
+  await consumeCredits(args.userId, creditCost, "newsletter_send");
 
   const senderName =
     draft.user.businessDescription?.split(/[.\n]/)[0]?.slice(0, 40)?.trim() ||

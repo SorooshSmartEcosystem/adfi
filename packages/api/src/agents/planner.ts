@@ -14,6 +14,7 @@ import {
   summarizePerformance,
   type PerformanceSummary,
 } from "../services/performance";
+import { CREDIT_COSTS, consumeCredits } from "../services/quota";
 import { PLANNER_SYSTEM_PROMPT } from "./prompts/planner";
 
 const PlannerOutputSchema = z.object({
@@ -138,6 +139,8 @@ export async function generateWeeklyPlan(
   if (!user.agentContext?.strategistOutput) {
     throw new Error("Brand voice not set — run Strategist first");
   }
+
+  await consumeCredits(userId, CREDIT_COSTS.PLANNER, "planner_weekly");
 
   const weekStart = startOfWeek(weekStartOverride ?? new Date());
   const weekEnd = new Date(weekStart);

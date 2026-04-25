@@ -16,6 +16,7 @@ const PLAN_PRICE: Record<string, string> = {
 
 export function BillingCard() {
   const subQuery = trpc.billing.getCurrent.useQuery();
+  const usageQuery = trpc.billing.getUsage.useQuery();
   const portal = trpc.billing.createPortalSession.useMutation({
     onSuccess: (data) => {
       window.location.href = data.url;
@@ -88,6 +89,49 @@ export function BillingCard() {
           {sub.status}
         </span>
       </div>
+
+      {usageQuery.data ? (
+        <div className="mb-md pt-md border-t-hairline border-border2">
+          <div className="flex items-center justify-between mb-xs">
+            <span className="font-mono text-[10px] text-ink4 tracking-[0.2em]">
+              USAGE · {usageQuery.data.period}
+            </span>
+            <span className="font-mono text-xs">
+              {usageQuery.data.creditsUsed} / {usageQuery.data.creditsLimit}{" "}
+              <span
+                className={
+                  usageQuery.data.exhausted
+                    ? "text-urgent"
+                    : usageQuery.data.pctUsed >= 80
+                      ? "text-attentionText"
+                      : "text-ink4"
+                }
+              >
+                · {usageQuery.data.pctUsed}%
+              </span>
+            </span>
+          </div>
+          <div className="h-[6px] bg-border2 rounded-sm overflow-hidden">
+            <div
+              className={`h-full transition-[width] ${
+                usageQuery.data.exhausted
+                  ? "bg-urgent"
+                  : usageQuery.data.pctUsed >= 80
+                    ? "bg-attentionBorder"
+                    : "bg-ink"
+              }`}
+              style={{ width: `${usageQuery.data.pctUsed}%` }}
+            />
+          </div>
+          <div className="font-mono text-[10px] text-ink4 mt-xs">
+            resets{" "}
+            {new Date(usageQuery.data.resetsAt)
+              .toLocaleDateString("en-US", { month: "short", day: "numeric" })
+              .toLowerCase()}
+            {usageQuery.data.exhausted ? " · upgrade for more" : ""}
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-md flex-wrap">
         <button

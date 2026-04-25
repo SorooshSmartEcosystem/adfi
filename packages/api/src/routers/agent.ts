@@ -7,6 +7,7 @@ import { generateCompetitorIntel } from "../agents/scout";
 import { generateDailyContent } from "../agents/echo";
 import { runStrategist } from "../agents/strategist";
 import { db } from "@orb/db";
+import { CREDIT_COSTS, consumeCredits } from "../services/quota";
 
 // Agents users can control directly. Strategist runs at onboarding; Signal
 // is event-driven (webhook). Everything else can be paused and manually run.
@@ -103,6 +104,11 @@ export const agentRouter = router({
                 "Complete onboarding before re-running Strategist",
               );
             }
+            await consumeCredits(
+              ctx.user.id,
+              CREDIT_COSTS.STRATEGIST_REFRESH,
+              "strategist_refresh",
+            );
             const voice = await runStrategist({
               businessDescription: user.businessDescription,
               goal: user.goal,

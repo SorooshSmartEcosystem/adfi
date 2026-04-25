@@ -4,6 +4,7 @@ import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import type { Context } from "../context";
 import { priceIdForPlan, stripe } from "../services/stripe";
+import { getCurrentUsage } from "../services/quota";
 
 type AuthedCtx = Context & { user: NonNullable<Context["user"]> };
 
@@ -34,6 +35,10 @@ async function getOrCreateCustomerId(ctx: AuthedCtx): Promise<string> {
 }
 
 export const billingRouter = router({
+  getUsage: authedProc.input(z.void()).query(async ({ ctx }) => {
+    return getCurrentUsage(ctx.user.id);
+  }),
+
   getCurrent: authedProc.input(z.void()).query(async ({ ctx }) => {
     return ctx.db.subscription.findFirst({
       where: {

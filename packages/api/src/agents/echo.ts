@@ -14,6 +14,7 @@ import {
   summarizePerformance,
   type PerformanceSummary,
 } from "../services/performance";
+import { CREDIT_COSTS, consumeCredits } from "../services/quota";
 import { ECHO_SYSTEM_PROMPT } from "./prompts/echo";
 
 // =============================================================
@@ -313,6 +314,11 @@ export async function generateDailyContent(
     );
   }
 
+  // Reserve credits before paying for any LLM calls.
+  const cost =
+    CREDIT_COSTS.ECHO_DRAFT + (withVariant ? CREDIT_COSTS.ECHO_VARIANT : 0);
+  await consumeCredits(userId, cost, "echo_draft");
+
   const recentPosts = await db.contentPost.findMany({
     where: { userId },
     orderBy: { publishedAt: "desc" },
@@ -400,6 +406,8 @@ export async function regenerateDraftContent(
       "Brand voice not set — run onboarding analysis before regenerating",
     );
   }
+
+  await consumeCredits(draft.userId, CREDIT_COSTS.ECHO_DRAFT, "echo_regenerate");
 
   const prevCaption = extractCaption(draft.content);
 
@@ -524,6 +532,8 @@ export async function draftPlanItem(
   if (!user.agentContext?.strategistOutput) {
     throw new Error("Brand voice not set — run Strategist first");
   }
+
+  await consumeCredits(user.id, CREDIT_COSTS.ECHO_DRAFT, "echo_plan_item");
 
   const recentPosts = await db.contentPost.findMany({
     where: { userId: user.id },

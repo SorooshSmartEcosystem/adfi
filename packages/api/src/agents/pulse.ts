@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db, Agent, FindingSeverity } from "@orb/db";
 import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
 import { fetchNewsForQueries, type NewsItem } from "../services/news";
+import { CREDIT_COSTS, consumeCredits } from "../services/quota";
 import { PULSE_SYSTEM_PROMPT } from "./prompts/pulse";
 
 const PulseOutputSchema = z.object({
@@ -129,6 +130,8 @@ export async function generatePulseSignals(
   if (!user.agentContext?.strategistOutput) {
     throw new Error("Brand voice not set — run Strategist first");
   }
+
+  await consumeCredits(userId, CREDIT_COSTS.PULSE_RUN, "pulse_run");
 
   const queries = deriveQueries({
     businessDescription: user.businessDescription ?? "",

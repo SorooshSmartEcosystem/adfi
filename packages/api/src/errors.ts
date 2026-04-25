@@ -15,6 +15,8 @@ export const OrbError = {
     code: "TOO_MANY_REQUESTS",
     message: "Slow down — try again in a moment",
   }),
+  RATE_LIMIT: (detail: string) =>
+    new TRPCError({ code: "TOO_MANY_REQUESTS", message: detail }),
   TRIAL_EXPIRED: new TRPCError({
     code: "FORBIDDEN",
     message: "Your trial has ended. Add billing to continue.",

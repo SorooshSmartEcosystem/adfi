@@ -31,6 +31,7 @@ model User {
   agentContext          AgentContext?
   connectedAccounts     ConnectedAccount[]
   contentDrafts         ContentDraft[]
+  contentPlans          ContentPlan[]
   contentPosts          ContentPost[]
   messages              Message[]
   calls                 Call[]
@@ -175,8 +176,9 @@ model ContentDraft {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
-  user            User           @relation(fields: [userId], references: [id])
+  user            User              @relation(fields: [userId], references: [id])
   posts           ContentPost[]
+  planItem        ContentPlanItem?
 
   @@index([userId, status])
   @@index([scheduledFor])
@@ -189,6 +191,66 @@ enum ContentFormat {
   REEL_SCRIPT
   EMAIL_NEWSLETTER
   STORY_SEQUENCE
+}
+
+// =============================================================
+// ContentPlan — the Planner agent's weekly editorial plan.
+// Each plan has multiple ContentPlanItems (the actual slots).
+// Items get drafted by Echo (which creates a ContentDraft).
+// =============================================================
+model ContentPlan {
+  id            String              @id @default(uuid()) @db.Uuid
+  userId        String              @map("user_id") @db.Uuid
+  weekStart     DateTime            @map("week_start") @db.Date
+  weekEnd       DateTime            @map("week_end") @db.Date
+  thesis        String?             @db.Text
+  reasoning     Json?               // { performanceSummary, gapsSpotted, biggestBet }
+  status        ContentPlanStatus   @default(ACTIVE)
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  user          User                @relation(fields: [userId], references: [id])
+  items         ContentPlanItem[]
+
+  @@unique([userId, weekStart])
+  @@index([userId, status])
+  @@map("content_plans")
+}
+
+enum ContentPlanStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model ContentPlanItem {
+  id           String              @id @default(uuid()) @db.Uuid
+  planId       String              @map("plan_id") @db.Uuid
+  scheduledFor DateTime            @map("scheduled_for")
+  platform     Platform
+  format       ContentFormat
+  angle        String              @db.Text
+  hookIdea     String              @map("hook_idea") @db.Text
+  intent       String              // "build_trust" | "drive_inquiry" | etc.
+  audience     String              // segment name
+  pillar       String              // content pillar
+  reasoning    String              @db.Text
+  status       ContentPlanItemStatus @default(PLANNED)
+  draftId      String?             @unique @map("draft_id") @db.Uuid
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  plan         ContentPlan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  draft        ContentDraft?       @relation(fields: [draftId], references: [id])
+
+  @@index([planId, scheduledFor])
+  @@map("content_plan_items")
+}
+
+enum ContentPlanItemStatus {
+  PLANNED
+  DRAFTED
+  PUBLISHED
+  SKIPPED
 }
 
 enum Platform {

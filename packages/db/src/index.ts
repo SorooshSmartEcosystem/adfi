@@ -11,6 +11,8 @@ export {
   Platform,
   DraftStatus,
   ContentFormat,
+  ContentPlanStatus,
+  ContentPlanItemStatus,
   MessageChannel,
   Direction,
   CallStatus,

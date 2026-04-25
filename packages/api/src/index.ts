@@ -14,8 +14,15 @@ export {
   runEcho,
   generateDailyContent,
   regenerateDraftContent,
+  draftPlanItem,
   type EchoOutput,
 } from "./agents/echo";
+export {
+  runPlanner,
+  generateWeeklyPlan,
+  startOfWeek,
+  type PlannerOutput,
+} from "./agents/planner";
 export {
   runScout,
   generateCompetitorIntel,

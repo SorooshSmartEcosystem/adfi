@@ -5,6 +5,7 @@ import { WeekGrid } from "../../../components/content/week-grid";
 import { PerformanceCards } from "../../../components/content/performance-cards";
 import { ContentTabs } from "../../../components/content/tabs";
 import { DraftsPanel } from "../../../components/content/drafts-panel";
+import { PlanPanel } from "../../../components/content/plan-panel";
 
 type Tab = "week" | "drafts" | "performance";
 
@@ -147,9 +148,14 @@ export default async function ContentPage({
       ) : (
         <>
           <div className="mb-xl">
+            <PlanPanel />
+          </div>
+          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-md mt-2xl">
+            CALENDAR · {rangeLabel}
+          </div>
+          <div className="mb-xl">
             <WeekGrid rangeLabel={rangeLabel} slots={slots} />
           </div>
-          <PerformanceCards bestPost={bestPost ?? null} insights={[]} />
         </>
       )}
     </>

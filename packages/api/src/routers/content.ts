@@ -3,9 +3,11 @@ import { ContentFormat, DraftStatus, Platform } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import {
+  draftPlanItem,
   generateDailyContent,
   regenerateDraftContent,
 } from "../agents/echo";
+import { generateWeeklyPlan, startOfWeek } from "../agents/planner";
 
 const paginationInput = z.object({
   limit: z.number().min(1).max(100).default(20),
@@ -175,5 +177,82 @@ export const contentRouter = router({
         nextCursor = next?.id ?? null;
       }
       return { items: posts, nextCursor };
+    }),
+
+  // ============================================================
+  // Weekly content plan (Planner agent).
+  // ============================================================
+
+  getCurrentPlan: authedProc.input(z.void()).query(async ({ ctx }) => {
+    const weekStart = startOfWeek(new Date());
+    const plan = await ctx.db.contentPlan.findUnique({
+      where: { userId_weekStart: { userId: ctx.user.id, weekStart } },
+      include: {
+        items: {
+          orderBy: { scheduledFor: "asc" },
+          include: {
+            draft: {
+              select: { id: true, status: true, format: true },
+            },
+          },
+        },
+      },
+    });
+    return plan;
+  }),
+
+  generatePlan: authedProc
+    .input(z.object({ weekOf: z.date().optional() }).optional())
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const result = await generateWeeklyPlan(ctx.user.id, input?.weekOf);
+        return result;
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("Brand voice")) {
+          throw OrbError.VALIDATION(error.message);
+        }
+        console.error("Planner failed:", error);
+        throw OrbError.EXTERNAL_API("Claude");
+      }
+    }),
+
+  // Drafts a single plan item via Echo. The item gets a draftId + DRAFTED
+  // status; the resulting ContentDraft sits in AWAITING_REVIEW.
+  draftPlanItem: authedProc
+    .input(z.object({ itemId: z.string().uuid(), hint: z.string().max(300).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      // Auth: the plan item must belong to a plan owned by this user.
+      const item = await ctx.db.contentPlanItem.findUnique({
+        where: { id: input.itemId },
+        select: { plan: { select: { userId: true } } },
+      });
+      if (!item || item.plan.userId !== ctx.user.id) {
+        throw OrbError.NOT_FOUND("plan item");
+      }
+
+      try {
+        const draftId = await draftPlanItem(input.itemId, input.hint);
+        return { draftId };
+      } catch (error) {
+        console.error("Echo draftPlanItem failed:", error);
+        throw OrbError.EXTERNAL_API("Claude");
+      }
+    }),
+
+  skipPlanItem: authedProc
+    .input(z.object({ itemId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const item = await ctx.db.contentPlanItem.findUnique({
+        where: { id: input.itemId },
+        select: { plan: { select: { userId: true } } },
+      });
+      if (!item || item.plan.userId !== ctx.user.id) {
+        throw OrbError.NOT_FOUND("plan item");
+      }
+      await ctx.db.contentPlanItem.update({
+        where: { id: input.itemId },
+        data: { status: "SKIPPED" },
+      });
+      return { ok: true as const };
     }),
 });

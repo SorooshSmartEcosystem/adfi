@@ -3,6 +3,7 @@ import {
   db,
   Agent,
   ContentFormat,
+  ContentPlanItemStatus,
   DraftStatus,
   Platform,
   type Prisma,
@@ -473,4 +474,129 @@ function extractPillar(content: unknown): string | undefined {
   }
   if (typeof c.pillar === "string") return c.pillar;
   return undefined;
+}
+
+// =============================================================
+// Drafts a specific ContentPlanItem — uses the item's format / platform /
+// angle / hookIdea / intent / audience / pillar as a tight brief, plus
+// the planner's overall thesis as additional context. Links the resulting
+// ContentDraft back to the plan item so the week view can show it as
+// "drafted" instead of "planned".
+// =============================================================
+export async function draftPlanItem(
+  itemId: string,
+  hint?: string,
+): Promise<string> {
+  const item = await db.contentPlanItem.findUnique({
+    where: { id: itemId },
+    include: {
+      plan: {
+        include: {
+          user: { include: { agentContext: true } },
+        },
+      },
+    },
+  });
+  if (!item) throw new Error("Plan item not found");
+  const user = item.plan.user;
+  if (!user.agentContext?.strategistOutput) {
+    throw new Error("Brand voice not set — run Strategist first");
+  }
+
+  const recentPosts = await db.contentPost.findMany({
+    where: { userId: user.id },
+    orderBy: { publishedAt: "desc" },
+    take: 10,
+    select: { metrics: true, draft: { select: { content: true } } },
+  });
+  const recentCaptions = recentPosts
+    .map((p) => extractCaption(p.draft.content))
+    .filter(Boolean);
+  const recentPerformance = recentPosts
+    .map((p) => {
+      const m = (p.metrics ?? {}) as { reach?: number };
+      const c = extractCaption(p.draft.content);
+      const pillar = extractPillar(p.draft.content);
+      if (!c) return null;
+      return { caption: c, reach: m.reach ?? 0, ...(pillar && { pillar }) };
+    })
+    .filter((p): p is NonNullable<typeof p> => p !== null);
+
+  // Stitch the plan-item brief into a hint that Echo can use directly.
+  const richHint = [
+    `Week's thesis: ${item.plan.thesis ?? "(none set)"}`,
+    `Slot intent: ${item.intent} · audience: ${item.audience} · pillar: ${item.pillar}`,
+    `Angle for this slot: ${item.angle}`,
+    `Suggested opening hook: ${item.hookIdea}`,
+    `Why this slot, this week: ${item.reasoning}`,
+    hint ? `Owner hint: ${hint}` : null,
+  ]
+    .filter((s): s is string => Boolean(s))
+    .join("\n");
+
+  const result = await runEcho({
+    format: item.format,
+    platform: item.platform,
+    businessDescription: user.businessDescription ?? "",
+    brandVoice: user.agentContext.strategistOutput,
+    recentCaptions,
+    recentPerformance,
+    hint: richHint,
+  });
+
+  // If a draft already exists for this item, replace it; otherwise create.
+  let draftId: string;
+  if (item.draftId) {
+    await db.contentDraft.update({
+      where: { id: item.draftId },
+      data: {
+        status: DraftStatus.AWAITING_REVIEW,
+        content: result as unknown as Prisma.InputJsonValue,
+        brief: result.brief as unknown as Prisma.InputJsonValue,
+        voiceMatchScore: result.voiceMatchConfidence,
+        rejectedAt: null,
+        rejectionReason: null,
+      },
+    });
+    draftId = item.draftId;
+  } else {
+    const draft = await db.contentDraft.create({
+      data: {
+        userId: user.id,
+        platform: item.platform,
+        format: item.format,
+        status: DraftStatus.AWAITING_REVIEW,
+        content: result as unknown as Prisma.InputJsonValue,
+        brief: result.brief as unknown as Prisma.InputJsonValue,
+        voiceMatchScore: result.voiceMatchConfidence,
+        scheduledFor: item.scheduledFor,
+      },
+    });
+    draftId = draft.id;
+  }
+
+  await db.contentPlanItem.update({
+    where: { id: itemId },
+    data: {
+      draftId,
+      status: ContentPlanItemStatus.DRAFTED,
+    },
+  });
+
+  await db.agentEvent.create({
+    data: {
+      userId: user.id,
+      agent: Agent.ECHO,
+      eventType: "plan_item_drafted",
+      payload: {
+        planItemId: itemId,
+        draftId,
+        format: item.format,
+        platform: item.platform,
+        pillar: item.pillar,
+      },
+    },
+  });
+
+  return draftId;
 }

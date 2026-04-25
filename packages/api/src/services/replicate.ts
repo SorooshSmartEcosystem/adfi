@@ -136,11 +136,18 @@ export async function generateImage(args: {
 export async function generateImageSafe(
   args: Parameters<typeof generateImage>[0],
 ): Promise<{ url: string; costCents: number } | null> {
+  const t0 = Date.now();
   try {
     const { url, costCents } = await generateImage(args);
+    console.log(
+      `[replicate] generated ${args.slug} for draft ${args.draftId} in ${Date.now() - t0}ms`,
+    );
     return { url, costCents };
   } catch (err) {
-    console.warn("generateImage failed:", err);
+    console.error(
+      `[replicate] generateImage failed for ${args.slug} draft ${args.draftId} after ${Date.now() - t0}ms:`,
+      err,
+    );
     return null;
   }
 }

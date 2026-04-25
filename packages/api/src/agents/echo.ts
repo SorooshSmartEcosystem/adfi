@@ -415,11 +415,10 @@ export async function generateDailyContent(
     },
   });
 
-  // Fire-and-forget hero image — don't block the draft return on Replicate.
-  // The mobile/web UIs poll the draft and the image fills in once ready.
-  void backfillImagesForDraft(draft.id, userId, platform).catch((err) => {
-    console.warn("backfillImagesForDraft failed:", err);
-  });
+  // Block on image generation — fire-and-forget gets killed by Vercel
+  // when the serverless function returns. generateImageSafe inside never
+  // throws, so this can't fail the draft.
+  await backfillImagesForDraft(draft.id, userId, platform);
 
   return draft.id;
 }

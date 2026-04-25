@@ -94,6 +94,7 @@ const CarouselSlideShape = z.object({
   quoteAttribution: z.string().nullable(),
   bulletPoints: z.array(z.string()).nullable(),
   visualDirection: z.string(),
+  imageUrl: z.string().nullable().optional(),
 });
 
 const CarouselShape = z.object({
@@ -103,6 +104,7 @@ const CarouselShape = z.object({
     title: z.string(),
     subtitle: z.string().nullable(),
     visualDirection: z.string(),
+    imageUrl: z.string().nullable().optional(),
   }),
   bodySlides: z.array(CarouselSlideShape),
   closerSlide: z.object({
@@ -150,6 +152,11 @@ const EmailShape = z.object({
     intent: z.string(),
     link: z.string().nullable(),
   }),
+  visualDirection: z.string(),
+  heroImage: z
+    .object({ url: z.string(), model: z.string() })
+    .nullable()
+    .optional(),
   voiceMatchConfidence: z.number(),
   brief: BriefShape,
 });
@@ -430,13 +437,16 @@ async function backfillImagesForDraft(
   const content = draft.content as Record<string, unknown> | null;
   if (!content || typeof content !== "object") return;
 
+  let next: Record<string, unknown> = content;
+  let totalCostCents = 0;
+  let imagesGenerated = 0;
+
   if (content.format === "SINGLE_POST") {
     const direction =
       typeof content.visualDirection === "string"
         ? content.visualDirection
         : null;
     if (!direction) return;
-
     const result = await generateImageSafe({
       userId,
       draftId,
@@ -444,29 +454,122 @@ async function backfillImagesForDraft(
       prompt: direction,
       aspectRatio: aspectRatioForPlatform(platform),
     });
-    if (!result) return;
+    if (result) {
+      next = {
+        ...content,
+        heroImage: { url: result.url, model: "flux-schnell" },
+      };
+      totalCostCents += result.costCents;
+      imagesGenerated += 1;
+    }
+  } else if (content.format === "EMAIL_NEWSLETTER") {
+    const direction =
+      typeof content.visualDirection === "string"
+        ? content.visualDirection
+        : null;
+    if (!direction) return;
+    const result = await generateImageSafe({
+      userId,
+      draftId,
+      slug: "email-hero",
+      prompt: direction,
+      aspectRatio: "16:9",
+    });
+    if (result) {
+      next = {
+        ...content,
+        heroImage: { url: result.url, model: "flux-schnell" },
+      };
+      totalCostCents += result.costCents;
+      imagesGenerated += 1;
+    }
+  } else if (content.format === "CAROUSEL") {
+    const cover = content.coverSlide as
+      | { visualDirection?: string; imageUrl?: string | null }
+      | undefined;
+    const bodySlides = (content.bodySlides as
+      | Array<{
+          template?: string;
+          visualDirection?: string;
+          imageUrl?: string | null;
+        }>
+      | undefined) ?? [];
 
-    const next = {
+    const jobs: Array<Promise<{
+      target: "cover" | number;
+      url: string;
+      cost: number;
+    } | null>> = [];
+
+    if (cover?.visualDirection) {
+      jobs.push(
+        (async () => {
+          const r = await generateImageSafe({
+            userId,
+            draftId,
+            slug: "cover",
+            prompt: cover.visualDirection!,
+            aspectRatio: "1:1",
+          });
+          return r ? { target: "cover" as const, url: r.url, cost: r.costCents } : null;
+        })(),
+      );
+    }
+    bodySlides.forEach((slide, i) => {
+      if (slide.template === "image_cue" && slide.visualDirection) {
+        jobs.push(
+          (async () => {
+            const r = await generateImageSafe({
+              userId,
+              draftId,
+              slug: `slide-${i}`,
+              prompt: slide.visualDirection!,
+              aspectRatio: "1:1",
+            });
+            return r ? { target: i, url: r.url, cost: r.costCents } : null;
+          })(),
+        );
+      }
+    });
+
+    const results = await Promise.all(jobs);
+    const nextBody = bodySlides.map((s) => ({ ...s }));
+    let nextCover = cover ? { ...cover } : undefined;
+    for (const r of results) {
+      if (!r) continue;
+      totalCostCents += r.cost;
+      imagesGenerated += 1;
+      if (r.target === "cover" && nextCover) nextCover.imageUrl = r.url;
+      else if (typeof r.target === "number") nextBody[r.target]!.imageUrl = r.url;
+    }
+    next = {
       ...content,
-      heroImage: { url: result.url, model: "flux-schnell" },
+      ...(nextCover ? { coverSlide: nextCover } : {}),
+      bodySlides: nextBody,
     };
-    await db.contentDraft.update({
-      where: { id: draftId },
-      data: { content: next as unknown as Prisma.InputJsonValue },
-    });
-    await db.agentEvent.create({
-      data: {
-        userId,
-        agent: Agent.ECHO,
-        eventType: "image_generated",
-        payload: {
-          draftId,
-          model: "flux-schnell",
-          costCents: result.costCents,
-        },
-      },
-    });
+  } else {
+    return;
   }
+
+  if (imagesGenerated === 0) return;
+
+  await db.contentDraft.update({
+    where: { id: draftId },
+    data: { content: next as unknown as Prisma.InputJsonValue },
+  });
+  await db.agentEvent.create({
+    data: {
+      userId,
+      agent: Agent.ECHO,
+      eventType: "image_generated",
+      payload: {
+        draftId,
+        model: "flux-schnell",
+        imagesGenerated,
+        costCents: totalCostCents,
+      },
+    },
+  });
 }
 
 function aspectRatioForPlatform(platform: Platform): AspectRatio {

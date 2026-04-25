@@ -11,6 +11,7 @@ type EmailContent = {
   preheader?: string;
   sections?: { heading: string | null; body: string }[];
   cta?: { label: string; intent: string; link: string | null };
+  heroImage?: { url: string; model?: string } | null;
 };
 
 function escapeHtml(s: string): string {
@@ -84,6 +85,11 @@ export function renderNewsletterHtml(
       <td align="center" style="padding: 40px 16px;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background: #ffffff; border: 0.5px solid #E5E3DB; border-radius: 16px;">
           <tr><td>${headerHtml}</td></tr>
+          ${
+            content.heroImage?.url
+              ? `<tr><td style="padding: 16px 32px 0;"><img src="${escapeHtml(content.heroImage.url)}" alt="" width="536" style="width: 100%; max-width: 536px; height: auto; display: block; border-radius: 10px;" /></td></tr>`
+              : ""
+          }
           <tr>
             <td style="padding: 16px 32px 32px; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; color: #111; font-size: 15px; line-height: 1.6;">
               ${bodyHtml}

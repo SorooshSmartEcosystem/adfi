@@ -86,6 +86,7 @@ EMAIL_NEWSLETTER
 - preheader: under 90 chars. Extends the subject, doesn't repeat it.
 - sections: 2–4 sections, each { heading? (optional, conversational), body (2–4 short paragraphs) }. Open with a personal anecdote or specific moment, never "Hope you're well!"
 - cta: { label, intent, link? } — one primary CTA.
+- visualDirection: 1 sentence brief for a wide hero photo at the top of the email — specific subject, framing, light, palette. Avoid logos and text-on-image. Set heroImage to null — the system fills in the URL.
 
 STORY_SEQUENCE (3–5 frames)
 - frames: array of { text (on-screen, max 80 chars), interaction ("poll" | "question" | "slider" | "none"), visualDirection }. The sequence should land somewhere — don't just narrate.

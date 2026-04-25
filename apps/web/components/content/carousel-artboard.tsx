@@ -41,6 +41,7 @@ type CoverSlide = {
   title: string;
   subtitle: string | null;
   visualDirection?: string;
+  imageUrl?: string | null;
 };
 
 type BodySlide = {
@@ -52,6 +53,7 @@ type BodySlide = {
   quoteAttribution: string | null;
   bulletPoints: string[] | null;
   visualDirection: string;
+  imageUrl?: string | null;
 };
 
 type CloserSlide = {
@@ -129,17 +131,43 @@ function CoverSlideView({
       palette={palette}
       visualDirection={slide.visualDirection}
     >
-      <h3
-        className="font-medium tracking-[-0.025em] leading-[1.05]"
-        style={{ fontSize: "clamp(20px, 4vw, 32px)" }}
-      >
-        {slide.title}
-      </h3>
-      {slide.subtitle ? (
-        <p className={`text-sm mt-md leading-relaxed ${PALETTE_MUTED[palette]}`}>
-          {slide.subtitle}
-        </p>
-      ) : null}
+      {slide.imageUrl ? (
+        <>
+          <img
+            src={slide.imageUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/45" />
+          <div className="relative text-white">
+            <h3
+              className="font-medium tracking-[-0.025em] leading-[1.05]"
+              style={{ fontSize: "clamp(20px, 4vw, 32px)" }}
+            >
+              {slide.title}
+            </h3>
+            {slide.subtitle ? (
+              <p className="text-sm mt-md leading-relaxed text-white/80">
+                {slide.subtitle}
+              </p>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <>
+          <h3
+            className="font-medium tracking-[-0.025em] leading-[1.05]"
+            style={{ fontSize: "clamp(20px, 4vw, 32px)" }}
+          >
+            {slide.title}
+          </h3>
+          {slide.subtitle ? (
+            <p className={`text-sm mt-md leading-relaxed ${PALETTE_MUTED[palette]}`}>
+              {slide.subtitle}
+            </p>
+          ) : null}
+        </>
+      )}
     </ArtboardWrap>
   );
 }
@@ -207,24 +235,30 @@ function BodySlideView({
         palette={palette}
         visualDirection={slide.visualDirection}
       >
-        <div className="absolute inset-md rounded-md border border-dashed border-current opacity-30 flex items-center justify-center">
-          <div className={`text-center px-md ${PALETTE_MUTED[palette]}`}>
-            <div className="font-mono text-[10px] tracking-[0.2em] mb-xs">
-              PHOTO
-            </div>
-            <div className="text-sm leading-snug italic">
-              {slide.visualDirection.slice(0, 100)}
+        {slide.imageUrl ? (
+          <img
+            src={slide.imageUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-md rounded-md border border-dashed border-current opacity-30 flex items-center justify-center">
+            <div className={`text-center px-md ${PALETTE_MUTED[palette]}`}>
+              <div className="font-mono text-[10px] tracking-[0.2em] mb-xs">
+                PHOTO
+              </div>
+              <div className="text-sm leading-snug italic">
+                {slide.visualDirection.slice(0, 100)}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="absolute bottom-[28px] left-[28px] right-[28px]">
+        )}
+        <div className="absolute bottom-0 left-0 right-0 p-[28px] bg-black/55 text-white">
           <div className="text-base font-medium leading-tight">
             {slide.headline}
           </div>
           {slide.body ? (
-            <div className={`text-sm mt-xs ${PALETTE_MUTED[palette]}`}>
-              {slide.body}
-            </div>
+            <div className="text-sm mt-xs text-white/80">{slide.body}</div>
           ) : null}
         </div>
       </ArtboardWrap>

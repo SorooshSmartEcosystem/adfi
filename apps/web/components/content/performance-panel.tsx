@@ -1,6 +1,7 @@
 "use client";
 import { trpc } from "../../lib/trpc";
 import { Card } from "../shared/card";
+import { HorizontalBar, StatBar } from "../shared/stat-bar";
 
 const FORMAT_LABEL: Record<string, string> = {
   SINGLE_POST: "single post",
@@ -111,25 +112,17 @@ export function PerformancePanel() {
           {formatRows.length === 0 ? (
             <p className="text-sm text-ink3">no breakdown yet.</p>
           ) : (
-            <div className="flex flex-col gap-sm">
+            <div>
               {formatRows.map(([fmt, b]) => {
                 const r = ratio(b.avgReach, baseline);
                 return (
-                  <div
+                  <HorizontalBar
                     key={fmt}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="text-sm">
-                      {FORMAT_LABEL[fmt] ?? fmt}
-                      <span className="text-ink4 font-mono text-xs ml-xs">
-                        · {b.count} post{b.count === 1 ? "" : "s"}
-                      </span>
-                    </span>
-                    <span className="font-mono text-sm">
-                      {fmtReach(b.avgReach)}{" "}
-                      <span className={r.tone}>{r.label}</span>
-                    </span>
-                  </div>
+                    label={`${FORMAT_LABEL[fmt] ?? fmt} · ${b.count} post${b.count === 1 ? "" : "s"}`}
+                    value={b.avgReach}
+                    baseline={baseline}
+                    caption={r.label}
+                  />
                 );
               })}
             </div>
@@ -145,31 +138,36 @@ export function PerformancePanel() {
               no pillar data yet — older posts may not have been tagged.
             </p>
           ) : (
-            <div className="flex flex-col gap-sm">
+            <div>
               {pillarRows.map(([pil, b]) => {
                 const r = ratio(b.avgReach, baseline);
                 return (
-                  <div
+                  <HorizontalBar
                     key={pil}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="text-sm">
-                      {pil}
-                      <span className="text-ink4 font-mono text-xs ml-xs">
-                        · {b.count} post{b.count === 1 ? "" : "s"}
-                      </span>
-                    </span>
-                    <span className="font-mono text-sm">
-                      {fmtReach(b.avgReach)}{" "}
-                      <span className={r.tone}>{r.label}</span>
-                    </span>
-                  </div>
+                    label={`${pil} · ${b.count} post${b.count === 1 ? "" : "s"}`}
+                    value={b.avgReach}
+                    baseline={baseline}
+                    caption={r.label}
+                  />
                 );
               })}
             </div>
           )}
         </Card>
       </div>
+
+      {Object.keys(summary.byFormat).length > 1 ? (
+        <div className="mb-xl">
+          <StatBar
+            caption="FORMAT MIX"
+            rightCaption="last 90 days"
+            segments={Object.entries(summary.byFormat).map(([k, v]) => ({
+              label: FORMAT_LABEL[k] ?? k.toLowerCase(),
+              value: v.count,
+            }))}
+          />
+        </div>
+      ) : null}
 
       {summary.topPosts.length > 0 ? (
         <Card padded={false} className="mb-xl">

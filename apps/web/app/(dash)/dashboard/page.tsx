@@ -5,6 +5,7 @@ import { RunningBanner } from "../../../components/dashboard/running-banner";
 import { NeedsYouBanner } from "../../../components/dashboard/needs-you-banner";
 import { MetricTiles } from "../../../components/dashboard/metric-tiles";
 import { RecentActivity } from "../../../components/dashboard/recent-activity";
+import { LiveTicker } from "../../../components/shared/live-ticker";
 
 function headline(postsCount: number): string {
   if (postsCount === 0) return "still warming up.";
@@ -85,12 +86,22 @@ export default async function DashboardPage() {
     trpc.user.getRecentActivity({ limit: 6 }),
   ]);
 
+  // Build a ticker from real recent activity — falls back to a friendly
+  // empty state if nothing happened yet.
+  const tickerEvents = activity.length
+    ? activity.slice(0, 5).map((a) => `${a.agent.toLowerCase()} · ${a.title.toLowerCase()}`)
+    : ["everything's set up. waiting for the first signal."];
+
   return (
     <>
       <RunningBanner
         headline={headline(home.weeklyStats.postsCount)}
         subhead={subhead(home.weeklyStats)}
       />
+
+      <div className="mb-xl -mt-md">
+        <LiveTicker events={tickerEvents} />
+      </div>
 
       {home.pendingFinding ? (
         <NeedsYouBanner

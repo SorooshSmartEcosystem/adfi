@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ContentFormat, DraftStatus, Platform } from "@orb/db";
+import { ContentFormat, DraftStatus, Platform, Prisma } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import {
@@ -8,6 +8,7 @@ import {
   regenerateDraftContent,
 } from "../agents/echo";
 import { generateWeeklyPlan, startOfWeek } from "../agents/planner";
+import { summarizePerformance } from "../services/performance";
 
 const paginationInput = z.object({
   limit: z.number().min(1).max(100).default(20),
@@ -54,7 +55,12 @@ export const contentRouter = router({
     }),
 
   approveDraft: authedProc
-    .input(z.object({ id: z.string().uuid() }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        variant: z.enum(["primary", "alternate"]).default("primary"),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const draft = await ctx.db.contentDraft.findFirst({
         where: { id: input.id, userId: ctx.user.id },
@@ -65,11 +71,28 @@ export const contentRouter = router({
           `Draft is ${draft.status.toLowerCase()}, not awaiting review`,
         );
       }
+
+      // If the alternate was chosen, swap it into the primary slot so
+      // downstream publishing reads `content` regardless of which won.
+      if (input.variant === "alternate" && draft.alternateContent) {
+        return ctx.db.contentDraft.update({
+          where: { id: draft.id },
+          data: {
+            status: DraftStatus.APPROVED,
+            approvedAt: new Date(),
+            content: draft.alternateContent as Prisma.InputJsonValue,
+            alternateContent: draft.content as Prisma.InputJsonValue,
+            chosenVariant: "alternate",
+          },
+        });
+      }
+
       return ctx.db.contentDraft.update({
         where: { id: draft.id },
         data: {
           status: DraftStatus.APPROVED,
           approvedAt: new Date(),
+          chosenVariant: "primary",
         },
       });
     }),
@@ -237,6 +260,12 @@ export const contentRouter = router({
         console.error("Echo draftPlanItem failed:", error);
         throw OrbError.EXTERNAL_API("Claude");
       }
+    }),
+
+  getPerformanceSummary: authedProc
+    .input(z.object({ windowDays: z.number().min(7).max(365).default(90) }).optional())
+    .query(async ({ ctx, input }) => {
+      return summarizePerformance(ctx.user.id, input?.windowDays ?? 90);
     }),
 
   skipPlanItem: authedProc

@@ -20,6 +20,7 @@ type Draft = {
   status: string;
   format?: string;
   content: unknown;
+  alternateContent?: unknown;
   voiceMatchScore: unknown;
   createdAt: Date;
   scheduledFor: Date | null;
@@ -41,7 +42,15 @@ const STATUS_TONE: Record<
 export function DraftCard({ draft }: { draft: Draft }) {
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenHint, setRegenHint] = useState("");
+  const [variant, setVariant] = useState<"primary" | "alternate">("primary");
   const utils = trpc.useUtils();
+  const hasAlternate = Boolean(
+    draft.alternateContent && typeof draft.alternateContent === "object",
+  );
+  const visibleContent =
+    variant === "alternate" && hasAlternate
+      ? draft.alternateContent
+      : draft.content;
 
   const approve = trpc.content.approveDraft.useMutation({
     onSuccess: () => utils.content.listDrafts.invalidate(),
@@ -96,7 +105,37 @@ export function DraftCard({ draft }: { draft: Draft }) {
         ) : null}
       </div>
 
-      <DraftBody format={draft.format ?? "SINGLE_POST"} content={draft.content} />
+      {hasAlternate ? (
+        <div className="flex items-center gap-xs mb-md">
+          <button
+            type="button"
+            onClick={() => setVariant("primary")}
+            className={`font-mono text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+              variant === "primary"
+                ? "bg-ink text-white border-ink"
+                : "text-ink2 border-border hover:border-ink hover:text-ink"
+            }`}
+          >
+            variant a
+          </button>
+          <button
+            type="button"
+            onClick={() => setVariant("alternate")}
+            className={`font-mono text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+              variant === "alternate"
+                ? "bg-ink text-white border-ink"
+                : "text-ink2 border-border hover:border-ink hover:text-ink"
+            }`}
+          >
+            variant b
+          </button>
+          <span className="font-mono text-[10px] text-ink4 ml-sm">
+            two angles · approve picks the live one
+          </span>
+        </div>
+      ) : null}
+
+      <DraftBody format={draft.format ?? "SINGLE_POST"} content={visibleContent} />
       <div className="mb-md" />
 
       {draft.status === "AWAITING_REVIEW" ||
@@ -105,11 +144,15 @@ export function DraftCard({ draft }: { draft: Draft }) {
         <div className="flex items-center gap-sm flex-wrap pt-md border-t-hairline border-border2">
           <button
             type="button"
-            onClick={() => approve.mutate({ id: draft.id })}
+            onClick={() => approve.mutate({ id: draft.id, variant })}
             disabled={pending}
             className="bg-ink text-white font-mono text-xs px-md py-[7px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
           >
-            {approve.isPending ? "approving..." : "approve"}
+            {approve.isPending
+              ? "approving..."
+              : hasAlternate
+                ? `approve ${variant === "primary" ? "a" : "b"}`
+                : "approve"}
           </button>
           <button
             type="button"

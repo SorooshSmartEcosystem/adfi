@@ -6,6 +6,7 @@ import { PerformanceCards } from "../../../components/content/performance-cards"
 import { ContentTabs } from "../../../components/content/tabs";
 import { DraftsPanel } from "../../../components/content/drafts-panel";
 import { PlanPanel } from "../../../components/content/plan-panel";
+import { PerformancePanel } from "../../../components/content/performance-panel";
 
 type Tab = "week" | "drafts" | "performance";
 
@@ -144,7 +145,7 @@ export default async function ContentPage({
       {tab === "drafts" ? (
         <DraftsPanel />
       ) : tab === "performance" ? (
-        <PerformanceCards bestPost={bestPost ?? null} insights={[]} />
+        <PerformancePanel />
       ) : (
         <>
           <div className="mb-xl">
@@ -156,6 +157,7 @@ export default async function ContentPage({
           <div className="mb-xl">
             <WeekGrid rangeLabel={rangeLabel} slots={slots} />
           </div>
+          <PerformanceCards bestPost={bestPost ?? null} insights={[]} />
         </>
       )}
     </>

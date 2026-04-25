@@ -9,6 +9,11 @@ import {
   type Prisma,
 } from "@orb/db";
 import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import {
+  performanceForPrompt,
+  summarizePerformance,
+  type PerformanceSummary,
+} from "../services/performance";
 import { PLANNER_SYSTEM_PROMPT } from "./prompts/planner";
 
 const PlannerOutputSchema = z.object({
@@ -48,30 +53,15 @@ const PlannerOutputSchema = z.object({
 
 export type PlannerOutput = z.infer<typeof PlannerOutputSchema>;
 
-type PerfItem = {
-  caption: string;
-  reach: number;
-  format: string;
-  pillar?: string | undefined;
-};
-
 export async function runPlanner(args: {
   businessDescription: string;
   brandVoice: unknown;
-  recentPerformance: PerfItem[];
+  performance: PerformanceSummary;
   weekStart: Date;
   weekEnd: Date;
   previousPlan?: { thesis: string; angles: string[] } | null;
 }): Promise<PlannerOutput> {
-  const performanceText =
-    args.recentPerformance.length === 0
-      ? "(no published posts yet — bias toward variety so we learn what works)"
-      : args.recentPerformance
-          .map(
-            (p, i) =>
-              `${i + 1}. [${p.format}] reach: ${p.reach.toLocaleString()}${p.pillar ? ` · pillar: ${p.pillar}` : ""}\n    "${p.caption.slice(0, 120)}"`,
-          )
-          .join("\n");
+  const performanceText = performanceForPrompt(args.performance);
 
   const prevText = args.previousPlan
     ? `Last week's thesis: "${args.previousPlan.thesis}"\nLast week's angles:\n${args.previousPlan.angles.map((a, i) => `${i + 1}. ${a}`).join("\n")}\n\nDon't repeat any of those angles.`
@@ -153,42 +143,7 @@ export async function generateWeeklyPlan(
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
 
-  // Recent performance — last 12 posts across all formats.
-  const recentPosts = await db.contentPost.findMany({
-    where: { userId },
-    orderBy: { publishedAt: "desc" },
-    take: 12,
-    select: {
-      metrics: true,
-      draft: { select: { content: true, format: true } },
-    },
-  });
-
-  const recentPerformance: PerfItem[] = recentPosts
-    .map((p) => {
-      const m = (p.metrics ?? {}) as { reach?: number };
-      const c = (p.draft.content ?? {}) as Record<string, unknown>;
-      const caption =
-        (typeof c.caption === "string" && c.caption) ||
-        (typeof c.body === "string" && c.body) ||
-        (typeof c.subject === "string" && c.subject) ||
-        "";
-      if (!caption) return null;
-      const pillar =
-        c.brief && typeof c.brief === "object"
-          ? ((c.brief as Record<string, unknown>).pillar as
-              | string
-              | undefined)
-          : undefined;
-      const item: PerfItem = {
-        caption,
-        reach: m.reach ?? 0,
-        format: p.draft.format,
-        ...(pillar && { pillar }),
-      };
-      return item;
-    })
-    .filter((x): x is PerfItem => x !== null);
+  const performance = await summarizePerformance(userId, 90);
 
   // Previous plan (the most recent ACTIVE one whose week_start is before this one).
   const previousPlan = await db.contentPlan.findFirst({
@@ -210,7 +165,7 @@ export async function generateWeeklyPlan(
   const result = await runPlanner({
     businessDescription: user.businessDescription ?? "",
     brandVoice: user.agentContext.strategistOutput,
-    recentPerformance,
+    performance,
     weekStart,
     weekEnd,
     previousPlan: previousPlanArg,

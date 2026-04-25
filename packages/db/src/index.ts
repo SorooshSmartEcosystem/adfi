@@ -1,6 +1,6 @@
 export { db } from "./client";
 export type * from "./types";
-export type { Prisma } from "@prisma/client";
+export { Prisma } from "@prisma/client";
 
 export {
   Goal,

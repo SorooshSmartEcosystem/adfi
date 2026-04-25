@@ -6,9 +6,14 @@ import {
   ContentPlanItemStatus,
   DraftStatus,
   Platform,
-  type Prisma,
+  Prisma,
 } from "@orb/db";
 import { anthropic, jsonSchemaForAnthropic, MODELS } from "../services/anthropic";
+import {
+  performanceForPrompt,
+  summarizePerformance,
+  type PerformanceSummary,
+} from "../services/performance";
 import { ECHO_SYSTEM_PROMPT } from "./prompts/echo";
 
 // =============================================================
@@ -149,23 +154,20 @@ export async function runEcho(args: {
   businessDescription: string;
   brandVoice: unknown;
   recentCaptions: string[];
-  recentPerformance?: { caption: string; reach: number; pillar?: string }[];
+  performance?: PerformanceSummary;
   hint?: string;
+  // When provided, Echo writes a deliberately different angle from this
+  // first attempt — used for A/B variant generation.
+  primaryAttempt?: EchoOutput;
 }): Promise<EchoOutput> {
   const recentText =
     args.recentCaptions.length > 0
       ? args.recentCaptions.map((c, i) => `${i + 1}. ${c}`).join("\n\n")
       : "(no recent posts)";
 
-  const performanceText =
-    args.recentPerformance && args.recentPerformance.length > 0
-      ? args.recentPerformance
-          .map(
-            (p, i) =>
-              `${i + 1}. reach: ${p.reach.toLocaleString()}${p.pillar ? ` · ${p.pillar}` : ""} — "${p.caption.slice(0, 80)}"`,
-          )
-          .join("\n")
-      : "(no performance data yet — use brand voice as ground truth)";
+  const performanceText = args.performance
+    ? performanceForPrompt(args.performance)
+    : "(no performance data — use brand voice as ground truth)";
 
   const userMessage = `Business description:
 ${args.businessDescription || "(not set)"}
@@ -182,6 +184,11 @@ ${performanceText}
 Format requested: ${args.format}
 Platform: ${args.platform}
 ${args.hint ? `\nOwner hint for this post: ${args.hint}` : ""}
+${
+  args.primaryAttempt
+    ? `\nA primary version of this post already exists:\n${JSON.stringify(args.primaryAttempt, null, 2).slice(0, 1500)}\n\nWrite a DIFFERENT angle on the same brief. Different hook framework, different opening, different rhythm. Same intent + audience + pillar. The owner will pick whichever lands.`
+    : ""
+}
 
 Write the next post.`;
 
@@ -267,6 +274,7 @@ export async function generateDailyContent(
   hint?: string,
   format?: ContentFormat,
   platform: Platform = Platform.INSTAGRAM,
+  withVariant = true,
 ): Promise<string> {
   const user = await db.user.findUnique({
     where: { id: userId },
@@ -290,31 +298,27 @@ export async function generateDailyContent(
     .map((p) => extractCaption(p.draft.content))
     .filter(Boolean);
 
-  const recentPerformance = recentPosts
-    .map((p) => {
-      const m = (p.metrics ?? {}) as { reach?: number };
-      const c = extractCaption(p.draft.content);
-      const pillar = extractPillar(p.draft.content);
-      if (!c) return null;
-      return {
-        caption: c,
-        reach: m.reach ?? 0,
-        ...(pillar && { pillar }),
-      };
-    })
-    .filter((p): p is NonNullable<typeof p> => p !== null);
-
+  const performance = await summarizePerformance(userId, 90);
   const chosenFormat = await pickFormatForPlatform(userId, platform, format);
 
-  const result = await runEcho({
+  const baseArgs = {
     format: chosenFormat,
     platform,
     businessDescription: user.businessDescription ?? "",
     brandVoice: user.agentContext.strategistOutput,
     recentCaptions,
-    recentPerformance,
+    performance,
     hint,
-  });
+  };
+
+  const primary = await runEcho(baseArgs);
+  const alternate = withVariant
+    ? await runEcho({ ...baseArgs, primaryAttempt: primary }).catch((err) => {
+        // Variant failure shouldn't block the primary draft — log + skip.
+        console.warn("Echo alternate-variant generation failed:", err);
+        return null;
+      })
+    : null;
 
   const draft = await db.contentDraft.create({
     data: {
@@ -322,9 +326,12 @@ export async function generateDailyContent(
       platform,
       format: chosenFormat,
       status: DraftStatus.AWAITING_REVIEW,
-      content: result as unknown as Prisma.InputJsonValue,
-      brief: result.brief as unknown as Prisma.InputJsonValue,
-      voiceMatchScore: result.voiceMatchConfidence,
+      content: primary as unknown as Prisma.InputJsonValue,
+      alternateContent: alternate
+        ? (alternate as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
+      brief: primary.brief as unknown as Prisma.InputJsonValue,
+      voiceMatchScore: primary.voiceMatchConfidence,
     },
   });
 
@@ -337,10 +344,11 @@ export async function generateDailyContent(
         draftId: draft.id,
         format: chosenFormat,
         platform,
-        pillar: result.brief.pillar,
-        intent: result.brief.intent,
-        hookFramework: result.brief.hookFramework,
-        voiceMatchConfidence: result.voiceMatchConfidence,
+        pillar: primary.brief.pillar,
+        intent: primary.brief.intent,
+        hookFramework: primary.brief.hookFramework,
+        voiceMatchConfidence: primary.voiceMatchConfidence,
+        hasAlternate: alternate !== null,
       },
     },
   });
@@ -380,19 +388,7 @@ export async function regenerateDraftContent(
     .map((p) => extractCaption(p.draft.content))
     .filter(Boolean);
 
-  const recentPerformance = recentPosts
-    .map((p) => {
-      const m = (p.metrics ?? {}) as { reach?: number };
-      const c = extractCaption(p.draft.content);
-      const pillar = extractPillar(p.draft.content);
-      if (!c) return null;
-      return {
-        caption: c,
-        reach: m.reach ?? 0,
-        ...(pillar && { pillar }),
-      };
-    })
-    .filter((p): p is NonNullable<typeof p> => p !== null);
+  const performance = await summarizePerformance(draft.userId, 90);
 
   const combinedHint = [
     hint,
@@ -407,7 +403,7 @@ export async function regenerateDraftContent(
     businessDescription: draft.user.businessDescription ?? "",
     brandVoice: draft.user.agentContext.strategistOutput,
     recentCaptions,
-    recentPerformance,
+    performance,
     hint: combinedHint || undefined,
   });
 
@@ -512,15 +508,7 @@ export async function draftPlanItem(
   const recentCaptions = recentPosts
     .map((p) => extractCaption(p.draft.content))
     .filter(Boolean);
-  const recentPerformance = recentPosts
-    .map((p) => {
-      const m = (p.metrics ?? {}) as { reach?: number };
-      const c = extractCaption(p.draft.content);
-      const pillar = extractPillar(p.draft.content);
-      if (!c) return null;
-      return { caption: c, reach: m.reach ?? 0, ...(pillar && { pillar }) };
-    })
-    .filter((p): p is NonNullable<typeof p> => p !== null);
+  const performance = await summarizePerformance(user.id, 90);
 
   // Stitch the plan-item brief into a hint that Echo can use directly.
   const richHint = [
@@ -540,7 +528,7 @@ export async function draftPlanItem(
     businessDescription: user.businessDescription ?? "",
     brandVoice: user.agentContext.strategistOutput,
     recentCaptions,
-    recentPerformance,
+    performance,
     hint: richHint,
   });
 

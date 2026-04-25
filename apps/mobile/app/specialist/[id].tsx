@@ -15,6 +15,7 @@ import {
   TIER_COLOR,
 } from "../../components/specialists/agent-config";
 import { LiveDot } from "../../components/shared/live-dot";
+import { TabbedScreen } from "../../components/shared/tabbed-screen";
 
 function timeLabel(at: Date): string {
   const weekday = at
@@ -37,7 +38,8 @@ export default function SpecialistScreen() {
   );
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <TabbedScreen>
+      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.push("/home")} hitSlop={10}>
           <Text style={styles.back}>← back</Text>
@@ -138,13 +140,14 @@ export default function SpecialistScreen() {
           )}
         </>
       )}
-    </ScrollView>
+      </ScrollView>
+    </TabbedScreen>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
+  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 100 },
   headerRow: { marginBottom: 16 },
   back: { fontFamily: "Menlo", fontSize: fontSizes.sm, color: colors.ink },
   chipsScroll: { marginBottom: 18 },

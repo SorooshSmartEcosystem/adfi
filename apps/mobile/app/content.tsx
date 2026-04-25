@@ -11,6 +11,7 @@ import { router } from "expo-router";
 import { colors, fontSizes, radii } from "@orb/ui";
 import { trpc } from "../lib/trpc";
 import { StatBar } from "../components/shared/stat-bar";
+import { TabbedScreen } from "../components/shared/tabbed-screen";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
@@ -133,7 +134,8 @@ export default function ContentScreen() {
   }, [buckets]);
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <TabbedScreen>
+      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.push("/home")} hitSlop={10}>
           <Text style={styles.back}>← home</Text>
@@ -233,13 +235,14 @@ export default function ContentScreen() {
           </View>
         ))
       )}
-    </ScrollView>
+      </ScrollView>
+    </TabbedScreen>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 },
+  content: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 100 },
   headerRow: { marginBottom: 14 },
   back: { fontFamily: "Menlo", fontSize: fontSizes.sm, color: colors.ink },
   titleBlock: { marginBottom: 16 },

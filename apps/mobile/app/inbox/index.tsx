@@ -10,6 +10,7 @@ import {
 import { router } from "expo-router";
 import { colors, fontSizes, radii } from "@orb/ui";
 import { trpc } from "../../lib/trpc";
+import { TabbedScreen } from "../../components/shared/tabbed-screen";
 import { MsgRow } from "../../components/inbox/msg-row";
 
 type Filter = "all" | "calls" | "texts" | "dms";
@@ -36,7 +37,8 @@ export default function InboxIndex() {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <TabbedScreen>
+      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.push("/home")} hitSlop={10}>
           <Text style={styles.back}>← home</Text>
@@ -114,13 +116,14 @@ export default function InboxIndex() {
           ) : null}
         </>
       )}
-    </ScrollView>
+      </ScrollView>
+    </TabbedScreen>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
+  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 100 },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",

@@ -75,5 +75,5 @@ export function HomeScreen({ data }: { data: HomeData }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 24, paddingTop: 30, paddingBottom: 40 },
+  content: { paddingHorizontal: 24, paddingTop: 30, paddingBottom: 100 },
 });

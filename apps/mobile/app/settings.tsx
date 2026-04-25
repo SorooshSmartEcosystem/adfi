@@ -17,6 +17,7 @@ import {
   SettingRow,
 } from "../components/settings/row";
 import { Toggle } from "../components/shared/toggle";
+import { TabbedScreen } from "../components/shared/tabbed-screen";
 
 function formatPhone(raw: string | null | undefined): string {
   if (!raw) return "not set up";
@@ -46,9 +47,11 @@ export default function SettingsScreen() {
 
   if (meQuery.isLoading || homeQuery.isLoading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.ink4} />
-      </View>
+      <TabbedScreen>
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.ink4} />
+        </View>
+      </TabbedScreen>
     );
   }
 
@@ -56,9 +59,11 @@ export default function SettingsScreen() {
   const home = homeQuery.data;
   if (!user || !home) {
     return (
-      <View style={styles.loading}>
-        <Text style={styles.error}>couldn&apos;t load settings.</Text>
-      </View>
+      <TabbedScreen>
+        <View style={styles.loading}>
+          <Text style={styles.error}>couldn&apos;t load settings.</Text>
+        </View>
+      </TabbedScreen>
     );
   }
 
@@ -67,7 +72,8 @@ export default function SettingsScreen() {
     "tell me what you do →";
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <TabbedScreen>
+      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.push("/home")} hitSlop={10}>
           <Text style={styles.back}>← home</Text>
@@ -161,13 +167,14 @@ export default function SettingsScreen() {
           isLast
         />
       </RowGroup>
-    </ScrollView>
+      </ScrollView>
+    </TabbedScreen>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
+  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 100 },
   headerRow: { marginBottom: 20 },
   back: { fontFamily: "Menlo", fontSize: fontSizes.sm, color: colors.ink },
   title: {

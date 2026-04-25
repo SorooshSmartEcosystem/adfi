@@ -10,6 +10,7 @@ import { colors, fontSizes } from "@orb/ui";
 import { trpc } from "../lib/trpc";
 import { supabase } from "../lib/supabase";
 import { HomeScreen } from "../components/home/home-screen";
+import { TabbedScreen } from "../components/shared/tabbed-screen";
 
 export default function Home() {
   const homeQuery = trpc.user.getHomeData.useQuery();
@@ -21,26 +22,34 @@ export default function Home() {
 
   if (homeQuery.isLoading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.ink4} />
-      </View>
+      <TabbedScreen>
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.ink4} />
+        </View>
+      </TabbedScreen>
     );
   }
 
   if (homeQuery.error || !homeQuery.data) {
     return (
-      <View style={styles.loading}>
-        <Text style={styles.error}>
-          {homeQuery.error?.message ?? "couldn't load home"}
-        </Text>
-        <Pressable onPress={handleSignOut} hitSlop={10}>
-          <Text style={styles.signOut}>sign out</Text>
-        </Pressable>
-      </View>
+      <TabbedScreen>
+        <View style={styles.loading}>
+          <Text style={styles.error}>
+            {homeQuery.error?.message ?? "couldn't load home"}
+          </Text>
+          <Pressable onPress={handleSignOut} hitSlop={10}>
+            <Text style={styles.signOut}>sign out</Text>
+          </Pressable>
+        </View>
+      </TabbedScreen>
     );
   }
 
-  return <HomeScreen data={homeQuery.data} />;
+  return (
+    <TabbedScreen>
+      <HomeScreen data={homeQuery.data} />
+    </TabbedScreen>
+  );
 }
 
 const styles = StyleSheet.create({

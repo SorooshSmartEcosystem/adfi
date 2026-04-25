@@ -3,8 +3,26 @@ import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { DraftCard } from "./draft-card";
 
+type Format =
+  | "AUTO"
+  | "SINGLE_POST"
+  | "CAROUSEL"
+  | "REEL_SCRIPT"
+  | "EMAIL_NEWSLETTER"
+  | "STORY_SEQUENCE";
+
+const FORMAT_OPTIONS: { id: Format; label: string }[] = [
+  { id: "AUTO", label: "auto" },
+  { id: "SINGLE_POST", label: "single post" },
+  { id: "CAROUSEL", label: "carousel" },
+  { id: "REEL_SCRIPT", label: "reel" },
+  { id: "EMAIL_NEWSLETTER", label: "email" },
+  { id: "STORY_SEQUENCE", label: "stories" },
+];
+
 export function DraftsPanel() {
   const [hint, setHint] = useState("");
+  const [format, setFormat] = useState<Format>("AUTO");
   const utils = trpc.useUtils();
 
   const awaiting = trpc.content.listDrafts.useQuery({
@@ -33,18 +51,48 @@ export function DraftsPanel() {
         <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
           GENERATE NEW
         </div>
+
+        <div className="flex flex-wrap gap-xs mb-md">
+          {FORMAT_OPTIONS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFormat(f.id)}
+              className={`font-mono text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+                format === f.id
+                  ? "bg-ink text-white border-ink"
+                  : "text-ink2 border-border hover:border-ink hover:text-ink"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-sm">
           <input
             type="text"
             value={hint}
             onChange={(e) => setHint(e.target.value)}
-            placeholder="optional hint (e.g. 'new batch of bowls', 'something quieter this week')"
+            placeholder="optional hint (e.g. 'announce the spring drop', 'something quieter this week')"
             disabled={generate.isPending}
             className="flex-1 px-md py-[10px] bg-bg border-hairline border-border rounded-full text-sm focus:outline-none focus:border-ink"
           />
           <button
             type="button"
-            onClick={() => generate.mutate(hint.trim() ? { hint } : {})}
+            onClick={() => {
+              const payload: {
+                hint?: string;
+                format?: Exclude<Format, "AUTO">;
+                platform?: "INSTAGRAM" | "EMAIL";
+              } = {};
+              if (hint.trim()) payload.hint = hint;
+              if (format !== "AUTO") {
+                payload.format = format;
+                if (format === "EMAIL_NEWSLETTER") payload.platform = "EMAIL";
+              }
+              generate.mutate(payload);
+            }}
             disabled={generate.isPending}
             className="bg-ink text-white font-mono text-xs px-md py-[10px] rounded-full disabled:opacity-40"
           >

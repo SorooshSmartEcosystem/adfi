@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DraftStatus, Platform } from "@orb/db";
+import { ContentFormat, DraftStatus, Platform } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import {
@@ -103,11 +103,18 @@ export const contentRouter = router({
     .input(
       z.object({
         hint: z.string().max(300).optional(),
+        format: z.nativeEnum(ContentFormat).optional(),
+        platform: z.nativeEnum(Platform).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const draftId = await generateDailyContent(ctx.user.id, input.hint);
+        const draftId = await generateDailyContent(
+          ctx.user.id,
+          input.hint,
+          input.format,
+          input.platform,
+        );
         return { draftId };
       } catch (error) {
         if (error instanceof Error && error.message.includes("Brand voice")) {

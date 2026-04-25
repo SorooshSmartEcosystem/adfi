@@ -3,6 +3,7 @@ import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { Card } from "../shared/card";
 import { StatusDot } from "../shared/status-dot";
+import { DraftBody } from "./draft-body";
 
 type DraftStatus =
   | "DRAFT"
@@ -17,6 +18,7 @@ type Draft = {
   id: string;
   platform: string;
   status: string;
+  format?: string;
   content: unknown;
   voiceMatchScore: unknown;
   createdAt: Date;
@@ -55,11 +57,6 @@ export function DraftCard({ draft }: { draft: Draft }) {
     },
   });
 
-  const content = (draft.content ?? {}) as {
-    caption?: string;
-    hashtags?: string[];
-    pillar?: string;
-  };
   const status =
     STATUS_TONE[draft.status as DraftStatus] ?? STATUS_TONE.DRAFT;
   const rawVoice = draft.voiceMatchScore;
@@ -86,8 +83,10 @@ export function DraftCard({ draft }: { draft: Draft }) {
           <span className="font-mono text-sm text-ink4">
             {draft.platform.toLowerCase()}
           </span>
-          {content.pillar ? (
-            <span className="font-mono text-sm text-ink4">· {content.pillar}</span>
+          {draft.format ? (
+            <span className="font-mono text-sm text-ink4">
+              · {draft.format.toLowerCase().replace(/_/g, " ")}
+            </span>
           ) : null}
         </div>
         {voiceScore !== null && !Number.isNaN(voiceScore) ? (
@@ -97,17 +96,8 @@ export function DraftCard({ draft }: { draft: Draft }) {
         ) : null}
       </div>
 
-      <p className="text-md leading-relaxed whitespace-pre-wrap mb-md">
-        {content.caption ?? "(empty)"}
-      </p>
-
-      {content.hashtags && content.hashtags.length > 0 ? (
-        <p className="text-sm text-ink3 font-mono mb-md">
-          {content.hashtags
-            .map((t) => `#${t.replace(/^#/, "")}`)
-            .join("  ")}
-        </p>
-      ) : null}
+      <DraftBody format={draft.format ?? "SINGLE_POST"} content={draft.content} />
+      <div className="mb-md" />
 
       {draft.status === "AWAITING_REVIEW" ||
       draft.status === "AWAITING_PHOTOS" ||

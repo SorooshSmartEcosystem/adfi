@@ -10,6 +10,7 @@ export {
   Provider,
   Platform,
   DraftStatus,
+  ContentFormat,
   MessageChannel,
   Direction,
   CallStatus,

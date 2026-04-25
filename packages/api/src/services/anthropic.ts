@@ -24,15 +24,21 @@ export const MODELS = {
 } as const;
 
 // Converts a zod schema to the JSON Schema shape Anthropic's structured output
-// accepts. Strips constraints Anthropic rejects (notably array minItems/maxItems
-// other than 0/1). zod still validates these at runtime after the response.
+// accepts. Two adjustments:
+//   1. $refStrategy: "none" — Anthropic rejects $ref pointers unless they
+//      target $defs/definitions; we inline shared sub-schemas (e.g. enums
+//      reused across multiple object fields) so the schema is fully resolved.
+//   2. Strip constraints Anthropic rejects (notably array minItems/maxItems
+//      other than 0/1, plus min/max numeric and string regex/length).
+// zod still validates these at runtime after the response so we don't lose
+// safety, just defer it.
 export function jsonSchemaForAnthropic(
   schema: z.ZodTypeAny,
 ): Record<string, unknown> {
-  const raw = zodToJsonSchema(schema, { target: "openApi3" }) as Record<
-    string,
-    unknown
-  >;
+  const raw = zodToJsonSchema(schema, {
+    target: "openApi3",
+    $refStrategy: "none",
+  }) as Record<string, unknown>;
   return stripUnsupportedConstraints(raw) as Record<string, unknown>;
 }
 

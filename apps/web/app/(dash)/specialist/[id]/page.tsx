@@ -3,7 +3,9 @@ import { createServerClient } from "@orb/auth/server";
 import { trpcServer } from "../../../../lib/trpc-server";
 import { AGENTS, TIER_COLOR } from "../../../../components/specialists/agent-config";
 import { AgentControls } from "../../../../components/specialists/agent-controls";
+import { BrandVoiceView } from "../../../../components/specialists/brand-voice-view";
 import { Card } from "../../../../components/shared/card";
+import { db } from "@orb/db";
 
 function timeLabel(at: Date): string {
   const weekday = at
@@ -32,12 +34,47 @@ export default async function SpecialistPage({
   if (!authUser) redirect("/signin");
 
   let findings: { id: string; summary: string; createdAt: Date; severity: string }[] = [];
+  let brandVoice: Record<string, unknown> | null = null;
+  let lastRefreshedAt: Date | null = null;
+  let recentDrafts: {
+    id: string;
+    format: string;
+    status: string;
+    createdAt: Date;
+    content: unknown;
+  }[] = [];
+
   if (agent.dbAgent && !agent.coming) {
     const trpc = await trpcServer();
     findings = await trpc.insights.listFindings({
       agent: agent.dbAgent,
       limit: 6,
     });
+
+    if (agent.dbAgent === "STRATEGIST") {
+      const ctxRow = await db.agentContext.findUnique({
+        where: { userId: authUser.id },
+        select: { strategistOutput: true, lastRefreshedAt: true },
+      });
+      brandVoice =
+        (ctxRow?.strategistOutput as Record<string, unknown> | null) ?? null;
+      lastRefreshedAt = ctxRow?.lastRefreshedAt ?? null;
+    }
+
+    if (agent.dbAgent === "ECHO") {
+      recentDrafts = await db.contentDraft.findMany({
+        where: { userId: authUser.id },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          id: true,
+          format: true,
+          status: true,
+          createdAt: true,
+          content: true,
+        },
+      });
+    }
   }
 
   return (
@@ -86,31 +123,88 @@ export default async function SpecialistPage({
             </div>
           </Card>
 
-          <Card padded={false} className="mb-xl">
-            <div className="px-lg py-md hairline-b2 border-border2">
-              <div className="font-mono text-sm text-ink4 tracking-[0.2em]">
-                RECENT FINDINGS
-              </div>
-            </div>
-            {findings.length === 0 ? (
-              <div className="px-lg py-md text-sm text-ink3">
-                nothing surfaced yet — check back after{" "}
-                {agent.name === "scout" ? "monday's sweep" : "the next run"}.
-              </div>
-            ) : (
-              findings.map((f, i) => (
-                <div
-                  key={f.id}
-                  className={`px-lg py-md ${i < findings.length - 1 ? "hairline-b2 border-border2" : ""}`}
-                >
-                  <div className="text-md font-medium mb-xs">{f.summary}</div>
-                  <div className="font-mono text-sm text-ink4 tracking-[0.1em]">
-                    {timeLabel(f.createdAt)} · {f.severity.toLowerCase()}
-                  </div>
+          {agent.dbAgent === "STRATEGIST" ? (
+            <BrandVoiceView
+              voice={brandVoice}
+              lastRefreshedAt={lastRefreshedAt}
+            />
+          ) : agent.dbAgent === "ECHO" ? (
+            <Card padded={false} className="mb-xl">
+              <div className="px-lg py-md hairline-b2 border-border2 flex items-center justify-between">
+                <div className="font-mono text-sm text-ink4 tracking-[0.2em]">
+                  RECENT DRAFTS
                 </div>
-              ))
-            )}
-          </Card>
+                <a
+                  href="/content?tab=drafts"
+                  className="font-mono text-xs text-ink2 underline hover:text-ink"
+                >
+                  see all →
+                </a>
+              </div>
+              {recentDrafts.length === 0 ? (
+                <div className="px-lg py-md text-sm text-ink3">
+                  no drafts yet — hit &lsquo;run now&rsquo; above or open
+                  /content to plan the week.
+                </div>
+              ) : (
+                recentDrafts.map((d, i) => {
+                  const c = (d.content ?? {}) as {
+                    caption?: string;
+                    subject?: string;
+                    coverSlide?: { title?: string };
+                    hook?: string;
+                  };
+                  const preview =
+                    c.caption ??
+                    c.subject ??
+                    c.coverSlide?.title ??
+                    c.hook ??
+                    "(empty)";
+                  return (
+                    <div
+                      key={d.id}
+                      className={`px-lg py-md ${i < recentDrafts.length - 1 ? "hairline-b2 border-border2" : ""}`}
+                    >
+                      <div className="font-mono text-[10px] text-ink4 tracking-[0.15em] mb-xs">
+                        {d.format.toLowerCase().replace(/_/g, " ")} ·{" "}
+                        {d.status.toLowerCase()} · {timeLabel(d.createdAt)}
+                      </div>
+                      <div className="text-md leading-relaxed">
+                        {preview.slice(0, 200)}
+                        {preview.length > 200 ? "…" : ""}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </Card>
+          ) : (
+            <Card padded={false} className="mb-xl">
+              <div className="px-lg py-md hairline-b2 border-border2">
+                <div className="font-mono text-sm text-ink4 tracking-[0.2em]">
+                  RECENT FINDINGS
+                </div>
+              </div>
+              {findings.length === 0 ? (
+                <div className="px-lg py-md text-sm text-ink3">
+                  nothing surfaced yet — check back after{" "}
+                  {agent.name === "scout" ? "monday's sweep" : "the next run"}.
+                </div>
+              ) : (
+                findings.map((f, i) => (
+                  <div
+                    key={f.id}
+                    className={`px-lg py-md ${i < findings.length - 1 ? "hairline-b2 border-border2" : ""}`}
+                  >
+                    <div className="text-md font-medium mb-xs">{f.summary}</div>
+                    <div className="font-mono text-sm text-ink4 tracking-[0.1em]">
+                      {timeLabel(f.createdAt)} · {f.severity.toLowerCase()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </Card>
+          )}
         </>
       )}
     </>

@@ -1,0 +1,17 @@
+import { NextResponse } from "next/server";
+
+// Reports whether key server-side env vars are present at request time.
+// Returns booleans only — never the values themselves.
+export async function GET() {
+  const present = (k: string) => Boolean(process.env[k] && process.env[k]!.length > 0);
+  return NextResponse.json({
+    NEXT_PUBLIC_SUPABASE_URL: present("NEXT_PUBLIC_SUPABASE_URL"),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: present("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    SUPABASE_SERVICE_ROLE_KEY: present("SUPABASE_SERVICE_ROLE_KEY"),
+    ANTHROPIC_API_KEY: present("ANTHROPIC_API_KEY"),
+    REPLICATE_API_TOKEN: present("REPLICATE_API_TOKEN"),
+    STRIPE_SECRET_KEY: present("STRIPE_SECRET_KEY"),
+    SENDGRID_API_KEY: present("SENDGRID_API_KEY"),
+    DATABASE_URL: present("DATABASE_URL"),
+  });
+}

@@ -162,10 +162,19 @@ export const adminRouter = router({
       where: { createdAt: { gte: periodStart } },
       select: { eventType: true, agent: true, payload: true },
     });
-    const anthropicCents = events.reduce(
-      (sum, e) => sum + estimateEventCostCents(e.eventType, e.agent, e.payload),
-      0,
-    );
+    let anthropicCents = 0;
+    let replicateCents = 0;
+    let imagesGenerated = 0;
+    for (const e of events) {
+      const c = estimateEventCostCents(e.eventType, e.agent, e.payload);
+      if (e.eventType === "image_generated") {
+        replicateCents += c;
+        const p = e.payload as { imagesGenerated?: number } | null;
+        imagesGenerated += p?.imagesGenerated ?? 1;
+      } else {
+        anthropicCents += c;
+      }
+    }
 
     // Twilio cost — active numbers × monthly + outbound SMS × per-message
     const activeNumbers = await ctx.db.phoneNumber.count({
@@ -187,7 +196,7 @@ export const adminRouter = router({
       FIXED_OVERHEAD_CENTS.supabase +
       FIXED_OVERHEAD_CENTS.anthropicTeam;
 
-    const variableCostCents = anthropicCents + twilioCents;
+    const variableCostCents = anthropicCents + replicateCents + twilioCents;
     const totalCostCents = variableCostCents + fixedCents;
     const grossMarginCents = mrrCents - variableCostCents;
     const grossMarginPct =
@@ -205,6 +214,8 @@ export const adminRouter = router({
       revenue: { mrrCents },
       costs: {
         anthropicCents,
+        replicateCents,
+        replicateBreakdown: { imagesGenerated },
         twilioCents,
         twilioBreakdown: {
           numbersCents: twilioNumbersCents,
@@ -234,6 +245,7 @@ export const adminRouter = router({
         signalSms: events.filter(
           (e) => e.agent === "SIGNAL" && e.eventType === "sms_handled",
         ).length,
+        imagesGenerated,
       },
     };
   }),
@@ -449,9 +461,17 @@ export const adminRouter = router({
       SIGNAL: 0,
       ADS: 0,
     };
+    let replicateCents = 0;
+    let imagesGenerated = 0;
     for (const e of events) {
-      agentBreakdown[e.agent as keyof typeof agentBreakdown] +=
-        estimateEventCostCents(e.eventType, e.agent, e.payload);
+      const c = estimateEventCostCents(e.eventType, e.agent, e.payload);
+      if (e.eventType === "image_generated") {
+        replicateCents += c;
+        const p = e.payload as { imagesGenerated?: number } | null;
+        imagesGenerated += p?.imagesGenerated ?? 1;
+      } else {
+        agentBreakdown[e.agent as keyof typeof agentBreakdown] += c;
+      }
     }
 
     const activeNumbers = await ctx.db.phoneNumber.count({
@@ -479,7 +499,9 @@ export const adminRouter = router({
           name: "Anthropic (Echo)",
           costCents: agentBreakdown.ECHO,
           unit: "drafts",
-          count: events.filter((e) => e.agent === "ECHO").length,
+          count: events.filter(
+            (e) => e.agent === "ECHO" && e.eventType !== "image_generated",
+          ).length,
           unitCostCents: AVG_EVENT_COST_CENTS.ECHO_DRAFT,
         },
         {
@@ -502,6 +524,15 @@ export const adminRouter = router({
           unit: "replies",
           count: events.filter((e) => e.agent === "SIGNAL").length,
           unitCostCents: AVG_EVENT_COST_CENTS.SIGNAL_SMS,
+        },
+        {
+          name: "Replicate (Echo images)",
+          costCents: replicateCents,
+          unit: "images",
+          count: imagesGenerated,
+          unitCostCents: imagesGenerated > 0
+            ? Math.round(replicateCents / imagesGenerated)
+            : 1,
         },
         {
           name: "Twilio — phone numbers",

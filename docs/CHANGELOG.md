@@ -7,16 +7,22 @@ Format note: write changes from the user's perspective in plain English. "Users 
 ## [Unreleased]
 
 ### Added
-- Nothing yet — start adding entries here as you ship changes.
-
-### Changed
-- Nothing yet.
+- Strategist now writes a real brand voice (how you sound, values, audience, content pillars, things to avoid) and refreshes it weekly when it's older than 90 days, refining instead of cold-starting.
+- Strategist + Echo specialist pages show what the agent actually produced — brand voice cards for Strategist, recent drafts for Echo — instead of an empty findings list. Mirrored on web and mobile.
+- Echo (content) v2: polymorphic formats (post, carousel, newsletter, reel hook), Planner phase that schedules the week, performance feedback + A/B variants, designed carousel slides with templates and palettes, email newsletters via SendGrid with the adfi logo and unsubscribe headers.
+- Pulse + Scout pull from real Google News RSS instead of hallucinating signals.
+- Per-agent pause / resume / run-now controls.
+- Credit-based monthly quota tied to plan (TRIAL 20 / SOLO 60 / TEAM 200 / STUDIO 800), resets on the 1st.
+- Real Anthropic token-usage logging on every call so admin financials reflect actual cost, not estimates.
+- Settings: business profile (name, logo, description, website) and connect-channels with step-by-step guides.
+- Mobile bottom tab bar across the authed flow.
+- Web dashboard / inbox / content empty-state polish to match the mobile prototype.
+- Stripe billing + Customer Portal + webhooks; SendGrid email through Supabase auth.
 
 ### Fixed
-- Nothing yet.
-
-### Removed
-- Nothing yet.
+- Echo carousel runs no longer 400 on Anthropic's structured output — JSON schema $refs are now inlined.
+- Echo run-now no longer hangs past Vercel's serverless timeout (manual runs skip A/B variant; route maxDuration raised to 300s).
+- Landing page header shows the user's avatar linking to the dashboard once signed in (was sending logged-in users back to sign-in).
 
 ---
 

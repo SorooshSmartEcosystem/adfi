@@ -78,6 +78,13 @@ export function estimateEventCostCents(
   if (agent === "PULSE") return AVG_EVENT_COST_CENTS.PULSE_SWEEP;
   if (agent === "SIGNAL" && eventType === "sms_handled")
     return AVG_EVENT_COST_CENTS.SIGNAL_SMS;
+  if (eventType === "image_generated") {
+    if (payload && typeof payload === "object") {
+      const p = payload as Record<string, unknown>;
+      if (typeof p.costCents === "number") return Math.round(p.costCents);
+    }
+    return 1; // Flux Schnell default
+  }
   return 0;
 }
 

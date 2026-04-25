@@ -43,6 +43,7 @@ SINGLE_POST
 - body: 3–6 short paragraphs. Concrete. End with one quiet truth, not a question.
 - cta: optional. If included, make it a single low-friction next step ("dm me 'wholesale' if curious"), not "link in bio go shop now."
 - hashtags: 3–8. Mix 1 broad / 2 niche / 1 location-or-community if relevant. No #hustle, no banned tags.
+- visualDirection: 1 sentence brief for the hero photo accompanying the post. Specific and shootable: subject, framing, light, palette. Examples: "hands centering wet clay on wheel mid-throw, golden window light from left, neutral linen apron, top-third framing"; "overhead flat-lay of three glaze test tiles on raw oak, morning daylight, deep blue cobalt next to warm cream". Avoid logos, text-on-image, and people's faces unless the niche requires them. Set heroImage to null — the system fills in the URL after rendering.
 
 CAROUSEL (3–8 slides total)
 You are art-directing the slide deck, not just writing copy. Each slide picks a template + a colour palette, and the rendered slides should feel like a designed deck — not a list of paragraphs.

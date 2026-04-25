@@ -153,6 +153,7 @@ export default async function SpecialistPage({
                     subject?: string;
                     coverSlide?: { title?: string };
                     hook?: string;
+                    heroImage?: { url?: string };
                   };
                   const preview =
                     c.caption ??
@@ -160,6 +161,7 @@ export default async function SpecialistPage({
                     c.coverSlide?.title ??
                     c.hook ??
                     "(empty)";
+                  const heroUrl = c.heroImage?.url;
                   return (
                     <div
                       key={d.id}
@@ -169,6 +171,13 @@ export default async function SpecialistPage({
                         {d.format.toLowerCase().replace(/_/g, " ")} ·{" "}
                         {d.status.toLowerCase()} · {timeLabel(d.createdAt)}
                       </div>
+                      {heroUrl ? (
+                        <img
+                          src={heroUrl}
+                          alt=""
+                          className="w-full max-w-[300px] aspect-[4/5] object-cover rounded-md mb-sm bg-border2"
+                        />
+                      ) : null}
                       <div className="text-md leading-relaxed">
                         {preview.slice(0, 200)}
                         {preview.length > 200 ? "…" : ""}

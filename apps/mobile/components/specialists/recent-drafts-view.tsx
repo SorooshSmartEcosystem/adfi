@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { colors, fontSizes } from "@orb/ui";
 import { trpc } from "../../lib/trpc";
@@ -30,6 +30,13 @@ function previewOf(content: unknown): string {
   return "(empty)";
 }
 
+function heroImageOf(content: unknown): string | null {
+  if (!content || typeof content !== "object") return null;
+  const c = content as Record<string, unknown>;
+  const hero = c.heroImage as { url?: string } | undefined;
+  return typeof hero?.url === "string" ? hero.url : null;
+}
+
 export function RecentDraftsView() {
   const draftsQuery = trpc.content.listDrafts.useQuery({ limit: 6 });
   const items = draftsQuery.data?.items ?? [];
@@ -53,6 +60,7 @@ export function RecentDraftsView() {
       ) : (
         items.map((d, i) => {
           const preview = previewOf(d.content);
+          const hero = heroImageOf(d.content);
           return (
             <View
               key={d.id}
@@ -65,6 +73,9 @@ export function RecentDraftsView() {
                 {d.format.toLowerCase().replace(/_/g, " ")} ·{" "}
                 {d.status.toLowerCase()} · {timeLabel(d.createdAt)}
               </Text>
+              {hero ? (
+                <Image source={{ uri: hero }} style={styles.hero} />
+              ) : null}
               <Text style={styles.preview} numberOfLines={3}>
                 {preview}
               </Text>
@@ -121,6 +132,13 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.ink,
     lineHeight: fontSizes.sm * 1.5,
+  },
+  hero: {
+    width: "100%",
+    aspectRatio: 4 / 5,
+    borderRadius: 10,
+    backgroundColor: colors.border2,
+    marginBottom: 8,
   },
   empty: { padding: 14, fontSize: fontSizes.sm, color: colors.ink3 },
 });

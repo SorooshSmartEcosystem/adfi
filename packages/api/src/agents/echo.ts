@@ -20,6 +20,7 @@ import {
   type PerformanceSummary,
 } from "../services/performance";
 import { CREDIT_COSTS, consumeCredits } from "../services/quota";
+import { generateImageSafe, type AspectRatio } from "../services/replicate";
 import { ECHO_SYSTEM_PROMPT } from "./prompts/echo";
 
 // =============================================================
@@ -57,6 +58,11 @@ const SinglePostShape = z.object({
   body: z.string(),
   cta: z.string().nullable(),
   hashtags: z.array(z.string()),
+  visualDirection: z.string(),
+  heroImage: z
+    .object({ url: z.string(), model: z.string() })
+    .nullable()
+    .optional(),
   voiceMatchConfidence: z.number(),
   brief: BriefShape,
 });
@@ -402,7 +408,80 @@ export async function generateDailyContent(
     },
   });
 
+  // Fire-and-forget hero image — don't block the draft return on Replicate.
+  // The mobile/web UIs poll the draft and the image fills in once ready.
+  void backfillImagesForDraft(draft.id, userId, platform).catch((err) => {
+    console.warn("backfillImagesForDraft failed:", err);
+  });
+
   return draft.id;
+}
+
+// Background: generate hero imagery for a freshly-created draft and patch
+// the URL into the draft's content JSON. Best-effort — failures are logged
+// and the draft is still usable as text-only.
+async function backfillImagesForDraft(
+  draftId: string,
+  userId: string,
+  platform: Platform,
+): Promise<void> {
+  const draft = await db.contentDraft.findUnique({ where: { id: draftId } });
+  if (!draft) return;
+  const content = draft.content as Record<string, unknown> | null;
+  if (!content || typeof content !== "object") return;
+
+  if (content.format === "SINGLE_POST") {
+    const direction =
+      typeof content.visualDirection === "string"
+        ? content.visualDirection
+        : null;
+    if (!direction) return;
+
+    const result = await generateImageSafe({
+      userId,
+      draftId,
+      slug: "hero",
+      prompt: direction,
+      aspectRatio: aspectRatioForPlatform(platform),
+    });
+    if (!result) return;
+
+    const next = {
+      ...content,
+      heroImage: { url: result.url, model: "flux-schnell" },
+    };
+    await db.contentDraft.update({
+      where: { id: draftId },
+      data: { content: next as unknown as Prisma.InputJsonValue },
+    });
+    await db.agentEvent.create({
+      data: {
+        userId,
+        agent: Agent.ECHO,
+        eventType: "image_generated",
+        payload: {
+          draftId,
+          model: "flux-schnell",
+          costCents: result.costCents,
+        },
+      },
+    });
+  }
+}
+
+function aspectRatioForPlatform(platform: Platform): AspectRatio {
+  switch (platform) {
+    case Platform.INSTAGRAM:
+      return "4:5";
+    case Platform.LINKEDIN:
+    case Platform.FACEBOOK:
+    case Platform.EMAIL:
+      return "16:9";
+    case Platform.PINTEREST:
+      return "2:3";
+    default:
+      return "1:1";
+  }
 }
 
 // Regenerate an existing draft in place — keeps the same format, feeds the

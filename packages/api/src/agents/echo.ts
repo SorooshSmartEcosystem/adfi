@@ -59,10 +59,9 @@ const SinglePostShape = z.object({
   cta: z.string().nullable(),
   hashtags: z.array(z.string()),
   visualDirection: z.string(),
-  heroImage: z
-    .object({ url: z.string(), model: z.string() })
-    .nullable()
-    .optional(),
+  // heroImage filled in by backfillImagesForDraft after generation —
+  // intentionally not in the schema so Anthropic structured-output
+  // doesn't reject `nullable: true` on the object type.
   voiceMatchConfidence: z.number(),
   brief: BriefShape,
 });
@@ -94,7 +93,7 @@ const CarouselSlideShape = z.object({
   quoteAttribution: z.string().nullable(),
   bulletPoints: z.array(z.string()).nullable(),
   visualDirection: z.string(),
-  imageUrl: z.string().nullable().optional(),
+  // imageUrl filled in post-generation — see SinglePostShape note.
 });
 
 const CarouselShape = z.object({
@@ -104,7 +103,6 @@ const CarouselShape = z.object({
     title: z.string(),
     subtitle: z.string().nullable(),
     visualDirection: z.string(),
-    imageUrl: z.string().nullable().optional(),
   }),
   bodySlides: z.array(CarouselSlideShape),
   closerSlide: z.object({
@@ -153,10 +151,7 @@ const EmailShape = z.object({
     link: z.string().nullable(),
   }),
   visualDirection: z.string(),
-  heroImage: z
-    .object({ url: z.string(), model: z.string() })
-    .nullable()
-    .optional(),
+  // heroImage filled in post-generation — see SinglePostShape note.
   voiceMatchConfidence: z.number(),
   brief: BriefShape,
 });

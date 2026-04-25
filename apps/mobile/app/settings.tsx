@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -15,6 +16,7 @@ import {
   SectionLabel,
   SettingRow,
 } from "../components/settings/row";
+import { Toggle } from "../components/shared/toggle";
 
 function formatPhone(raw: string | null | undefined): string {
   if (!raw) return "not set up";
@@ -27,6 +29,15 @@ function formatPhone(raw: string | null | undefined): string {
 export default function SettingsScreen() {
   const meQuery = trpc.user.me.useQuery();
   const homeQuery = trpc.user.getHomeData.useQuery();
+
+  // UI-only toggles for now — wired to real preferences in a future
+  // user.preferences column. Mirrors the prototype settings page so users
+  // can see + interact with the controls.
+  const [postIg, setPostIg] = useState(true);
+  const [postLi, setPostLi] = useState(false);
+  const [postEmail, setPostEmail] = useState(true);
+  const [pushDaily, setPushDaily] = useState(true);
+  const [pushWeekly, setPushWeekly] = useState(true);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -89,6 +100,36 @@ export default function SettingsScreen() {
           value={formatPhone(
             home.phoneStatus.active ? home.phoneStatus.number : null,
           )}
+          isLast
+        />
+      </RowGroup>
+
+      <SectionLabel>WHERE I POST</SectionLabel>
+      <RowGroup>
+        <SettingRow
+          label="instagram"
+          rightNode={<Toggle on={postIg} onChange={setPostIg} />}
+        />
+        <SettingRow
+          label="linkedin"
+          rightNode={<Toggle on={postLi} onChange={setPostLi} />}
+        />
+        <SettingRow
+          label="email newsletter"
+          rightNode={<Toggle on={postEmail} onChange={setPostEmail} />}
+          isLast
+        />
+      </RowGroup>
+
+      <SectionLabel>HOW I REACH YOU</SectionLabel>
+      <RowGroup>
+        <SettingRow
+          label="ping me when something needs me"
+          rightNode={<Toggle on={pushDaily} onChange={setPushDaily} />}
+        />
+        <SettingRow
+          label="weekly summary · sundays"
+          rightNode={<Toggle on={pushWeekly} onChange={setPushWeekly} />}
           isLast
         />
       </RowGroup>

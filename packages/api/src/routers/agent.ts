@@ -80,7 +80,18 @@ export const agentRouter = router({
             result = await generateCompetitorIntel(ctx.user.id);
             break;
           case "ECHO":
-            result = { draftId: await generateDailyContent(ctx.user.id) };
+            // Skip A/B variant on manual run-now so the button comes back
+            // in ~30s instead of ~60s. Cron-driven generation still does
+            // both variants.
+            result = {
+              draftId: await generateDailyContent(
+                ctx.user.id,
+                undefined,
+                undefined,
+                undefined,
+                false,
+              ),
+            };
             break;
           case "STRATEGIST": {
             const user = await ctx.db.user.findUnique({

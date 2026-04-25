@@ -54,6 +54,26 @@ export function renderNewsletterHtml(
     ? `<div style="display: none; max-height: 0; overflow: hidden; opacity: 0;">${escapeHtml(content.preheader)}</div>`
     : "";
 
+  // Email-safe orb mark: a radial-gradient div + the lowercase "adfi"
+  // wordmark. Inline styles only — most clients strip <head> CSS.
+  const headerHtml = `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      <tr>
+        <td align="left" style="padding: 28px 32px 0;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td valign="middle" style="padding-right: 10px;">
+                <div style="width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #4a4a4a 0%, #1a1a1a 60%, #000 100%);"></div>
+              </td>
+              <td valign="middle" style="font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; font-size: 15px; font-weight: 500; color: #111; letter-spacing: -0.01em;">
+                adfi
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>`;
+
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(content.subject ?? "")}</title></head>
 <body style="margin: 0; padding: 0; background: #FAFAF7;">
@@ -62,18 +82,20 @@ export function renderNewsletterHtml(
     <tr>
       <td align="center" style="padding: 40px 16px;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background: #ffffff; border: 0.5px solid #E5E3DB; border-radius: 16px;">
+          <tr><td>${headerHtml}</td></tr>
           <tr>
-            <td style="padding: 32px; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; color: #111; font-size: 15px; line-height: 1.6;">
+            <td style="padding: 16px 32px 32px; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; color: #111; font-size: 15px; line-height: 1.6;">
               ${bodyHtml}
               ${ctaHtml}
             </td>
           </tr>
           <tr>
-            <td style="padding: 16px 32px 32px; font-family: 'SF Mono', monospace; font-size: 11px; color: #888; text-align: center;">
-              <div style="margin-bottom: 8px;">${escapeHtml(args.senderName)}</div>
-              <div>
+            <td style="padding: 16px 32px 28px; border-top: 0.5px solid #E5E3DB; font-family: 'SF Mono', 'Courier New', monospace; font-size: 11px; color: #888; text-align: center;">
+              <div style="margin-bottom: 8px; color: #111;">${escapeHtml(args.senderName)}</div>
+              <div style="margin-bottom: 12px;">
                 <a href="${args.unsubscribeUrl}" style="color: #888; text-decoration: underline;">unsubscribe</a>
               </div>
+              <div style="color: #aaa; letter-spacing: 0.08em;">SENT BY ADFI · MADE FOR SOLOPRENEURS</div>
             </td>
           </tr>
         </table>

@@ -10,6 +10,7 @@ import {
 import { router } from "expo-router";
 import { colors, fontSizes, radii } from "@orb/ui";
 import { trpc } from "../lib/trpc";
+import { StatBar } from "../components/shared/stat-bar";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
@@ -118,6 +119,19 @@ export default function ContentScreen() {
   );
   const totalScheduled = buckets.reduce((n, b) => n + b.items.length, 0);
 
+  // Channel-balance segments — count items by platform across the week.
+  const channelMix = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const b of buckets) {
+      for (const it of b.items) {
+        counts.set(it.platform, (counts.get(it.platform) ?? 0) + 1);
+      }
+    }
+    return Array.from(counts.entries())
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [buckets]);
+
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
@@ -139,6 +153,16 @@ export default function ContentScreen() {
             : `${needsCount} need your input`}
         </Text>
       </View>
+
+      {channelMix.length > 0 ? (
+        <View style={{ marginBottom: 16 }}>
+          <StatBar
+            segments={channelMix}
+            caption="CHANNEL BALANCE"
+            rightCaption={channelMix.length > 1 ? "↗ healthy mix" : undefined}
+          />
+        </View>
+      ) : null}
 
       {isLoading ? (
         <View style={styles.loading}>

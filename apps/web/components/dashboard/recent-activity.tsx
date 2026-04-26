@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Card } from "../shared/card";
-import { StatusDot } from "../shared/status-dot";
 
 export type ActivityItem = {
   id: string;
@@ -70,23 +69,35 @@ export function RecentActivity({ items }: { items: ActivityItem[] }) {
           items.map((item, i) => (
             <div
               key={item.id}
-              className={`px-lg py-md ${i < items.length - 1 ? "hairline-b2" : ""}`}
+              className={`px-lg py-md flex gap-md transition-colors hover:bg-surface2 ${i < items.length - 1 ? "border-b-hairline border-border2" : ""}`}
             >
-              <div className="flex items-center justify-between mb-sm">
-                <div className="flex items-center gap-sm">
-                  <StatusDot tone="alive" />
-                  <span className="font-mono text-sm text-aliveDark tracking-[0.2em]">
-                    {item.agent} · {formatTimeLabel(item.at)}
-                  </span>
-                </div>
-                {item.value ? (
-                  <span className="font-mono text-sm text-ink3">{item.value}</span>
+              <div className="w-[32px] flex-shrink-0 flex flex-col items-center">
+                <span className="w-[7px] h-[7px] rounded-full bg-alive mt-[6px]" />
+                {i < items.length - 1 ? (
+                  <span className="flex-1 w-[0.5px] bg-border2 mt-xs min-h-[12px]" />
                 ) : null}
               </div>
-              <div className="text-base font-medium mb-xs">{item.title}</div>
-              {item.desc ? (
-                <div className="text-sm text-ink3">{item.desc}</div>
-              ) : null}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-sm flex-wrap mb-xs">
+                  <span className="font-mono text-[10px] text-aliveDark tracking-widest">
+                    {item.agent.toUpperCase()}
+                  </span>
+                  <span className="font-mono text-[10px] text-ink4 tracking-wider">
+                    {formatTimeLabel(item.at)}
+                  </span>
+                  {item.value ? (
+                    <span className="ml-auto font-mono text-xs text-ink2">
+                      {item.value}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="text-sm font-medium mb-[3px]">{item.title}</div>
+                {item.desc ? (
+                  <div className="text-xs text-ink3 leading-snug">
+                    {item.desc}
+                  </div>
+                ) : null}
+              </div>
             </div>
           ))
         )}

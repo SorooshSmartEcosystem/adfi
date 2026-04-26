@@ -6,6 +6,7 @@ export const colors = {
   ink4: "#888",
   ink5: "#999",
   surface: "#F2EFE5",
+  surface2: "#F8F5EA",
   border: "#E5E3DB",
   border2: "#EEEBE0",
   alive: "#7CE896",

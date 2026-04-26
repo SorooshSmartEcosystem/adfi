@@ -11,9 +11,7 @@ export function Section({
 }) {
   return (
     <div id={anchor} className="mb-2xl scroll-mt-[80px]">
-      <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
-        {label}
-      </div>
+      <div className="text-xs text-ink4 mb-sm">{label.toLowerCase()}</div>
       {children}
     </div>
   );

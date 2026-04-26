@@ -92,17 +92,15 @@ export function ConnectCard({ provider }: { provider: Provider }) {
 
   const statusChip =
     provider.status === "live" ? (
-      <span className="font-mono text-[10px] text-aliveDark bg-alive/30 px-md py-[3px] rounded-full tracking-[0.15em]">
-        LIVE
+      <span className="text-[11px] text-aliveDark bg-alive/30 px-md py-[3px] rounded-full">
+        live
       </span>
     ) : provider.status === "manual" ? (
-      <span className="font-mono text-[10px] text-attentionText bg-attentionBg border-hairline border-attentionBorder px-md py-[3px] rounded-full tracking-[0.15em]">
-        SETUP STEPS
+      <span className="text-[11px] text-attentionText bg-attentionBg border-hairline border-attentionBorder px-md py-[3px] rounded-full">
+        setup steps
       </span>
     ) : (
-      <span className="font-mono text-[10px] text-ink5 tracking-[0.15em]">
-        SOON
-      </span>
+      <span className="text-[11px] text-ink5">soon</span>
     );
 
   return (
@@ -118,12 +116,12 @@ export function ConnectCard({ provider }: { provider: Provider }) {
         disabled={provider.steps.length === 0}
       >
         <div className="flex items-center gap-md min-w-0">
-          <div className="w-7 h-7 rounded-md bg-surface flex items-center justify-center font-mono text-sm font-medium shrink-0">
+          <div className="w-7 h-7 rounded-md bg-surface flex items-center justify-center text-sm font-medium shrink-0">
             {provider.code}
           </div>
           <div className="min-w-0">
             <div className="text-md font-medium">{provider.name}</div>
-            <div className="font-mono text-sm text-ink4 truncate">
+            <div className="text-xs text-ink4 truncate">
               {provider.blurb}
             </div>
           </div>
@@ -131,7 +129,7 @@ export function ConnectCard({ provider }: { provider: Provider }) {
         <div className="flex items-center gap-sm shrink-0">
           {statusChip}
           {provider.steps.length > 0 ? (
-            <span className="font-mono text-sm text-ink4">{open ? "−" : "+"}</span>
+            <span className="text-md text-ink4">{open ? "−" : "+"}</span>
           ) : null}
         </div>
       </button>
@@ -141,8 +139,8 @@ export function ConnectCard({ provider }: { provider: Provider }) {
           <ol className="flex flex-col gap-md">
             {provider.steps.map((s, i) => (
               <li key={i} className="flex gap-md">
-                <span className="font-mono text-xs text-ink4 tracking-[0.15em] mt-[2px] shrink-0 w-[24px]">
-                  {String(i + 1).padStart(2, "0")}
+                <span className="text-xs text-ink4 mt-[2px] shrink-0 w-[24px] tabular-nums">
+                  {i + 1}.
                 </span>
                 <div className="flex-1">
                   <div className="text-sm font-medium mb-xs">{s.title}</div>
@@ -156,12 +154,12 @@ export function ConnectCard({ provider }: { provider: Provider }) {
               <button
                 type="button"
                 disabled
-                className="bg-ink text-white font-mono text-xs px-md py-[7px] rounded-full disabled:opacity-40"
+                className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40"
                 title="OAuth flow coming soon"
               >
                 connect {provider.name.toLowerCase()} →
               </button>
-              <span className="font-mono text-[10px] text-ink4">
+              <span className="text-[11px] text-ink4">
                 button activates once meta/linkedin oauth ships
               </span>
             </div>

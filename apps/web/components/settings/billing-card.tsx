@@ -9,9 +9,9 @@ const PLAN_LABEL: Record<string, string> = {
 };
 
 const PLAN_PRICE: Record<string, string> = {
-  SOLO: "$39/MO",
-  TEAM: "$99/MO",
-  STUDIO: "$299/MO",
+  SOLO: "$39/mo",
+  TEAM: "$99/mo",
+  STUDIO: "$299/mo",
 };
 
 export function BillingCard() {
@@ -26,7 +26,7 @@ export function BillingCard() {
   if (subQuery.isLoading) {
     return (
       <Card>
-        <div className="text-sm text-ink3 font-mono">one second</div>
+        <div className="text-sm text-ink3">one second</div>
       </Card>
     );
   }
@@ -39,14 +39,14 @@ export function BillingCard() {
         <div className="flex items-start justify-between mb-md">
           <div>
             <div className="text-lg font-medium">no active plan</div>
-            <div className="font-mono text-sm text-ink4 mt-xs">
+            <div className="text-xs text-ink4 mt-xs">
               start a trial to put a plan on file.
             </div>
           </div>
         </div>
         <a
           href="/onboarding/plan"
-          className="inline-block font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors"
+          className="inline-block text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors"
         >
           start trial →
         </a>
@@ -63,22 +63,22 @@ export function BillingCard() {
           <div className="text-lg font-medium">
             {PLAN_LABEL[sub.plan] ?? "team · monthly"}
           </div>
-          <div className="font-mono text-sm text-ink4 mt-xs">
+          <div className="text-xs text-ink4 mt-xs">
             {isTrialing
-              ? `TRIAL · ENDS ${sub.currentPeriodEnd.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}`
-              : PLAN_PRICE[sub.plan] ?? "$99/MO"}
+              ? `trial · ends ${sub.currentPeriodEnd.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toLowerCase()}`
+              : PLAN_PRICE[sub.plan] ?? "$99/mo"}
           </div>
           {sub.cancelAtPeriodEnd ? (
-            <div className="font-mono text-xs text-attentionText mt-xs">
-              CANCELS{" "}
+            <div className="text-xs text-attentionText mt-xs">
+              cancels{" "}
               {sub.currentPeriodEnd
                 .toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                .toUpperCase()}
+                .toLowerCase()}
             </div>
           ) : null}
         </div>
         <span
-          className={`font-mono text-[10px] px-md py-[3px] rounded-full tracking-[0.1em] ${
+          className={`text-[11px] px-md py-[3px] rounded-full ${
             sub.status === "ACTIVE" || sub.status === "TRIALING"
               ? "bg-alive text-[#1a4a2c]"
               : sub.status === "PAST_DUE"
@@ -86,17 +86,17 @@ export function BillingCard() {
                 : "bg-surface text-ink3"
           }`}
         >
-          {sub.status}
+          {sub.status.toLowerCase()}
         </span>
       </div>
 
       {usageQuery.data ? (
         <div className="mb-md pt-md border-t-hairline border-border2">
           <div className="flex items-center justify-between mb-xs">
-            <span className="font-mono text-[10px] text-ink4 tracking-[0.2em]">
-              USAGE · {usageQuery.data.period}
+            <span className="text-xs text-ink4">
+              usage · {usageQuery.data.period}
             </span>
-            <span className="font-mono text-xs">
+            <span className="text-xs tabular-nums">
               {usageQuery.data.creditsUsed} / {usageQuery.data.creditsLimit}{" "}
               <span
                 className={
@@ -123,7 +123,7 @@ export function BillingCard() {
               style={{ width: `${usageQuery.data.pctUsed}%` }}
             />
           </div>
-          <div className="font-mono text-[10px] text-ink4 mt-xs">
+          <div className="text-[11px] text-ink4 mt-xs">
             resets{" "}
             {new Date(usageQuery.data.resetsAt)
               .toLocaleDateString("en-US", { month: "short", day: "numeric" })
@@ -138,7 +138,7 @@ export function BillingCard() {
           type="button"
           onClick={() => portal.mutate()}
           disabled={portal.isPending}
-          className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+          className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
         >
           {portal.isPending ? "opening..." : "manage billing"}
         </button>
@@ -146,7 +146,7 @@ export function BillingCard() {
           type="button"
           onClick={() => portal.mutate()}
           disabled={portal.isPending}
-          className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+          className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
         >
           update card
         </button>
@@ -154,14 +154,14 @@ export function BillingCard() {
           type="button"
           onClick={() => portal.mutate()}
           disabled={portal.isPending}
-          className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+          className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
         >
           {sub.cancelAtPeriodEnd ? "resume plan" : "cancel"}
         </button>
       </div>
 
       {portal.error ? (
-        <p className="text-sm text-urgent font-mono mt-md" role="alert">
+        <p className="text-xs text-urgent mt-md" role="alert">
           {portal.error.message}
         </p>
       ) : null}

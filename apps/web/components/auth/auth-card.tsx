@@ -105,10 +105,7 @@ export function AuthCard({ mode }: { mode: Mode }) {
       <p className="text-sm text-ink3 text-center mb-lg">{sub}</p>
 
       <form onSubmit={handleSubmit} className="flex flex-col">
-        <label
-          htmlFor="auth-input"
-          className="font-mono text-xs text-ink4 tracking-[0.15em] uppercase mb-sm"
-        >
+        <label htmlFor="auth-input" className="text-xs text-ink4 mb-sm">
           phone or email
         </label>
         <input
@@ -137,7 +134,7 @@ export function AuthCard({ mode }: { mode: Mode }) {
 
       <div className="flex items-center gap-md my-lg">
         <span className="flex-1 h-px bg-border" />
-        <span className="font-mono text-xs text-ink4 tracking-[0.2em]">OR</span>
+        <span className="text-xs text-ink4">or</span>
         <span className="flex-1 h-px bg-border" />
       </div>
 

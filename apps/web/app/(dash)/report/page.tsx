@@ -3,6 +3,7 @@ import { createServerClient } from "@orb/auth/server";
 import { trpcServer } from "../../../lib/trpc-server";
 import { Card } from "../../../components/shared/card";
 import { StatusDot } from "../../../components/shared/status-dot";
+import { PageHero } from "../../../components/shared/page-hero";
 
 function formatCurrency(cents: number): string {
   if (cents >= 100_000) return `$${(cents / 100_000).toFixed(1).replace(/\.0$/, "")}k`;
@@ -100,14 +101,13 @@ export default async function ReportPage() {
 
   return (
     <>
-      <div className="mb-2xl">
-        <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
-          {weekLabel}
-        </div>
-        <h1 className="text-[clamp(26px,4vw,36px)] font-medium tracking-tight leading-[1.15]">
-          your week, at a glance.
-        </h1>
-      </div>
+      <PageHero
+        title="your week, at a glance."
+        sub="what i shipped, what i caught, what's about to land."
+        meta={weekLabel}
+        showLive
+      />
+
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-lg mb-xl">
         <Card>

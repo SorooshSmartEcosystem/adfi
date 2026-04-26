@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createServerClient } from "@orb/auth/server";
 import { trpcServer } from "../../../lib/trpc-server";
+import { PageHero } from "../../../components/shared/page-hero";
 import { WeekGrid } from "../../../components/content/week-grid";
 import { PerformanceCards } from "../../../components/content/performance-cards";
 import { ContentTabs } from "../../../components/content/tabs";
@@ -149,6 +150,12 @@ export default async function ContentPage({
 
   return (
     <>
+      <PageHero
+        title="content"
+        sub="this week's plan, drafts waiting on you, and what's actually working."
+        meta={rangeLabel}
+        showLive
+      />
       <ContentTabs active={tab} draftsCount={pendingDrafts} />
 
       {tab === "drafts" ? (

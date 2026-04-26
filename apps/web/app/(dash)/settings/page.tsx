@@ -8,6 +8,7 @@ import { SubscribersCard } from "../../../components/settings/subscribers-card";
 import { PreferencesCard } from "../../../components/settings/preferences-card";
 import { BusinessProfileCard } from "../../../components/settings/business-profile-card";
 import { ConnectionsList } from "../../../components/settings/connect-card";
+import { PageHero } from "../../../components/shared/page-hero";
 
 function formatPhone(raw: string | null | undefined): string {
   if (!raw) return "not set up";
@@ -32,6 +33,10 @@ export default async function SettingsPage() {
 
   return (
     <div className="max-w-[680px]">
+      <PageHero
+        title="settings"
+        sub="business profile, plan, and connected channels."
+      />
       <Section label="BUSINESS">
         <BusinessProfileCard />
       </Section>

@@ -176,6 +176,38 @@ export const contentRouter = router({
       }
     }),
 
+  // Inline edits to a single draft's content JSON. Validates length budgets
+  // but otherwise trusts the format-specific shape — undefined fields are
+  // left untouched.
+  updateDraftContent: authedProc
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        hook: z.string().max(500).optional(),
+        body: z.string().max(4000).optional(),
+        cta: z.string().max(280).nullable().optional(),
+        hashtags: z.array(z.string().max(60)).max(20).optional(),
+        caption: z.string().max(4000).optional(),
+        subject: z.string().max(140).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const draft = await ctx.db.contentDraft.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+      });
+      if (!draft) throw OrbError.NOT_FOUND("draft");
+      const current = (draft.content ?? {}) as Record<string, unknown>;
+      const next: Record<string, unknown> = { ...current };
+      for (const k of ["hook", "body", "cta", "hashtags", "caption", "subject"] as const) {
+        if (input[k] !== undefined) next[k] = input[k];
+      }
+      await ctx.db.contentDraft.update({
+        where: { id: draft.id },
+        data: { content: next as unknown as Prisma.InputJsonValue },
+      });
+      return { success: true as const };
+    }),
+
   regenerateImages: authedProc
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

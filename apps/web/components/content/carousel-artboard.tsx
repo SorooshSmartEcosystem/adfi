@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
 // Designed 1:1 slide renderer. Each slide picks a template + palette and
 // gets typography treatment matching what a designer would actually ship —
 // not text-in-a-box. Square aspect ratio, large type, generous whitespace.
@@ -366,13 +370,110 @@ export function CarouselArtboard({
   closer: CloserSlide;
 }) {
   const total = 1 + body.length + 1;
+  const slides = [
+    <CoverSlideView key="cover" slide={cover} index={0} total={total} />,
+    ...body.map((s, i) => (
+      <BodySlideView key={`b-${i}`} slide={s} index={i + 1} total={total} />
+    )),
+    <CloserSlideView
+      key="closer"
+      slide={closer}
+      index={total - 1}
+      total={total}
+    />,
+  ];
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+
+  // Sync the active dot with whatever the scroll-snap container settles on
+  // (covers swipe + click + keyboard).
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    let raf = 0;
+    const handler = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const w = el.clientWidth;
+        const idx = Math.round(el.scrollLeft / w);
+        setActive(Math.max(0, Math.min(slides.length - 1, idx)));
+      });
+    };
+    el.addEventListener("scroll", handler, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", handler);
+      cancelAnimationFrame(raf);
+    };
+  }, [slides.length]);
+
+  function go(idx: number) {
+    const el = trackRef.current;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(slides.length - 1, idx));
+    el.scrollTo({ left: el.clientWidth * clamped, behavior: "smooth" });
+  }
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-      <CoverSlideView slide={cover} index={0} total={total} />
-      {body.map((s, i) => (
-        <BodySlideView key={i} slide={s} index={i + 1} total={total} />
-      ))}
-      <CloserSlideView slide={closer} index={total - 1} total={total} />
+    <div>
+      <div
+        ref={trackRef}
+        className="flex overflow-x-auto snap-x snap-mandatory rounded-[18px] -mx-md px-md scrollbar-thin"
+        style={{ scrollbarWidth: "none" }}
+        aria-roledescription="carousel"
+      >
+        <style>{`.scrollbar-thin::-webkit-scrollbar{display:none}`}</style>
+        {slides.map((s, i) => (
+          <div
+            key={i}
+            className="snap-center shrink-0 w-full pr-md last:pr-0"
+            aria-roledescription="slide"
+            aria-label={`slide ${i + 1} of ${slides.length}`}
+          >
+            <div className="max-w-[460px] mx-auto">{s}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between mt-md">
+        <div className="flex items-center gap-[6px]">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => go(i)}
+              aria-label={`go to slide ${i + 1}`}
+              className={`h-[6px] rounded-full transition-all ${
+                i === active ? "w-[18px] bg-ink" : "w-[6px] bg-border"
+              }`}
+            />
+          ))}
+        </div>
+
+        <div className="flex items-center gap-sm">
+          <span className="text-xs text-ink4 tabular-nums">
+            {active + 1} / {slides.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => go(active - 1)}
+            disabled={active === 0}
+            aria-label="previous slide"
+            className="w-7 h-7 flex items-center justify-center rounded-full border-hairline border-border text-ink2 hover:border-ink hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            ←
+          </button>
+          <button
+            type="button"
+            onClick={() => go(active + 1)}
+            disabled={active === slides.length - 1}
+            aria-label="next slide"
+            className="w-7 h-7 flex items-center justify-center rounded-full border-hairline border-border text-ink2 hover:border-ink hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            →
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

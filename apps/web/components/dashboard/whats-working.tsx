@@ -1,54 +1,42 @@
 export type WorkingItem = {
   label: string;
-  pct: number; // bar fill 0-100
-  delta: string; // "+85%" / "-12%"
-  positive?: boolean;
+  delta: string;
 };
 
+// V3 simplified: ranked list (1. 2. 3.) — label — lift. No progress bars,
+// no "LAST 30 DAYS" mono pill. Caller passes already-sliced top 3.
 export function WhatsWorking({
   items,
-  windowLabel = "LAST 30 DAYS",
 }: {
   items: WorkingItem[];
-  windowLabel?: string;
 }) {
-  return (
-    <div className="bg-white border-hairline border-border rounded-[16px] p-xl">
-      <div className="flex items-center justify-between mb-lg">
-        <div className="text-sm font-medium">what&apos;s working</div>
-        <div className="font-mono text-[10px] text-ink4 tracking-widest">
-          {windowLabel}
-        </div>
-      </div>
-      {items.length === 0 ? (
-        <p className="text-sm text-ink3 leading-relaxed">
+  if (items.length === 0) {
+    return (
+      <div className="bg-white border-hairline border-border rounded-[16px] px-[22px] py-lg mb-[48px]">
+        <p className="text-xs text-ink3 leading-[1.5]">
           not enough data yet — i&apos;ll learn what&apos;s landing as you publish.
         </p>
-      ) : (
-        <div className="flex flex-col gap-sm">
-          {items.map((it, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between py-sm border-b-hairline border-border2 last:border-b-0"
-            >
-              <div className="text-xs flex-1">{it.label}</div>
-              <div className="flex-none w-[60px] h-[4px] bg-surface rounded-sm overflow-hidden mx-md">
-                <div
-                  className={it.positive ?? it.pct > 50 ? "bg-ink h-full rounded-sm" : "bg-border h-full rounded-sm"}
-                  style={{ width: `${Math.max(0, Math.min(100, it.pct))}%` }}
-                />
-              </div>
-              <div
-                className={`font-mono text-xs w-[44px] text-right ${
-                  it.delta.startsWith("-") ? "text-ink4" : "text-aliveDark"
-                }`}
-              >
-                {it.delta}
-              </div>
-            </div>
-          ))}
+      </div>
+    );
+  }
+  return (
+    <div className="bg-white border-hairline border-border rounded-[16px] py-md mb-[48px]">
+      {items.map((it, i) => (
+        <div
+          key={i}
+          className="flex items-center justify-between px-[22px] py-md border-b-hairline border-border2 last:border-b-0"
+        >
+          <span className="text-xs text-ink4 w-6 shrink-0">{i + 1}.</span>
+          <span className="text-sm flex-1">{it.label}</span>
+          <span
+            className={`text-xs shrink-0 ${
+              it.delta.startsWith("-") ? "text-ink4" : "text-aliveDark"
+            }`}
+          >
+            {it.delta}
+          </span>
         </div>
-      )}
+      ))}
     </div>
   );
 }

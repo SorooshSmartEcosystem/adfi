@@ -49,10 +49,9 @@ export function AppShell({
       <main className="flex-1 min-w-0 flex flex-col min-h-screen lg:ml-[260px]">
         <Topbar
           title={copy.title}
-          sub={copy.sub}
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
         />
-        <div className="flex-1 w-full max-w-[1200px] mx-auto px-xl pt-[28px] pb-[80px]">
+        <div className="flex-1 w-full max-w-[1200px] mx-auto px-[32px] pt-[40px] pb-[80px]">
           {children}
         </div>
       </main>

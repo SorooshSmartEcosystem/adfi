@@ -4,67 +4,70 @@ import { useState } from "react";
 
 type Range = "1W" | "4W" | "3M" | "1Y";
 
-// Renders a smooth reach trend line with a subtle area fill. The data series
-// is plain numbers; ranges that don't have data yet pass an empty array and
-// we render an empty state instead of an unscaled flat line.
+// V3 simplified: number is the title (no "REACH OVER TIME" label), subtitle
+// reads "reach this week · ↑ 23%". No grid lines, no interior dots, no
+// internal axis labels — just the line, area fill, alive end-dot, and two
+// endpoint axis labels below.
 export function ReachChart({
   totalReach,
   deltaPct,
   series,
-  rangeLabels,
+  rangeAxis,
   defaultRange = "4W",
 }: {
   totalReach: number;
   deltaPct: number | null;
   series: Record<Range, number[]>;
-  rangeLabels: Record<Range, string[]>;
+  rangeAxis: Record<Range, [string, string]>;
   defaultRange?: Range;
 }) {
   const [range, setRange] = useState<Range>(defaultRange);
   const data = series[range] ?? [];
-  const labels = rangeLabels[range] ?? [];
+  const [axisLeft, axisRight] = rangeAxis[range] ?? ["", ""];
 
   const fmtReach = (n: number) =>
     n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(n);
 
+  const subRange =
+    range === "1W"
+      ? "this week"
+      : range === "4W"
+        ? "last 4 weeks"
+        : range === "3M"
+          ? "last 3 months"
+          : "last 12 months";
+
   return (
-    <div className="bg-white border-hairline border-border rounded-[18px] p-xl mb-2xl">
-      <div className="flex items-start justify-between flex-wrap gap-md mb-xl">
+    <div className="bg-white border-hairline border-border rounded-[16px] p-[28px] mb-[48px]">
+      <div className="flex items-start justify-between flex-wrap gap-md mb-[28px]">
         <div>
-          <div className="font-mono text-[10px] text-ink4 tracking-[0.2em] mb-md flex items-center gap-[6px]">
-            <span className="w-[5px] h-[5px] rounded-full bg-ink opacity-50" />
-            REACH OVER TIME
-          </div>
           <div
-            className="font-medium leading-none mb-xs"
+            className="font-medium leading-none mb-[6px]"
             style={{ fontSize: "36px", letterSpacing: "-0.025em" }}
           >
             {fmtReach(totalReach)}
           </div>
           <div className="text-xs text-ink3">
-            people saw your work this week
+            reach {subRange}
             {deltaPct !== null ? (
               <>
                 {" · "}
-                <span
-                  className={deltaPct >= 0 ? "text-aliveDark" : "text-urgent"}
-                >
+                <span className={deltaPct >= 0 ? "text-aliveDark" : "text-ink4"}>
                   {deltaPct >= 0 ? "↑" : "↓"} {Math.abs(deltaPct)}%
-                </span>{" "}
-                vs last week
+                </span>
               </>
             ) : null}
           </div>
         </div>
-        <div className="flex items-center bg-surface rounded-full p-[3px] gap-[2px]">
+        <div className="flex gap-[4px]">
           {(["1W", "4W", "3M", "1Y"] as Range[]).map((r) => (
             <button
               key={r}
               type="button"
               onClick={() => setRange(r)}
-              className={`px-md py-[5px] rounded-full font-mono text-[10px] tracking-wider transition-colors ${
+              className={`px-md py-[6px] rounded-full text-xs transition-colors ${
                 r === range
-                  ? "bg-white text-ink shadow-[0_0_0_0.5px_rgb(229,227,219)]"
+                  ? "bg-surface text-ink"
                   : "text-ink4 hover:text-ink2"
               }`}
             >
@@ -77,20 +80,14 @@ export function ReachChart({
       {data.length >= 2 ? (
         <ReachSvg values={data} />
       ) : (
-        <div className="h-[180px] flex items-center justify-center font-mono text-xs text-ink4 tracking-widest">
-          NO DATA YET FOR {range}
+        <div className="h-[160px] flex items-center justify-center text-xs text-ink4">
+          no data yet for {range.toLowerCase()}
         </div>
       )}
 
-      <div className="flex justify-between pt-md border-t-hairline border-border2 mt-sm">
-        {labels.map((l) => (
-          <span
-            key={l}
-            className="font-mono text-[9px] text-ink5 tracking-widest"
-          >
-            {l}
-          </span>
-        ))}
+      <div className="flex justify-between text-[11px] text-ink4 mt-md">
+        <span>{axisLeft}</span>
+        <span>{axisRight}</span>
       </div>
     </div>
   );
@@ -103,48 +100,21 @@ function ReachSvg({ values }: { values: number[] }) {
   const step = 800 / (values.length - 1);
   const points = values.map((v, i) => ({
     x: i * step,
-    y: 140 - ((v - min) / range) * 110,
+    y: 124 - ((v - min) / range) * 100,
   }));
   const linePath = points
     .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
     .join(" ");
-  const areaPath = `${linePath} L800,180 L0,180 Z`;
+  const areaPath = `${linePath} L800,160 L0,160 Z`;
   const last = points[points.length - 1]!;
 
   return (
     <svg
       className="w-full block"
-      viewBox="0 0 800 180"
+      viewBox="0 0 800 160"
       preserveAspectRatio="none"
-      style={{ height: "180px" }}
+      style={{ height: "160px" }}
     >
-      <line
-        x1="0"
-        y1="36"
-        x2="800"
-        y2="36"
-        className="stroke-border2"
-        strokeWidth="0.5"
-        strokeDasharray="2 4"
-      />
-      <line
-        x1="0"
-        y1="80"
-        x2="800"
-        y2="80"
-        className="stroke-border2"
-        strokeWidth="0.5"
-        strokeDasharray="2 4"
-      />
-      <line
-        x1="0"
-        y1="124"
-        x2="800"
-        y2="124"
-        className="stroke-border2"
-        strokeWidth="0.5"
-        strokeDasharray="2 4"
-      />
       <path d={areaPath} className="fill-ink" opacity="0.04" />
       <path
         d={linePath}
@@ -154,16 +124,6 @@ function ReachSvg({ values }: { values: number[] }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {points.slice(1, -1).filter((_, i) => i % 2 === 0).map((p, i) => (
-        <circle
-          key={i}
-          cx={p.x}
-          cy={p.y}
-          r="3"
-          className="fill-ink stroke-white"
-          strokeWidth="2"
-        />
-      ))}
       <circle
         cx={last.x}
         cy={last.y}

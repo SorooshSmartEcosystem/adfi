@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { LivePill } from "../dashboard/live-pill";
 
-// Used at the top of secondary pages (/content, /inbox, /report) so they
-// share visual rhythm with the dashboard's greeting block. Smaller than
-// the dashboard hero — single line of meta, one-line subtitle.
+// V3: drop the white "live pill" and use a soft inline status row to match
+// the dashboard greeting. Page-level meta sits next to the status when
+// both are present.
 export function PageHero({
   title,
   sub,
@@ -18,15 +17,16 @@ export function PageHero({
   right?: ReactNode;
 }) {
   return (
-    <div className="mb-xl">
+    <div className="mb-[40px]">
       {(showLive || meta) ? (
-        <div className="flex items-center gap-md mb-md flex-wrap">
-          {showLive ? <LivePill /> : null}
-          {meta ? (
-            <span className="font-mono text-xs text-ink4 tracking-wider">
-              {meta}
+        <div className="flex items-center gap-md mb-md flex-wrap text-xs">
+          {showLive ? (
+            <span className="inline-flex items-center gap-sm text-aliveDark">
+              <span className="w-[7px] h-[7px] rounded-full bg-alive animate-pulse" />
+              everything is running
             </span>
           ) : null}
+          {meta ? <span className="text-ink4">{meta}</span> : null}
         </div>
       ) : null}
       <div className="flex items-end justify-between gap-md flex-wrap">

@@ -31,15 +31,15 @@ export const NAV_BOTTOM: { id: AppRoute; label: string; href: string }[] = [
   { id: "settings", label: "settings", href: "/settings" },
 ];
 
-export const TOPBAR_COPY: Record<AppRoute, { title: string; sub: string }> = {
-  dashboard: { title: "dashboard", sub: "your business, at a glance" },
-  inbox: { title: "inbox", sub: "messages and calls" },
-  content: { title: "content", sub: "what i'm posting for you" },
-  report: { title: "weekly report", sub: "your week in numbers" },
-  settings: { title: "settings", sub: "account · billing · integrations" },
-  "specialist-strategist": { title: "strategist", sub: "your business strategy" },
-  "specialist-signal": { title: "signal", sub: "calls · sms · dms" },
-  "specialist-echo": { title: "echo", sub: "content creation" },
-  "specialist-scout": { title: "scout", sub: "competitor tracking" },
-  "specialist-pulse": { title: "pulse", sub: "market signals" },
+export const TOPBAR_COPY: Record<AppRoute, { title: string }> = {
+  dashboard: { title: "dashboard" },
+  inbox: { title: "inbox" },
+  content: { title: "content" },
+  report: { title: "weekly report" },
+  settings: { title: "settings" },
+  "specialist-strategist": { title: "strategist" },
+  "specialist-signal": { title: "signal" },
+  "specialist-echo": { title: "echo" },
+  "specialist-scout": { title: "scout" },
+  "specialist-pulse": { title: "pulse" },
 };

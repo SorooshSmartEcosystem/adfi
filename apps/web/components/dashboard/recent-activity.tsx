@@ -1,15 +1,13 @@
-import Link from "next/link";
-import { Card } from "../shared/card";
-
 export type ActivityItem = {
   id: string;
-  agent: string;
+  agent: string; // kept in data for filtering, not rendered on dashboard
   at: Date;
   title: string;
   desc: string;
   value?: string;
 };
 
+// Sentence-case, lowercase time tokens. "tue 2pm", "today", "mon 11am".
 function formatTimeLabel(at: Date): string {
   const now = Date.now();
   const diffMs = now - at.getTime();
@@ -17,91 +15,53 @@ function formatTimeLabel(at: Date): string {
   if (diffDays === 0) return "today";
   if (diffDays === 1) return "yesterday";
   if (diffDays < 7) {
-    const weekday = at.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
-    const time = at.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    }).replace(" ", "");
+    const weekday = at
+      .toLocaleDateString("en-US", { weekday: "short" })
+      .toLowerCase();
+    const time = at
+      .toLocaleTimeString("en-US", { hour: "numeric" })
+      .replace(" ", "")
+      .toLowerCase();
     return `${weekday} ${time}`;
   }
-  return at.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return at
+    .toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    .toLowerCase();
 }
 
+// V3 simplified: flat rows — no bullet, no connecting line, no agent label.
+// Title + time on one row, description below. Hover surface2.
 export function RecentActivity({ items }: { items: ActivityItem[] }) {
-  return (
-    <section className="mb-xl">
-      <div className="flex items-center justify-between mb-lg">
-        <h2 className="text-xl font-medium tracking-tight">recent activity</h2>
-        <Link
-          href="/report"
-          className="font-mono text-xs text-ink2 px-md py-[5px] rounded-full border-hairline border-border hover:border-ink hover:text-ink transition-colors"
-        >
-          full report →
-        </Link>
+  if (items.length === 0) {
+    return (
+      <div className="bg-white border-hairline border-border rounded-[16px] px-[22px] py-lg mb-[48px]">
+        <p className="text-sm text-ink3 leading-[1.6] mb-md">
+          your agents are warming up. activity shows up here as it happens.
+        </p>
       </div>
-      <Card padded={false}>
-        {items.length === 0 ? (
-          <div className="p-xl">
-            <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
-              FIRST FEW DAYS
+    );
+  }
+
+  return (
+    <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden mb-[48px]">
+      {items.map((item) => (
+        <div
+          key={item.id}
+          className="px-[22px] py-[18px] border-b-hairline border-border2 last:border-b-0 transition-colors hover:bg-surface2"
+        >
+          <div className="flex items-center gap-md mb-[6px]">
+            <div className="text-sm font-medium flex-1 min-w-0">
+              {item.title}
             </div>
-            <p className="text-md leading-relaxed mb-md">
-              your agents are warming up. signal listens for calls + texts,
-              echo drafts content on a weekly cadence, scout sweeps once a
-              week, pulse runs daily. activity shows up here as it happens.
-            </p>
-            <div className="flex items-center gap-sm flex-wrap">
-              <Link
-                href="/specialist/echo"
-                className="bg-ink text-white font-mono text-xs px-md py-[7px] rounded-full"
-              >
-                run echo now →
-              </Link>
-              <Link
-                href="/content"
-                className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors"
-              >
-                plan this week
-              </Link>
+            <div className="text-xs text-ink4 shrink-0">
+              {formatTimeLabel(item.at)}
             </div>
           </div>
-        ) : (
-          items.map((item, i) => (
-            <div
-              key={item.id}
-              className={`px-lg py-md flex gap-md transition-colors hover:bg-surface2 ${i < items.length - 1 ? "border-b-hairline border-border2" : ""}`}
-            >
-              <div className="w-[32px] flex-shrink-0 flex flex-col items-center">
-                <span className="w-[7px] h-[7px] rounded-full bg-alive mt-[6px]" />
-                {i < items.length - 1 ? (
-                  <span className="flex-1 w-[0.5px] bg-border2 mt-xs min-h-[12px]" />
-                ) : null}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-sm flex-wrap mb-xs">
-                  <span className="font-mono text-[10px] text-aliveDark tracking-widest">
-                    {item.agent.toUpperCase()}
-                  </span>
-                  <span className="font-mono text-[10px] text-ink4 tracking-wider">
-                    {formatTimeLabel(item.at)}
-                  </span>
-                  {item.value ? (
-                    <span className="ml-auto font-mono text-xs text-ink2">
-                      {item.value}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="text-sm font-medium mb-[3px]">{item.title}</div>
-                {item.desc ? (
-                  <div className="text-xs text-ink3 leading-snug">
-                    {item.desc}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ))
-        )}
-      </Card>
-    </section>
+          {item.desc ? (
+            <div className="text-xs text-ink3 leading-[1.5]">{item.desc}</div>
+          ) : null}
+        </div>
+      ))}
+    </div>
   );
 }

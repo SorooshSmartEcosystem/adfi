@@ -1,36 +1,25 @@
-import { LivePill } from "./live-pill";
-
-function nowLabel(): string {
-  const d = new Date();
-  const day = d
-    .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
-    .toUpperCase();
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  return `${day} · ${time}`;
-}
-
 export function DashGreeting({
   headline,
   subhead,
+  status = "everything is running",
 }: {
   headline: string;
   subhead: string;
+  status?: string;
 }) {
   return (
-    <div className="mb-2xl">
-      <div className="flex items-center gap-md mb-md flex-wrap">
-        <LivePill />
-        <span className="font-mono text-xs text-ink4 tracking-wider">
-          {nowLabel()}
-        </span>
+    <div className="mb-[40px]">
+      <div className="inline-flex items-center gap-sm text-xs text-aliveDark mb-[18px]">
+        <span className="w-[7px] h-[7px] rounded-full bg-alive animate-pulse" />
+        {status}
       </div>
       <h1
-        className="font-medium tracking-tight leading-[1.1] mb-sm"
-        style={{ fontSize: "clamp(26px, 3.5vw, 36px)" }}
+        className="font-medium tracking-tight leading-[1.1] mb-[10px]"
+        style={{ fontSize: "clamp(28px, 4vw, 40px)" }}
       >
         {headline}
       </h1>
-      <p className="text-md text-ink3">{subhead}</p>
+      <p className="text-md text-ink3 leading-[1.5]">{subhead}</p>
     </div>
   );
 }

@@ -17,6 +17,8 @@ Format note: write changes from the user's perspective in plain English. "Users 
 - Dashboard now redirects new users to onboarding when their brand voice isn't set yet (instead of 500ing).
 - Dashboard redesign — live "everything is running" pill, four KPI cards with sparklines (revenue impact, reach, conversations, time saved), a big reach-over-time chart with 1W/4W/3M/1Y range toggle, channel cards for Instagram/LinkedIn/Calls+SMS/Email with status dots, a 14-day engagement bar chart, a what's-working ranked list, and a restyled timeline activity feed.
 - Reach chart and engagement bars now read real per-day data from a new `getReachTimeseries` rollup over `ContentPost.metrics.reach`.
+- Revenue-impact KPI now sums `Appointment.estimatedValueCents` for the week (with the prior $400/appt heuristic kept as a fallback for accounts without value entered).
+- "What's working" panel now ranks last-30-day post performance by format and content pillar against the user's own baseline — populates once you've published 3+ posts.
 - Inline brand-voice editor on `/specialist/strategist` — add/remove voice tone, values, audience segments, content pillars, and the do-not-do list without re-running Strategist.
 - Approved Instagram/LinkedIn/Facebook drafts now show "scheduled · waiting on instagram — connect →" with a deep link to settings, instead of looking like a dead end.
 - Admin user list at `/admin/dashboard/users?q=` filters by email/phone/uuid substring.

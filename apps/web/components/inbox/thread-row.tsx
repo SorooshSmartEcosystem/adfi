@@ -1,10 +1,8 @@
-type ChannelLabel = "CALL" | "SMS" | "DM" | "EMAIL";
-
-function channelLabel(channel: string): ChannelLabel {
-  if (channel === "CALL") return "CALL";
-  if (channel === "SMS") return "SMS";
-  if (channel === "INSTAGRAM_DM") return "DM";
-  return "EMAIL";
+function channelLabel(channel: string): string {
+  if (channel === "CALL") return "call";
+  if (channel === "SMS") return "text";
+  if (channel === "INSTAGRAM_DM") return "dm";
+  return "email";
 }
 
 function timeLabel(at: Date): string {
@@ -15,7 +13,9 @@ function timeLabel(at: Date): string {
   const d = Math.floor(h / 24);
   if (d === 1) return "yesterday";
   if (d < 7) return `${d}d ago`;
-  return at.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return at
+    .toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    .toLowerCase();
 }
 
 type Item = {
@@ -29,6 +29,9 @@ type Item = {
   booked?: boolean;
 };
 
+// V3 simplified: drop CALL/SMS/DM mono pills + NEEDS YOU/BOOKED badges. The
+// row carries state via a left-edge attn strip when unhandled, and the
+// channel/booked status moves into a quiet meta line below the preview.
 export function ThreadRow({
   item,
   active,
@@ -44,46 +47,22 @@ export function ThreadRow({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-lg py-md ${isLast ? "" : "hairline-b2 border-border2"} ${active ? "bg-surface" : "bg-white hover:bg-surface/60"} transition-colors`}
+      className={`relative w-full text-left px-lg py-md transition-colors ${
+        isLast ? "" : "border-b-hairline border-border2"
+      } ${active ? "bg-surface" : "bg-white hover:bg-surface2"}`}
     >
-      <div className="flex items-center justify-between mb-xs">
-        <div className="flex items-center gap-sm flex-1 min-w-0">
-          <span
-            className={`font-mono text-sm tracking-[0.15em] ${needsYou ? "text-attentionText" : "text-aliveDark"}`}
-          >
-            {channelLabel(item.channel)}
-          </span>
-          <span className="text-md font-medium truncate">
-            {item.fromAddress}
-          </span>
-          {item.booked ? <Badge tone="alive">BOOKED</Badge> : null}
-          {needsYou ? <Badge tone="attn">NEEDS YOU</Badge> : null}
-        </div>
-        <span className="font-mono text-sm text-ink4 shrink-0">
-          {timeLabel(item.at)}
-        </span>
+      {needsYou ? (
+        <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-attentionBorder" />
+      ) : null}
+      <div className="flex items-center justify-between gap-md mb-[2px]">
+        <div className="text-sm font-medium truncate">{item.fromAddress}</div>
+        <div className="text-xs text-ink4 shrink-0">{timeLabel(item.at)}</div>
       </div>
-      <div className="text-sm text-ink3 truncate">{item.preview}</div>
+      <div className="text-xs text-ink3 truncate mb-[4px]">{item.preview}</div>
+      <div className="text-[11px] text-ink4">
+        {channelLabel(item.channel)}
+        {item.booked ? " · booked" : ""}
+      </div>
     </button>
-  );
-}
-
-function Badge({
-  children,
-  tone,
-}: {
-  children: React.ReactNode;
-  tone: "alive" | "attn";
-}) {
-  const cls =
-    tone === "alive"
-      ? "bg-alive text-[#1a4a2c]"
-      : "bg-attentionBg text-attentionText";
-  return (
-    <span
-      className={`font-mono text-[9px] px-[6px] py-[1px] rounded-full ${cls}`}
-    >
-      {children}
-    </span>
   );
 }

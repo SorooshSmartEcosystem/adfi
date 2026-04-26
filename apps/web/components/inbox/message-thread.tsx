@@ -2,8 +2,18 @@
 import { useState, type FormEvent } from "react";
 import { trpc } from "../../lib/trpc";
 
+function channelLabel(channel: string): string {
+  if (channel === "CALL") return "call";
+  if (channel === "SMS") return "text";
+  if (channel === "INSTAGRAM_DM") return "dm";
+  return "email";
+}
+
 function timeLabel(at: Date): string {
-  return at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return at
+    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    .replace(" ", "")
+    .toLowerCase();
 }
 
 export function MessageThread({ threadId }: { threadId: string }) {
@@ -30,14 +40,12 @@ export function MessageThread({ threadId }: { threadId: string }) {
   }
 
   if (query.isLoading) {
-    return <div className="p-xl text-sm text-ink3 font-mono">one second</div>;
+    return <div className="p-xl text-sm text-ink3">one second</div>;
   }
 
   if (!query.data || query.data.length === 0) {
     return (
-      <div className="p-xl text-sm text-ink3">
-        this thread is empty.
-      </div>
+      <div className="p-xl text-sm text-ink3">this thread is empty.</div>
     );
   }
 
@@ -46,22 +54,22 @@ export function MessageThread({ threadId }: { threadId: string }) {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-lg">
-        <div>
-          <div className="font-mono text-sm text-ink4 tracking-[0.15em] mb-xs">
-            {first.channel} · {timeLabel(first.createdAt)}
+      <div className="flex items-start justify-between gap-md mb-lg">
+        <div className="min-w-0">
+          <div className="text-base font-medium truncate">
+            {first.fromAddress}
           </div>
-          <div className="text-lg font-medium">{first.fromAddress}</div>
+          <div className="text-xs text-ink4 mt-[2px]">
+            {channelLabel(first.channel)} · {timeLabel(first.createdAt)}
+          </div>
         </div>
-        <div className="flex items-center gap-sm">
-          <button
-            onClick={() => takeOver.mutate({ threadId })}
-            disabled={takeOver.isPending}
-            className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors"
-          >
-            take over
-          </button>
-        </div>
+        <button
+          onClick={() => takeOver.mutate({ threadId })}
+          disabled={takeOver.isPending}
+          className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors shrink-0"
+        >
+          take over
+        </button>
       </div>
 
       <div className="flex flex-col gap-sm mb-lg">
@@ -79,9 +87,11 @@ export function MessageThread({ threadId }: { threadId: string }) {
                     : "bg-surface rounded-[16px_16px_16px_4px]"
                 }`}
               >
-                <div className="text-md whitespace-pre-wrap">{m.body}</div>
+                <div className="text-md whitespace-pre-wrap leading-[1.5]">
+                  {m.body}
+                </div>
                 <div
-                  className={`font-mono text-xs mt-xs ${outbound ? "opacity-50" : "text-ink4"}`}
+                  className={`text-[11px] mt-xs ${outbound ? "opacity-50" : "text-ink4"}`}
                 >
                   {outbound ? "me" : "them"} · {timeLabel(m.createdAt)}
                 </div>

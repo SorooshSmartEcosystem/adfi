@@ -27,22 +27,16 @@ export function InboxView({
 
   return (
     <Card padded={false}>
-      <div className="flex items-center justify-between px-lg py-md hairline-b2 border-border2">
-        <div className="flex items-center gap-sm">
-          <span className="font-mono text-sm text-ink4 tracking-[0.2em]">
-            ALL CONVERSATIONS
-          </span>
-          <span className="font-mono text-sm text-ink4">· {items.length}</span>
-        </div>
-        <div className="flex items-center gap-sm">
+      <div className="flex items-center justify-end px-lg py-md border-b-hairline border-border2">
+        <div className="flex gap-[4px]">
           {FILTERS.map((f) => (
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
-              className={`font-mono text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+              className={`px-md py-[6px] rounded-full text-xs transition-colors ${
                 filter === f.id
-                  ? "bg-ink text-white border-ink"
-                  : "text-ink2 border-border hover:border-ink hover:text-ink"
+                  ? "bg-surface text-ink"
+                  : "text-ink4 hover:text-ink2"
               }`}
             >
               {f.label}
@@ -52,21 +46,13 @@ export function InboxView({
       </div>
 
       {query.isLoading ? (
-        <div className="p-xl text-sm text-ink3 font-mono">one second</div>
+        <div className="px-lg py-xl text-sm text-ink3">one second</div>
       ) : items.length === 0 ? (
-        <div className="p-xl">
-          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
-            INBOX IS QUIET
-          </div>
-          <p className="text-md leading-relaxed mb-md">
-            no calls or messages yet. once your adfi number starts catching
-            things, signal handles them and you&apos;ll see the conversations
-            here.
+        <div className="px-lg py-xl">
+          <p className="text-md leading-[1.6] text-ink2 mb-md">
+            nothing yet — your adfi number will catch things here.
           </p>
-          <p className="text-sm text-ink3 mb-md">
-            two ways to start:
-          </p>
-          <ul className="text-sm text-ink2 leading-relaxed space-y-xs pl-md">
+          <ul className="text-sm text-ink3 leading-[1.6] space-y-xs">
             <li>· forward your business line to your adfi number (settings → adfi number)</li>
             <li>· put the adfi number on your website or google business profile</li>
           </ul>

@@ -122,10 +122,19 @@ export default async function UserDetailPage({
               <tr className="hairline-bottom">
                 <td className="px-md py-sm text-ink">Anthropic (all agents)</td>
                 <td className="px-md py-sm font-mono text-ink3 text-right">
-                  {activity.totalEvents} events
+                  {activity.totalEvents - activity.imagesGenerated} events
                 </td>
                 <td className="px-md py-sm font-mono text-ink text-right">
                   {formatCents(costs.anthropicCents)}
+                </td>
+              </tr>
+              <tr className="hairline-bottom">
+                <td className="px-md py-sm text-ink">Replicate (Echo images)</td>
+                <td className="px-md py-sm font-mono text-ink3 text-right">
+                  {activity.imagesGenerated} images
+                </td>
+                <td className="px-md py-sm font-mono text-ink text-right">
+                  {formatCents(costs.replicateCents)}
                 </td>
               </tr>
               <tr className="hairline-bottom">

@@ -396,17 +396,25 @@ export const adminRouter = router({
         },
       });
 
-      const anthropicCents = Array.from(summary.values()).reduce(
-        (s, v) => s + v.costCents,
-        0,
-      );
+      let anthropicCents = 0;
+      let replicateCents = 0;
+      let imagesGenerated = 0;
+      for (const v of summary.values()) {
+        if (v.eventType === "image_generated") {
+          replicateCents += v.costCents;
+          imagesGenerated += v.count;
+        } else {
+          anthropicCents += v.costCents;
+        }
+      }
       const twilioNumbersCents =
         user.phoneNumbers.length * TWILIO_CENTS.localNumberMonthly;
       const twilioSmsCents = Math.round(smsOut * TWILIO_CENTS.outboundSms);
       const sub = user.subscriptions[0];
       const revenueCents =
         sub?.status === "ACTIVE" ? PLAN_PRICING_CENTS[sub.plan] : 0;
-      const totalCostCents = anthropicCents + twilioNumbersCents + twilioSmsCents;
+      const totalCostCents =
+        anthropicCents + replicateCents + twilioNumbersCents + twilioSmsCents;
 
       return {
         user: {
@@ -428,6 +436,7 @@ export const adminRouter = router({
         revenueCents,
         costs: {
           anthropicCents,
+          replicateCents,
           twilioNumbersCents,
           twilioSmsCents,
           totalCostCents,
@@ -439,6 +448,7 @@ export const adminRouter = router({
           activeNumbers: user.phoneNumbers.length,
           outboundSmsCount: smsOut,
           totalEvents: events.length,
+          imagesGenerated,
         },
         byEvent: Array.from(summary.values()).sort(
           (a, b) => b.costCents - a.costCents,

@@ -15,6 +15,14 @@ Format note: write changes from the user's perspective in plain English. "Users 
 - Public `/privacy`, `/terms`, `/cookies` pages.
 - Sitemap, robots.txt, and a generated OpenGraph image so shares on twitter/slack/etc. show the right preview.
 - Dashboard now redirects new users to onboarding when their brand voice isn't set yet (instead of 500ing).
+- Dashboard redesign — live "everything is running" pill, four KPI cards with sparklines (revenue impact, reach, conversations, time saved), a big reach-over-time chart with 1W/4W/3M/1Y range toggle, channel cards for Instagram/LinkedIn/Calls+SMS/Email with status dots, a 14-day engagement bar chart, a what's-working ranked list, and a restyled timeline activity feed.
+- Reach chart and engagement bars now read real per-day data from a new `getReachTimeseries` rollup over `ContentPost.metrics.reach`.
+- Inline brand-voice editor on `/specialist/strategist` — add/remove voice tone, values, audience segments, content pillars, and the do-not-do list without re-running Strategist.
+- Approved Instagram/LinkedIn/Facebook drafts now show "scheduled · waiting on instagram — connect →" with a deep link to settings, instead of looking like a dead end.
+- Admin user list at `/admin/dashboard/users?q=` filters by email/phone/uuid substring.
+- Admin user-detail and overview now split Replicate (Echo image generation) spend out of the Anthropic bucket so per-user financials are honest.
+- Branded 404 page and an in-app error fallback that surfaces the digest for support.
+- Favicon, apple-touch-icon, and a PWA manifest so the dashboard installs from Chrome/Safari.
 
 ### Fixed
 - Bare-domain website URLs ("www.example.com") now save without forcing the user to type "https://".

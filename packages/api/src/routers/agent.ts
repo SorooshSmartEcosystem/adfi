@@ -41,6 +41,37 @@ export const agentRouter = router({
     };
   }),
 
+  // User edits to the brand voice — same shape Strategist outputs, validated
+  // here so Echo always sees a well-formed voice.
+  updateBrandVoice: authedProc
+    .input(
+      z.object({
+        voiceTone: z.array(z.string().max(80)).min(1).max(8),
+        brandValues: z.array(z.string().max(80)).min(1).max(8),
+        audienceSegments: z
+          .array(
+            z.object({
+              name: z.string().max(80),
+              description: z.string().max(400),
+            }),
+          )
+          .min(1)
+          .max(6),
+        contentPillars: z.array(z.string().max(120)).min(1).max(8),
+        doNotDoList: z.array(z.string().max(200)).min(1).max(8),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.agentContext.update({
+        where: { userId: ctx.user.id },
+        data: {
+          strategistOutput: input,
+          lastRefreshedAt: new Date(),
+        },
+      });
+      return { success: true as const };
+    }),
+
   pause: authedProc
     .input(z.object({ agent: ControllableAgent }))
     .mutation(async ({ ctx, input }) => {

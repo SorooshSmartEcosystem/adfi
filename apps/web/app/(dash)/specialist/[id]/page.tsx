@@ -3,7 +3,7 @@ import { createServerClient } from "@orb/auth/server";
 import { trpcServer } from "../../../../lib/trpc-server";
 import { AGENTS, TIER_COLOR } from "../../../../components/specialists/agent-config";
 import { AgentControls } from "../../../../components/specialists/agent-controls";
-import { BrandVoiceView } from "../../../../components/specialists/brand-voice-view";
+import { BrandVoicePanel } from "../../../../components/specialists/brand-voice-panel";
 import { Card } from "../../../../components/shared/card";
 import { db } from "@orb/db";
 
@@ -124,7 +124,7 @@ export default async function SpecialistPage({
           </Card>
 
           {agent.dbAgent === "STRATEGIST" ? (
-            <BrandVoiceView
+            <BrandVoicePanel
               voice={brandVoice}
               lastRefreshedAt={lastRefreshedAt}
             />

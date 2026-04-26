@@ -73,15 +73,18 @@ export default async function DashboardPage() {
   if (!authUser) redirect("/signin");
 
   const trpc = await trpcServer();
-  const [home, activity] = await Promise.all([
+  const [home, activity, reachDaily] = await Promise.all([
     trpc.user.getHomeData(),
     trpc.user.getRecentActivity({ limit: 6 }),
+    trpc.user.getReachTimeseries({ rangeDays: 365 }),
   ]);
 
   const w = home.weeklyStats;
-  const reachSpark = sparkFor(w.reach, w.reachDeltaPct);
+  const reachSpark =
+    reachDaily.slice(-14).some((d) => d.reach > 0)
+      ? reachDaily.slice(-14).map((d) => d.reach)
+      : sparkFor(w.reach, w.reachDeltaPct);
   const messagesSpark = sparkFor(w.messagesHandled, null);
-  const callsSpark = sparkFor(w.callsHandled, null);
 
   // Conservative revenue impact estimate: $400 per booked appointment.
   const revenueImpact = w.appointmentsBooked * 40000;
@@ -137,40 +140,53 @@ export default async function DashboardPage() {
     },
   ];
 
-  // Engagement chart: 14 days. Without daily metrics yet we just emit a
-  // placeholder ramp scaled to current week's total reach so the bars look
-  // honest rather than mocked.
-  const engagement = (() => {
-    if (w.reach === 0) return new Array(14).fill(0);
-    const peak = w.reach / 5;
-    return [
-      0.3, 0.45, 0.25, 0.6, 0.5, 0.2, 0.15,
-      0.55, 0.7, 0.9, 0.8, 0.95, 0.4, 0.35,
-    ].map((r) => r * peak);
-  })();
-  const dayLabels = ["M", "T", "W", "T", "F", "S", "S", "M", "T", "W", "T", "F", "S", "S"];
+  // Engagement chart: real last-14-days reach per day. The peak day is
+  // highlighted in WhatsWorking copy below.
+  const last14 = reachDaily.slice(-14);
+  const engagement = last14.map((d) => d.reach);
+  const dayLabels = last14.map((d) => {
+    const date = new Date(d.day);
+    return ["S", "M", "T", "W", "T", "F", "S"][date.getUTCDay()] ?? "·";
+  });
+  const peakIdx = engagement.reduce(
+    (best, v, i) => (v > engagement[best]! ? i : best),
+    0,
+  );
+  const peakDate = last14[peakIdx]
+    ? new Date(last14[peakIdx]!.day).toLocaleDateString("en-US", {
+        weekday: "long",
+      })
+    : null;
 
-  // 4-week reach series stub: fall back to current-week reach as the last
-  // point with a simple growth curve. Will be wired to a real daily-reach
-  // rollup once that's added.
+  // 4 buckets per range, summed from the daily series.
+  function bucket(days: { day: string; reach: number }[], buckets: number) {
+    if (days.length < buckets) return [];
+    const size = Math.floor(days.length / buckets);
+    const out: number[] = [];
+    for (let i = 0; i < buckets; i++) {
+      const slice = days.slice(i * size, (i + 1) * size);
+      out.push(slice.reduce((s, d) => s + d.reach, 0));
+    }
+    return out;
+  }
+
+  const range1W = reachDaily.slice(-7).map((d) => d.reach);
+  const range4W = bucket(reachDaily.slice(-28), 4);
+  const range3M = bucket(reachDaily.slice(-90), 6);
+  const range1Y = bucket(reachDaily.slice(-365), 12);
+
+  const has = (arr: number[]) => arr.length >= 2 && arr.some((v) => v > 0);
   const reachSeries = {
-    "1W": w.reach > 0 ? sparkFor(w.reach, w.reachDeltaPct) : [],
-    "4W": w.reach > 0
-      ? [
-          Math.round(w.reach * 0.5),
-          Math.round(w.reach * 0.7),
-          Math.round(w.reach * 0.9),
-          w.reach,
-        ]
-      : [],
-    "3M": [] as number[],
-    "1Y": [] as number[],
+    "1W": has(range1W) ? range1W : [],
+    "4W": has(range4W) ? range4W : [],
+    "3M": has(range3M) ? range3M : [],
+    "1Y": has(range1Y) ? range1Y : [],
   };
   const reachLabels = {
-    "1W": ["MON", "WED", "FRI", "SUN"],
+    "1W": ["MON", "WED", "FRI", "TODAY"],
     "4W": ["WK 1", "WK 2", "WK 3", "TODAY"],
-    "3M": [],
-    "1Y": [],
+    "3M": ["WK 1", "WK 4", "WK 7", "WK 10", "WK 13", "TODAY"],
+    "1Y": ["JAN", "MAR", "MAY", "JUL", "SEP", "NOV", "TODAY"],
   };
 
   return (
@@ -282,11 +298,13 @@ export default async function DashboardPage() {
           values={engagement}
           dayLabels={dayLabels}
           peakLabel={
-            w.reach > 0
-              ? "peak day: friday · process reels work best mornings"
+            peakDate
+              ? `peak day: ${peakDate.toLowerCase()}`
               : "i'll surface peak days as posts publish"
           }
-          deltaPct={w.reach > 0 ? 47 : undefined}
+          deltaPct={
+            w.reachDeltaPct !== null ? w.reachDeltaPct : undefined
+          }
         />
         <WhatsWorking
           items={

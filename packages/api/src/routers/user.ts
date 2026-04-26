@@ -195,6 +195,47 @@ export const userRouter = router({
     };
   }),
 
+  // Daily reach rollups for the dashboard charts. We don't have a daily
+  // metrics table yet, so we aggregate ContentPost.publishedAt + metrics.reach
+  // into per-day buckets at request time. Cheap for the volumes we'll see in
+  // year one (small N of posts per user); revisit when a single user has
+  // thousands of posts.
+  getReachTimeseries: authedProc
+    .input(
+      z.object({
+        rangeDays: z.number().min(7).max(400).default(28),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const now = Date.now();
+      const start = new Date(now - input.rangeDays * DAY_MS);
+      start.setUTCHours(0, 0, 0, 0);
+
+      const posts = await ctx.db.contentPost.findMany({
+        where: {
+          userId: ctx.user.id,
+          publishedAt: { gte: start },
+        },
+        select: { publishedAt: true, metrics: true },
+      });
+
+      const byDay = new Map<string, number>();
+      for (const p of posts) {
+        const key = p.publishedAt.toISOString().slice(0, 10);
+        const m = p.metrics as { reach?: number } | null;
+        const reach = m?.reach ?? 0;
+        byDay.set(key, (byDay.get(key) ?? 0) + reach);
+      }
+
+      const days: { day: string; reach: number }[] = [];
+      for (let i = 0; i < input.rangeDays; i++) {
+        const d = new Date(start.getTime() + i * DAY_MS);
+        const key = d.toISOString().slice(0, 10);
+        days.push({ day: key, reach: byDay.get(key) ?? 0 });
+      }
+      return days;
+    }),
+
   getRecentActivity: authedProc
     .input(z.object({ limit: z.number().min(1).max(20).default(6) }))
     .query(async ({ ctx, input }) => {

@@ -64,7 +64,7 @@ export default async function SettingsPage() {
         <PreferencesCard />
       </Section>
 
-      <Section label="CONNECT YOUR CHANNELS">
+      <Section label="CONNECT YOUR CHANNELS" anchor="channels">
         <p className="text-sm text-ink3 mb-md max-w-[480px]">
           tap a row to see exactly what to do. instagram and linkedin connect
           buttons activate as soon as their oauth flows ship.

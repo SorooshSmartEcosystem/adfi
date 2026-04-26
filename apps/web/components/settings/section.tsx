@@ -3,12 +3,14 @@ import type { ReactNode } from "react";
 export function Section({
   label,
   children,
+  anchor,
 }: {
   label: string;
   children: ReactNode;
+  anchor?: string;
 }) {
   return (
-    <div className="mb-2xl">
+    <div id={anchor} className="mb-2xl scroll-mt-[80px]">
       <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
         {label}
       </div>

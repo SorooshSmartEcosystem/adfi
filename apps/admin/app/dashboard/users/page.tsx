@@ -2,9 +2,23 @@ import Link from "next/link";
 import { trpcServer } from "../../../lib/trpc-server";
 import { formatCents } from "@orb/api";
 
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q = "" } = await searchParams;
+  const query = q.trim().toLowerCase();
+
   const trpc = await trpcServer();
-  const rows = await trpc.admin.financialsPerUser({ limit: 100 });
+  const all = await trpc.admin.financialsPerUser({ limit: 100 });
+  const rows = query
+    ? all.filter((r) =>
+        [r.email, r.phone, r.userId]
+          .filter((v): v is string => Boolean(v))
+          .some((v) => v.toLowerCase().includes(query)),
+      )
+    : all;
 
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-2xl">
@@ -14,9 +28,33 @@ export default async function UsersPage() {
         </p>
         <h1 className="text-2xl font-medium">users</h1>
         <p className="text-xs font-mono text-ink4">
-          {rows.length} users with activity this month — sorted by paying status,
-          then cost
+          {rows.length}
+          {query ? ` of ${all.length}` : ""} users with activity this month —
+          sorted by paying status, then cost
         </p>
+        <form method="get" className="flex items-center gap-sm mt-sm">
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="search email, phone, or id"
+            className="flex-1 max-w-[420px] px-md py-sm bg-bg border-hairline border-border rounded-md text-sm focus:outline-none focus:border-ink"
+          />
+          <button
+            type="submit"
+            className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors"
+          >
+            search
+          </button>
+          {query ? (
+            <Link
+              href="/dashboard/users"
+              className="font-mono text-xs text-ink4 hover:text-ink"
+            >
+              clear
+            </Link>
+          ) : null}
+        </form>
       </div>
 
       <div className="bg-surface border-hairline border-border rounded-lg overflow-hidden">

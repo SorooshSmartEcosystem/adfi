@@ -94,7 +94,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
     approve.isPending || reject.isPending || regenerate.isPending;
 
   return (
-    <Card className="mb-md">
+    <Card className="mb-md" id={`d-${draft.id}`}>
       <div className="flex items-center justify-between mb-sm">
         <div className="flex items-center gap-sm">
           <StatusDot tone={status.dot} animated={status.dot === "attn"} />

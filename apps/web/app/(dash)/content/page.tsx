@@ -59,6 +59,8 @@ export default async function ContentPage({
     status: "published" | "needs-you" | "drafted" | "quiet";
     title: string;
     metric: string;
+    draftId?: string;
+    postId?: string;
   };
 
   const slots: Slot[] = [];
@@ -86,10 +88,16 @@ export default async function ContentPage({
         status: "published",
         title: `post ${post.externalId.slice(0, 12)}`,
         metric: m.reach ? `${m.reach.toLocaleString()} reach` : "published",
+        postId: post.id,
       });
     } else if (draft) {
-      const content = (draft.content ?? {}) as { caption?: string };
-      const title = content.caption?.slice(0, 40) ?? "draft";
+      const content = (draft.content ?? {}) as {
+        caption?: string;
+        hook?: string;
+        subject?: string;
+      };
+      const title =
+        (content.caption ?? content.hook ?? content.subject ?? "draft").slice(0, 40);
       const needsPhotos = draft.status === "AWAITING_PHOTOS";
       slots.push({
         day: DAY_LABELS[d.getDay()]!,
@@ -102,6 +110,7 @@ export default async function ContentPage({
           : draft.scheduledFor
             ? `scheduled ${draft.scheduledFor.toLocaleTimeString("en-US", { hour: "numeric" })}`
             : "drafted",
+        draftId: draft.id,
       });
     } else {
       slots.push({

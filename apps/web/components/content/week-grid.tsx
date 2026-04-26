@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card } from "../shared/card";
 
 type Slot = {
@@ -7,6 +8,8 @@ type Slot = {
   status: "published" | "needs-you" | "drafted" | "quiet";
   title: string;
   metric: string;
+  draftId?: string;
+  postId?: string;
 };
 
 const STATUS_COLOR: Record<Slot["status"], string> = {
@@ -41,9 +44,22 @@ export function WeekGrid({
         </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-sm">
-        {slots.map((s, i) => (
-          <div
+        {slots.map((s, i) => {
+          const href = s.draftId
+            ? `/content?tab=drafts#d-${s.draftId}`
+            : s.postId
+              ? `/content?tab=performance#p-${s.postId}`
+              : null;
+          const Wrap = href ? Link : "div";
+          const wrapProps = href
+            ? { href, className: "block hover:-translate-y-[1px] transition-transform" }
+            : {};
+          return (
+          <Wrap
             key={i}
+            {...(wrapProps as { href: string; className: string })}
+          >
+          <div
             className={`rounded-md p-md min-h-[110px] border-hairline ${
               s.status === "needs-you" ? "border-attentionBorder" : "border-border"
             } ${STATUS_BG[s.status]}`}
@@ -78,7 +94,9 @@ export function WeekGrid({
               <div className="text-sm text-ink5">quiet day</div>
             )}
           </div>
-        ))}
+          </Wrap>
+          );
+        })}
       </div>
     </Card>
   );

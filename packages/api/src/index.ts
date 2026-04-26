@@ -74,3 +74,18 @@ export {
   getSavedPreview,
   type OnboardingPreviewResult,
 } from "./services/onboarding-preview";
+
+export {
+  buildAuthorizeUrl,
+  exchangeCodeForToken,
+  extendToken,
+  listPages,
+  subscribePageWebhook,
+  sendMessengerReply,
+  verifyWebhookSignature,
+  type MetaPage,
+} from "./services/meta";
+
+export { encryptToken, decryptToken } from "./services/crypto";
+
+export { processInboundMessenger } from "./agents/signal";

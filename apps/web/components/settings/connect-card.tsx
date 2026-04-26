@@ -12,6 +12,9 @@ type Provider = {
   // 'live' / 'soon' / 'manual' — manual = the steps tell you exactly what to do
   // outside the app while we ship the OAuth.
   status: "live" | "soon" | "manual";
+  // when set, the connect button below the steps becomes a real link to
+  // this OAuth start route; otherwise it stays disabled with a helper note.
+  connectHref?: string;
 };
 
 const PROVIDERS: Provider[] = [
@@ -19,6 +22,7 @@ const PROVIDERS: Provider[] = [
     code: "IG",
     name: "Instagram",
     status: "manual",
+    connectHref: "/api/auth/meta/start",
     blurb: "post for you, dm replies, story sequences.",
     steps: [
       {
@@ -31,7 +35,7 @@ const PROVIDERS: Provider[] = [
       },
       {
         title: "click the connect button below",
-        body: "we'll open meta's authorization flow. grant adfi the instagram_basic + instagram_content_publish permissions. that's it — echo will start drafting.",
+        body: "we'll open meta's authorization flow. grant adfi the instagram + page-messaging permissions. echo will start drafting and i'll handle messenger / dm replies.",
       },
     ],
   },
@@ -74,9 +78,19 @@ const PROVIDERS: Provider[] = [
   {
     code: "FB",
     name: "Facebook Page",
-    status: "soon",
-    blurb: "ships once instagram OAuth lands — same pipe, different surface.",
-    steps: [],
+    status: "manual",
+    connectHref: "/api/auth/meta/start",
+    blurb: "post + messenger replies + marketplace ad placement.",
+    steps: [
+      {
+        title: "make sure you're an admin of the Page",
+        body: "in facebook → your page → settings → page roles. you need 'admin' for adfi to post and reply on your behalf.",
+      },
+      {
+        title: "click the connect button below",
+        body: "we'll open meta's authorization flow. grant adfi access to the page (post + read engagement), messenger (page messaging), and ads (so we can run marketplace-placement ads when you turn that on).",
+      },
+    ],
   },
   {
     code: "TT",
@@ -151,17 +165,27 @@ export function ConnectCard({ provider }: { provider: Provider }) {
           </ol>
           {provider.status === "manual" ? (
             <div className="flex items-center gap-sm mt-lg pt-md border-t-hairline border-border2">
-              <button
-                type="button"
-                disabled
-                className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40"
-                title="OAuth flow coming soon"
-              >
-                connect {provider.name.toLowerCase()} →
-              </button>
-              <span className="text-[11px] text-ink4">
-                button activates once meta/linkedin oauth ships
-              </span>
+              {provider.connectHref ? (
+                <a
+                  href={provider.connectHref}
+                  className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full hover:opacity-85 transition-opacity"
+                >
+                  connect {provider.name.toLowerCase()} →
+                </a>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled
+                    className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40"
+                  >
+                    connect {provider.name.toLowerCase()} →
+                  </button>
+                  <span className="text-[11px] text-ink4">
+                    button activates once oauth ships
+                  </span>
+                </>
+              )}
             </div>
           ) : null}
         </div>

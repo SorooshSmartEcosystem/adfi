@@ -7,7 +7,7 @@ export type InboxItem =
   | {
       kind: "thread";
       id: string;
-      channel: "SMS" | "INSTAGRAM_DM" | "EMAIL";
+      channel: "SMS" | "INSTAGRAM_DM" | "MESSENGER" | "EMAIL";
       fromAddress: string;
       preview: string;
       at: Date;

@@ -325,6 +325,7 @@ model Message {
 enum MessageChannel {
   SMS
   INSTAGRAM_DM
+  MESSENGER
   EMAIL
 }
 

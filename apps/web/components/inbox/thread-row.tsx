@@ -1,7 +1,8 @@
 function channelLabel(channel: string): string {
   if (channel === "CALL") return "call";
   if (channel === "SMS") return "text";
-  if (channel === "INSTAGRAM_DM") return "dm";
+  if (channel === "INSTAGRAM_DM") return "ig dm";
+  if (channel === "MESSENGER") return "messenger";
   return "email";
 }
 

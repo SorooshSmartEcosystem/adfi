@@ -231,3 +231,128 @@ export async function processInboundSms(args: {
 
   return { handled: true };
 }
+
+// Inbound Messenger / Instagram DM. Same shape as processInboundSms — find
+// the user via the page id (entry.id from the meta webhook payload), persist
+// the inbound message, and let Signal generate a reply unless the thread
+// has been taken over by the user.
+export async function processInboundMessenger(args: {
+  pageId: string; // meta entry.id — matches ConnectedAccount.externalId
+  senderPsid: string; // page-scoped sender id
+  body: string;
+  channel: "MESSENGER" | "INSTAGRAM_DM";
+}): Promise<{ handled: boolean; reason?: string; reply?: string }> {
+  const account = await db.connectedAccount.findFirst({
+    where: { externalId: args.pageId, disconnectedAt: null },
+    include: {
+      user: { include: { agentContext: true } },
+    },
+  });
+  if (!account) {
+    return { handled: false, reason: "unknown_page" };
+  }
+  const user = account.user;
+
+  const channel =
+    args.channel === "INSTAGRAM_DM"
+      ? MessageChannel.INSTAGRAM_DM
+      : MessageChannel.MESSENGER;
+
+  const existingThread = await db.message.findFirst({
+    where: {
+      userId: user.id,
+      fromAddress: args.senderPsid,
+      channel,
+    },
+    orderBy: { createdAt: "desc" },
+    select: { threadId: true, handledBy: true },
+  });
+
+  const threadId = existingThread?.threadId ?? randomUUID();
+
+  await db.message.create({
+    data: {
+      userId: user.id,
+      threadId,
+      channel,
+      fromAddress: args.senderPsid,
+      direction: Direction.INBOUND,
+      body: args.body,
+    },
+  });
+
+  if (existingThread?.handledBy === "user") {
+    return { handled: false, reason: "user_handled" };
+  }
+
+  const history = await db.message.findMany({
+    where: { userId: user.id, threadId },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+    select: { direction: true, body: true },
+  });
+
+  const result = await runSignal({
+    brandVoice: user.agentContext?.strategistOutput ?? {},
+    businessDescription: user.businessDescription ?? "",
+    threadHistory: history,
+    inboundMessage: args.body,
+    userId: user.id,
+  });
+
+  await db.message.create({
+    data: {
+      userId: user.id,
+      threadId,
+      channel,
+      fromAddress: args.senderPsid,
+      direction: Direction.OUTBOUND,
+      body: result.response,
+      handledBy: "signal",
+      metadata: {
+        intent: result.intent,
+        needsHandoff: result.needsHandoff,
+        suggestedAction: result.suggestedAction
+          ? (result.suggestedAction as Prisma.InputJsonValue)
+          : null,
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  await db.agentEvent.create({
+    data: {
+      userId: user.id,
+      agent: Agent.SIGNAL,
+      eventType: "messenger_handled",
+      payload: {
+        threadId,
+        channel: args.channel,
+        intent: result.intent,
+        inboundLength: args.body.length,
+        responseLength: result.response.length,
+        needsHandoff: result.needsHandoff,
+      },
+    },
+  });
+
+  if (result.needsHandoff) {
+    await db.finding.create({
+      data: {
+        userId: user.id,
+        agent: Agent.SIGNAL,
+        severity: FindingSeverity.NEEDS_ATTENTION,
+        summary: `${args.senderPsid} needs your attention`,
+        payload: {
+          threadId,
+          intent: result.intent,
+          lastMessage: args.body,
+        },
+      },
+    });
+  }
+
+  // Caller (the webhook route) is responsible for actually delivering the
+  // reply to Meta — we hand the text back so the route can use the page
+  // access token it already loaded.
+  return { handled: true, reply: result.response };
+}

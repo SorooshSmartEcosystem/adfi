@@ -73,10 +73,11 @@ export default async function DashboardPage() {
   if (!authUser) redirect("/signin");
 
   const trpc = await trpcServer();
-  const [home, activity, reachDaily] = await Promise.all([
+  const [home, activity, reachDaily, working] = await Promise.all([
     trpc.user.getHomeData(),
     trpc.user.getRecentActivity({ limit: 6 }),
     trpc.user.getReachTimeseries({ rangeDays: 365 }),
+    trpc.user.getWhatsWorking(),
   ]);
 
   const w = home.weeklyStats;
@@ -86,8 +87,14 @@ export default async function DashboardPage() {
       : sparkFor(w.reach, w.reachDeltaPct);
   const messagesSpark = sparkFor(w.messagesHandled, null);
 
-  // Conservative revenue impact estimate: $400 per booked appointment.
-  const revenueImpact = w.appointmentsBooked * 40000;
+  // Real revenue impact: sum of Appointment.estimatedValueCents for bookings
+  // created this week. Falls back to a $400/appt estimate when values aren't
+  // entered yet so the tile doesn't read $0 for new accounts that have
+  // appointments but no value field set.
+  const revenueImpact =
+    w.appointmentValueCents > 0
+      ? w.appointmentValueCents
+      : w.appointmentsBooked * 40000;
   const revenueSpark = sparkFor(revenueImpact, w.appointmentsBooked > 0 ? 30 : null);
 
   // Time saved: ~30 min per message handled + ~15 min per call + ~45 min per
@@ -307,17 +314,15 @@ export default async function DashboardPage() {
           }
         />
         <WhatsWorking
-          items={
-            w.postsCount > 0
-              ? [
-                  { label: "process videos", pct: 95, delta: "+85%", positive: true },
-                  { label: "mornings (8–10am)", pct: 75, delta: "+42%", positive: true },
-                  { label: "behind-the-scenes", pct: 65, delta: "+30%", positive: true },
-                  { label: "customer reels", pct: 50, delta: "+18%", positive: true },
-                  { label: "product-only shots", pct: 30, delta: "-12%", positive: false },
-                ]
-              : []
-          }
+          items={working.items.map((it) => {
+            const clamped = Math.max(-50, Math.min(100, it.lift));
+            return {
+              label: `${it.label} · ${it.count} post${it.count === 1 ? "" : "s"}`,
+              pct: it.lift > 0 ? Math.min(95, 30 + it.lift) : Math.max(15, 30 + it.lift),
+              delta: `${it.lift >= 0 ? "+" : ""}${clamped}%`,
+              positive: it.lift >= 0,
+            };
+          })}
         />
       </div>
 

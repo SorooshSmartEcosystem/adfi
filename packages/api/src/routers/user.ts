@@ -126,8 +126,9 @@ export const userRouter = router({
       ctx.db.call.count({
         where: { userId: ctx.user.id, startedAt: { gte: sevenDaysAgo } },
       }),
-      ctx.db.appointment.count({
+      ctx.db.appointment.findMany({
         where: { userId: ctx.user.id, createdAt: { gte: sevenDaysAgo } },
+        select: { estimatedValueCents: true },
       }),
       ctx.db.finding.findFirst({
         where: { userId: ctx.user.id, acknowledged: false },
@@ -181,7 +182,11 @@ export const userRouter = router({
         reachDeltaPct,
         messagesHandled: messagesLast7,
         callsHandled: callsLast7,
-        appointmentsBooked: appointmentsLast7,
+        appointmentsBooked: appointmentsLast7.length,
+        appointmentValueCents: appointmentsLast7.reduce(
+          (s, a) => s + (a.estimatedValueCents ?? 0),
+          0,
+        ),
       },
       navBadges: {
         inbox: unreadMessages,
@@ -235,6 +240,67 @@ export const userRouter = router({
       }
       return days;
     }),
+
+  // Computes top-lift content categories vs the user's own baseline so the
+  // dashboard can show "process videos +85% vs avg". Pillar metadata comes
+  // from the draft's brief; format from the post itself. Returns at most
+  // five rows, sorted by lift descending. Empty when fewer than 3 posts.
+  getWhatsWorking: authedProc.input(z.void()).query(async ({ ctx }) => {
+    const since = new Date(Date.now() - 30 * DAY_MS);
+    const posts = await ctx.db.contentPost.findMany({
+      where: { userId: ctx.user.id, publishedAt: { gte: since } },
+      select: {
+        platform: true,
+        metrics: true,
+        draft: { select: { format: true, brief: true } },
+      },
+    });
+    if (posts.length < 3) return { items: [] as { label: string; lift: number; count: number }[] };
+
+    const totalReach = posts.reduce((s, p) => {
+      const m = p.metrics as { reach?: number } | null;
+      return s + (m?.reach ?? 0);
+    }, 0);
+    const baseline = totalReach / posts.length;
+    if (baseline <= 0) return { items: [] };
+
+    type Row = { reachSum: number; count: number };
+    const groups = new Map<string, Row>();
+    function bump(label: string, reach: number) {
+      const r = groups.get(label) ?? { reachSum: 0, count: 0 };
+      r.reachSum += reach;
+      r.count += 1;
+      groups.set(label, r);
+    }
+
+    for (const p of posts) {
+      const m = p.metrics as { reach?: number } | null;
+      const reach = m?.reach ?? 0;
+      const fmt = p.draft.format
+        .toLowerCase()
+        .replace(/_/g, " ");
+      bump(fmt, reach);
+      const brief = p.draft.brief as { pillar?: string } | null;
+      if (brief?.pillar) bump(brief.pillar, reach);
+    }
+
+    const items = Array.from(groups.entries())
+      .filter(([, r]) => r.count >= 2)
+      .map(([label, r]) => ({
+        label,
+        count: r.count,
+        avg: r.reachSum / r.count,
+      }))
+      .map(({ label, count, avg }) => ({
+        label,
+        count,
+        lift: Math.round(((avg - baseline) / baseline) * 100),
+      }))
+      .sort((a, b) => b.lift - a.lift)
+      .slice(0, 5);
+
+    return { items };
+  }),
 
   getRecentActivity: authedProc
     .input(z.object({ limit: z.number().min(1).max(20).default(6) }))

@@ -208,6 +208,34 @@ export function DraftCard({ draft }: { draft: Draft }) {
             </span>
           ) : null}
         </div>
+      ) : draft.status === "APPROVED" ? (
+        <div className="pt-md border-t-hairline border-border2">
+          <div className="flex items-center gap-sm flex-wrap">
+            <span className="font-mono text-xs text-attentionText tracking-[0.15em]">
+              ● SCHEDULED
+            </span>
+            <span className="font-mono text-xs text-ink4">
+              waiting on {draft.platform.toLowerCase()} —{" "}
+              <a
+                href="/settings#channels"
+                className="underline hover:text-ink"
+              >
+                connect{" "}
+                {draft.platform === "INSTAGRAM"
+                  ? "instagram"
+                  : draft.platform === "FACEBOOK"
+                    ? "facebook"
+                    : draft.platform === "LINKEDIN"
+                      ? "linkedin"
+                      : draft.platform.toLowerCase()}{" "}
+                →
+              </a>
+            </span>
+          </div>
+          <p className="text-sm text-ink3 mt-xs">
+            i&apos;ll publish this automatically once the channel is linked.
+          </p>
+        </div>
       ) : null}
 
       {draft.status === "AWAITING_REVIEW" ||

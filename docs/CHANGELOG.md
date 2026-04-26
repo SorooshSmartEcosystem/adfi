@@ -7,6 +7,22 @@ Format note: write changes from the user's perspective in plain English. "Users 
 ## [Unreleased]
 
 ### Added
+- Echo generates real photos for every format — single posts get a per-platform hero, carousels get a cover photo plus full-bleed image_cue slides, email newsletters get a 16:9 hero embedded in the html, reels get a 9:16 still per beat, and stories get one per frame. Powered by Replicate Flux Schnell; per-image cost surfaces in the admin financials.
+- "Reroll images" button on every draft re-runs Replicate against the current copy when the first pass produced something off-brand.
+- "Send to me first" button on email-newsletter drafts fires a one-recipient preview to the owner's inbox before approving for the list.
+- Inline draft editor — hook/body/cta/hashtags for single posts, caption + hashtags for carousels and reels, subject line for newsletters. No more rewrite-from-scratch when the agent gets 90% there.
+- Plan grid drill-in — clicking a slot in this week's plan jumps to the underlying draft on the drafts tab.
+- Public `/privacy`, `/terms`, `/cookies` pages.
+- Sitemap, robots.txt, and a generated OpenGraph image so shares on twitter/slack/etc. show the right preview.
+- Dashboard now redirects new users to onboarding when their brand voice isn't set yet (instead of 500ing).
+
+### Fixed
+- Bare-domain website URLs ("www.example.com") now save without forcing the user to type "https://".
+- The dashboard self-heals if a Supabase auth user exists without an application User row.
+- /content drafts list refetches after run-now, so newly-drafted content appears immediately.
+
+### Security
+- `/api/debug/env` and `/api/debug/replicate` now require `ADMIN_EMAILS` membership; they return 404 to everyone else.
 - Strategist now writes a real brand voice (how you sound, values, audience, content pillars, things to avoid) and refreshes it weekly when it's older than 90 days, refining instead of cold-starting.
 - Strategist + Echo specialist pages show what the agent actually produced — brand voice cards for Strategist, recent drafts for Echo — instead of an empty findings list. Mirrored on web and mobile.
 - Echo (content) v2: polymorphic formats (post, carousel, newsletter, reel hook), Planner phase that schedules the week, performance feedback + A/B variants, designed carousel slides with templates and palettes, email newsletters via SendGrid with the adfi logo and unsubscribe headers.

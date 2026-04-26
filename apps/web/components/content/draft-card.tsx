@@ -5,6 +5,7 @@ import { Card } from "../shared/card";
 import { StatusDot } from "../shared/status-dot";
 import { DraftBody } from "./draft-body";
 import { SinglePostEditor } from "./single-post-editor";
+import { CaptionEditor } from "./caption-editor";
 
 type DraftStatus =
   | "DRAFT"
@@ -164,6 +165,20 @@ export function DraftCard({ draft }: { draft: Draft }) {
           }
           onCancel={() => setEditOpen(false)}
         />
+      ) : editOpen ? (
+        <CaptionEditor
+          format={draft.format ?? ""}
+          initial={(visibleContent ?? {}) as {
+            caption?: string;
+            hashtags?: string[];
+            subject?: string;
+          }}
+          pending={updateContent.isPending}
+          onSave={(next) =>
+            updateContent.mutate({ id: draft.id, ...next })
+          }
+          onCancel={() => setEditOpen(false)}
+        />
       ) : (
         <DraftBody format={draft.format ?? "SINGLE_POST"} content={visibleContent} />
       )}
@@ -219,16 +234,14 @@ export function DraftCard({ draft }: { draft: Draft }) {
           >
             reject
           </button>
-          {draft.format === "SINGLE_POST" ? (
-            <button
-              type="button"
-              onClick={() => setEditOpen((v) => !v)}
-              disabled={pending}
-              className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
-            >
-              {editOpen ? "stop editing" : "edit"}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => setEditOpen((v) => !v)}
+            disabled={pending}
+            className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+          >
+            {editOpen ? "stop editing" : "edit"}
+          </button>
           <button
             type="button"
             onClick={() => setRegenOpen((v) => !v)}

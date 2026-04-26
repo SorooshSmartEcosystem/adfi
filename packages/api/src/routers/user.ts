@@ -29,7 +29,28 @@ export const userRouter = router({
         businessName: z.string().max(80).optional(),
         businessDescription: z.string().max(500).optional(),
         businessLogoUrl: z.string().url().max(500).nullable().optional(),
-        businessWebsiteUrl: z.string().url().max(500).nullable().optional(),
+        // Accept bare domains too — auto-prefix https:// before validating.
+        businessWebsiteUrl: z
+          .string()
+          .max(500)
+          .nullable()
+          .optional()
+          .transform((v) => {
+            if (!v) return v;
+            const trimmed = v.trim();
+            if (!trimmed) return null;
+            return /^https?:\/\//i.test(trimmed)
+              ? trimmed
+              : `https://${trimmed}`;
+          })
+          .pipe(
+            z
+              .string()
+              .url()
+              .max(500)
+              .nullable()
+              .optional(),
+          ),
       }),
     )
     .mutation(async ({ ctx, input }) => {

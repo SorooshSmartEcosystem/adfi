@@ -125,6 +125,51 @@ export function renderNewsletterHtml(
   return { html, text: textParts.join("\n") };
 }
 
+// Send the newsletter to a single recipient (the owner's own email) so they
+// can preview it in their inbox before approving for the list. No credits
+// charged, no ContentPost recorded.
+export async function testSendNewsletter(args: {
+  draftId: string;
+  userId: string;
+}): Promise<{ ok: true; sentTo: string }> {
+  const draft = await db.contentDraft.findFirst({
+    where: { id: args.draftId, userId: args.userId },
+    include: { user: true },
+  });
+  if (!draft) throw new Error("Draft not found");
+  if (draft.platform !== Platform.EMAIL) {
+    throw new Error("Draft is not an email newsletter");
+  }
+  const content = (draft.content ?? {}) as EmailContent;
+  if (!content.subject || !content.sections || content.sections.length === 0) {
+    throw new Error("Newsletter draft is missing subject or sections");
+  }
+  const recipient = draft.user.email;
+  if (!recipient) throw new Error("No owner email on record");
+
+  const senderName =
+    draft.user.businessDescription?.split(/[.\n]/)[0]?.slice(0, 40)?.trim() ||
+    "ADFI";
+  const fromAddr = { email: newsletterFromEmail(), name: senderName };
+  // Test sends use a synthetic unsubscribe token so the link still renders
+  // but isn't tied to a real subscriber row.
+  const unsubUrl = unsubscribeUrlFor("test-preview");
+  const { html, text } = renderNewsletterHtml(content, {
+    senderName,
+    unsubscribeUrl: unsubUrl,
+  });
+  await sendgridSend({
+    to: { email: recipient },
+    from: fromAddr,
+    subject: `[test] ${content.subject}`,
+    text,
+    html,
+    unsubscribeUrl: unsubUrl,
+    categories: ["newsletter-test"],
+  });
+  return { ok: true, sentTo: recipient };
+}
+
 export async function publishNewsletter(args: {
   draftId: string;
   userId: string;

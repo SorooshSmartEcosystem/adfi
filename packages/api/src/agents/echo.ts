@@ -421,7 +421,7 @@ export async function generateDailyContent(
 // Background: generate hero imagery for a freshly-created draft and patch
 // the URL into the draft's content JSON. Best-effort — failures are logged
 // and the draft is still usable as text-only.
-async function backfillImagesForDraft(
+export async function backfillImagesForDraft(
   draftId: string,
   userId: string,
   platform: Platform,
@@ -541,6 +541,54 @@ async function backfillImagesForDraft(
       ...(nextCover ? { coverSlide: nextCover } : {}),
       bodySlides: nextBody,
     };
+  } else if (content.format === "REEL_SCRIPT") {
+    const beats = (content.beats as
+      | Array<{ bRoll?: string; imageUrl?: string | null }>
+      | undefined) ?? [];
+    const jobs = beats.map((beat, i) =>
+      beat.bRoll
+        ? generateImageSafe({
+            userId,
+            draftId,
+            slug: `beat-${i}`,
+            prompt: beat.bRoll,
+            aspectRatio: "9:16",
+          }).then((r) => (r ? { i, url: r.url, cost: r.costCents } : null))
+        : Promise.resolve(null),
+    );
+    const results = await Promise.all(jobs);
+    const nextBeats = beats.map((b) => ({ ...b }));
+    for (const r of results) {
+      if (!r) continue;
+      nextBeats[r.i]!.imageUrl = r.url;
+      totalCostCents += r.cost;
+      imagesGenerated += 1;
+    }
+    next = { ...content, beats: nextBeats };
+  } else if (content.format === "STORY_SEQUENCE") {
+    const frames = (content.frames as
+      | Array<{ visualDirection?: string; imageUrl?: string | null }>
+      | undefined) ?? [];
+    const jobs = frames.map((frame, i) =>
+      frame.visualDirection
+        ? generateImageSafe({
+            userId,
+            draftId,
+            slug: `frame-${i}`,
+            prompt: frame.visualDirection,
+            aspectRatio: "9:16",
+          }).then((r) => (r ? { i, url: r.url, cost: r.costCents } : null))
+        : Promise.resolve(null),
+    );
+    const results = await Promise.all(jobs);
+    const nextFrames = frames.map((f) => ({ ...f }));
+    for (const r of results) {
+      if (!r) continue;
+      nextFrames[r.i]!.imageUrl = r.url;
+      totalCostCents += r.cost;
+      imagesGenerated += 1;
+    }
+    next = { ...content, frames: nextFrames };
   } else {
     return;
   }

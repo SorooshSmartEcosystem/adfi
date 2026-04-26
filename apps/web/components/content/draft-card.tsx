@@ -68,6 +68,10 @@ export function DraftCard({ draft }: { draft: Draft }) {
   const publish = trpc.content.publishDraft.useMutation({
     onSuccess: () => utils.content.listDrafts.invalidate(),
   });
+  const regenImages = trpc.content.regenerateImages.useMutation({
+    onSuccess: () => utils.content.listDrafts.invalidate(),
+  });
+  const testSend = trpc.content.testSendNewsletter.useMutation();
 
   const status =
     STATUS_TONE[draft.status as DraftStatus] ?? STATUS_TONE.DRAFT;
@@ -199,6 +203,28 @@ export function DraftCard({ draft }: { draft: Draft }) {
           >
             write differently
           </button>
+          <button
+            type="button"
+            onClick={() => regenImages.mutate({ id: draft.id })}
+            disabled={pending || regenImages.isPending}
+            className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+          >
+            {regenImages.isPending ? "rerolling images..." : "reroll images"}
+          </button>
+          {draft.platform === "EMAIL" ? (
+            <button
+              type="button"
+              onClick={() => testSend.mutate({ id: draft.id })}
+              disabled={pending || testSend.isPending}
+              className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+            >
+              {testSend.isPending
+                ? "sending test..."
+                : testSend.data
+                  ? `✓ test sent to ${testSend.data.sentTo}`
+                  : "send to me first"}
+            </button>
+          ) : null}
         </div>
       ) : null}
 

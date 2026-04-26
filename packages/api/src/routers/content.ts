@@ -3,13 +3,14 @@ import { ContentFormat, DraftStatus, Platform, Prisma } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import {
+  backfillImagesForDraft,
   draftPlanItem,
   generateDailyContent,
   regenerateDraftContent,
 } from "../agents/echo";
 import { generateWeeklyPlan, startOfWeek } from "../agents/planner";
 import { summarizePerformance } from "../services/performance";
-import { publishNewsletter } from "../services/newsletter";
+import { publishNewsletter, testSendNewsletter } from "../services/newsletter";
 
 const paginationInput = z.object({
   limit: z.number().min(1).max(100).default(20),
@@ -175,6 +176,22 @@ export const contentRouter = router({
       }
     }),
 
+  regenerateImages: authedProc
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const draft = await ctx.db.contentDraft.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+      });
+      if (!draft) throw OrbError.NOT_FOUND("draft");
+      try {
+        await backfillImagesForDraft(draft.id, draft.userId, draft.platform);
+        return { success: true as const };
+      } catch (error) {
+        console.error("regenerateImages failed:", error);
+        throw OrbError.EXTERNAL_API("Replicate");
+      }
+    }),
+
   listPosts: authedProc
     .input(
       paginationInput.extend({
@@ -295,6 +312,21 @@ export const contentRouter = router({
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error("Newsletter publish failed:", error);
+        throw OrbError.EXTERNAL_API(`SendGrid: ${msg}`);
+      }
+    }),
+
+  testSendNewsletter: authedProc
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await testSendNewsletter({
+          draftId: input.id,
+          userId: ctx.user.id,
+        });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("Newsletter test send failed:", error);
         throw OrbError.EXTERNAL_API(`SendGrid: ${msg}`);
       }
     }),

@@ -48,8 +48,8 @@ export function DraftsPanel() {
   return (
     <>
       <div className="mb-xl">
-        <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
-          GENERATE NEW
+        <div className="text-xs text-ink4 mb-sm">
+          generate new
         </div>
 
         <div className="flex flex-wrap gap-xs mb-md">
@@ -58,7 +58,7 @@ export function DraftsPanel() {
               key={f.id}
               type="button"
               onClick={() => setFormat(f.id)}
-              className={`font-mono text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+              className={`text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
                 format === f.id
                   ? "bg-ink text-white border-ink"
                   : "text-ink2 border-border hover:border-ink hover:text-ink"
@@ -94,24 +94,24 @@ export function DraftsPanel() {
               generate.mutate(payload);
             }}
             disabled={generate.isPending}
-            className="bg-ink text-white font-mono text-xs px-md py-[10px] rounded-full disabled:opacity-40"
+            className="bg-ink text-white text-xs px-md py-[10px] rounded-full disabled:opacity-40"
           >
             {generate.isPending ? "thinking..." : "write me one →"}
           </button>
         </div>
         {generate.error ? (
-          <p className="text-sm text-urgent font-mono mt-sm">
+          <p className="text-sm text-urgent mt-sm">
             {generate.error.message}
           </p>
         ) : null}
       </div>
 
       <section className="mb-xl">
-        <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-md">
-          NEEDS YOUR EYES · {awaitingItems.length}
+        <div className="text-xs text-ink4 mb-md">
+          needs your eyes · {awaitingItems.length}
         </div>
         {isLoading ? (
-          <p className="text-sm text-ink3 font-mono">one second</p>
+          <p className="text-sm text-ink3">one second</p>
         ) : awaitingItems.length === 0 ? (
           <div className="bg-surface rounded-md p-lg">
             <p className="text-md leading-relaxed mb-sm">
@@ -131,7 +131,7 @@ export function DraftsPanel() {
 
       {approvedItems.length > 0 ? (
         <section className="mb-xl">
-          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-md">
+          <div className="text-xs text-ink4 mb-md">
             SCHEDULED · {approvedItems.length}
           </div>
           {approvedItems.map((d) => (

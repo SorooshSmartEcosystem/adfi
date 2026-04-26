@@ -83,12 +83,12 @@ export default async function SpecialistPage({
         <span className="w-[12px] h-[12px] rounded-full bg-ink" />
         <h1 className="text-3xl font-medium tracking-tight">{agent.name}</h1>
         <span
-          className={`font-mono text-[9px] uppercase tracking-[0.1em] text-white px-md py-[3px] rounded-full ${TIER_COLOR[agent.tier]}`}
+          className={`text-[10px] text-white px-md py-[3px] rounded-full ${TIER_COLOR[agent.tier]}`}
         >
           {agent.tier}
         </span>
         {agent.coming ? (
-          <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-attentionText bg-attentionBg border-hairline border-attentionBorder px-md py-[3px] rounded-full">
+          <span className="text-[10px] text-attentionText bg-attentionBg border-hairline border-attentionBorder px-md py-[3px] rounded-full">
             coming soon
           </span>
         ) : null}
@@ -97,9 +97,7 @@ export default async function SpecialistPage({
 
       {agent.coming ? (
         <div className="bg-attentionBg border-hairline border-attentionBorder rounded-2xl p-lg mb-xl">
-          <div className="font-mono text-sm text-attentionText tracking-[0.2em] mb-sm">
-            NOT LIVE YET
-          </div>
+          <div className="text-xs text-attentionText mb-sm">not live yet</div>
           <p className="text-md">
             i&apos;m building this one next. everyone on the{" "}
             <strong>studio</strong> plan will get it automatically when it
@@ -111,12 +109,7 @@ export default async function SpecialistPage({
           {agent.dbAgent ? <AgentControls agent={agent.dbAgent} /> : null}
 
           <Card className="mb-lg">
-            <div className="flex items-center justify-between mb-sm">
-              <div className="font-mono text-sm text-ink4 tracking-[0.2em]">
-                CURRENTLY
-              </div>
-              <span className="font-mono text-sm text-aliveDark">ACTIVE</span>
-            </div>
+            <div className="text-xs text-ink4 mb-sm">currently</div>
             <p className="text-md mb-md">{agent.currently}</p>
             <div className="h-[3px] bg-border2 rounded-sm overflow-hidden">
               <div className="h-full w-[70%] bg-ink animate-pulse-dot" />
@@ -131,12 +124,10 @@ export default async function SpecialistPage({
           ) : agent.dbAgent === "ECHO" ? (
             <Card padded={false} className="mb-xl">
               <div className="px-lg py-md hairline-b2 border-border2 flex items-center justify-between">
-                <div className="font-mono text-sm text-ink4 tracking-[0.2em]">
-                  RECENT DRAFTS
-                </div>
+                <div className="text-xs text-ink4">recent drafts</div>
                 <a
                   href="/content?tab=drafts"
-                  className="font-mono text-xs text-ink2 underline hover:text-ink"
+                  className="text-xs text-ink2 underline hover:text-ink"
                 >
                   see all →
                 </a>
@@ -167,7 +158,7 @@ export default async function SpecialistPage({
                       key={d.id}
                       className={`px-lg py-md ${i < recentDrafts.length - 1 ? "hairline-b2 border-border2" : ""}`}
                     >
-                      <div className="font-mono text-[10px] text-ink4 tracking-[0.15em] mb-xs">
+                      <div className="text-[11px] text-ink4 mb-xs">
                         {d.format.toLowerCase().replace(/_/g, " ")} ·{" "}
                         {d.status.toLowerCase()} · {timeLabel(d.createdAt)}
                       </div>
@@ -190,9 +181,7 @@ export default async function SpecialistPage({
           ) : (
             <Card padded={false} className="mb-xl">
               <div className="px-lg py-md hairline-b2 border-border2">
-                <div className="font-mono text-sm text-ink4 tracking-[0.2em]">
-                  RECENT FINDINGS
-                </div>
+                <div className="text-xs text-ink4">recent findings</div>
               </div>
               {findings.length === 0 ? (
                 <div className="px-lg py-md text-sm text-ink3">
@@ -205,8 +194,8 @@ export default async function SpecialistPage({
                     key={f.id}
                     className={`px-lg py-md ${i < findings.length - 1 ? "hairline-b2 border-border2" : ""}`}
                   >
-                    <div className="text-md font-medium mb-xs">{f.summary}</div>
-                    <div className="font-mono text-sm text-ink4 tracking-[0.1em]">
+                    <div className="text-sm font-medium mb-xs">{f.summary}</div>
+                    <div className="text-xs text-ink4">
                       {timeLabel(f.createdAt)} · {f.severity.toLowerCase()}
                     </div>
                   </div>

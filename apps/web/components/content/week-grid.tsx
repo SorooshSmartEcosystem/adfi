@@ -37,7 +37,7 @@ export function WeekGrid({
     <Card>
       <div className="flex items-center justify-between mb-lg">
         <div>
-          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-xs">
+          <div className="text-xs text-ink4 mb-xs">
             {rangeLabel}
           </div>
           <div className="text-lg font-medium">this week&apos;s plan</div>
@@ -66,16 +66,12 @@ export function WeekGrid({
           >
             <div className="flex items-start justify-between mb-sm">
               <div>
-                <div className="font-mono text-sm text-ink4 tracking-[0.1em]">
-                  {s.day}
-                </div>
+                <div className="text-xs text-ink4">{s.day.toLowerCase()}</div>
                 <div className="text-md font-medium">{s.dateNum}</div>
               </div>
               {s.platform ? (
-                <span
-                  className={`font-mono text-[10px] ${STATUS_COLOR[s.status]}`}
-                >
-                  {s.platform}
+                <span className={`text-[11px] ${STATUS_COLOR[s.status]}`}>
+                  {s.platform.toLowerCase()}
                 </span>
               ) : null}
             </div>
@@ -84,10 +80,8 @@ export function WeekGrid({
                 <div className="text-sm font-medium leading-tight mb-xs">
                   {s.title}
                 </div>
-                <div
-                  className={`font-mono text-[10px] tracking-[0.1em] ${STATUS_COLOR[s.status]}`}
-                >
-                  {s.status === "needs-you" ? "● NEEDS YOU" : s.metric}
+                <div className={`text-[11px] ${STATUS_COLOR[s.status]}`}>
+                  {s.status === "needs-you" ? "● needs you" : s.metric}
                 </div>
               </>
             ) : (

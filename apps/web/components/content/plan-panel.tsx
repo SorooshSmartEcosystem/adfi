@@ -64,7 +64,7 @@ export function PlanPanel() {
 
   if (planQuery.isLoading) {
     return (
-      <div className="font-mono text-sm text-ink3">one second</div>
+      <div className="text-sm text-ink3">one second</div>
     );
   }
 
@@ -73,7 +73,7 @@ export function PlanPanel() {
   if (!plan) {
     return (
       <Card>
-        <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
+        <div className="text-xs text-ink4 mb-sm">
           NO PLAN YET FOR THIS WEEK
         </div>
         <p className="text-md leading-relaxed mb-md">
@@ -84,12 +84,12 @@ export function PlanPanel() {
           type="button"
           onClick={() => generate.mutate({})}
           disabled={generate.isPending}
-          className="bg-ink text-white font-mono text-xs px-md py-[10px] rounded-full disabled:opacity-40"
+          className="bg-ink text-white text-xs px-md py-[10px] rounded-full disabled:opacity-40"
         >
           {generate.isPending ? "thinking..." : "plan this week →"}
         </button>
         {generate.error ? (
-          <p className="text-sm text-urgent font-mono mt-sm">
+          <p className="text-sm text-urgent mt-sm">
             {generate.error.message}
           </p>
         ) : null}
@@ -105,7 +105,7 @@ export function PlanPanel() {
   return (
     <>
       <Card className="mb-lg">
-        <div className="font-mono text-xs text-ink4 tracking-[0.2em] mb-sm">
+        <div className="text-xs text-ink4 mb-sm">
           THIS WEEK&apos;S THESIS
         </div>
         <p className="text-lg leading-relaxed font-medium mb-md">
@@ -113,7 +113,7 @@ export function PlanPanel() {
         </p>
         {reasoning.biggestBet ? (
           <div className="mb-md">
-            <div className="font-mono text-[10px] text-aliveDark tracking-[0.2em] mb-xs">
+            <div className="text-[11px] text-aliveDark mb-xs">
               ● BIGGEST BET
             </div>
             <p className="text-sm text-ink2">{reasoning.biggestBet}</p>
@@ -121,7 +121,7 @@ export function PlanPanel() {
         ) : null}
         {reasoning.gapsSpotted && reasoning.gapsSpotted.length > 0 ? (
           <div>
-            <div className="font-mono text-[10px] text-attentionText tracking-[0.2em] mb-xs">
+            <div className="text-[11px] text-attentionText mb-xs">
               ● WHAT I NOTICED
             </div>
             <ul className="text-sm text-ink2 flex flex-col gap-xs">
@@ -137,14 +137,14 @@ export function PlanPanel() {
             type="button"
             onClick={() => generate.mutate({})}
             disabled={generate.isPending}
-            className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+            className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
           >
             {generate.isPending ? "rethinking..." : "redo plan"}
           </button>
         </div>
       </Card>
 
-      <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-md">
+      <div className="text-xs text-ink4 mb-md">
         SLOTS · {plan.items.length}
       </div>
 
@@ -162,33 +162,33 @@ export function PlanPanel() {
                 className="w-full text-left flex items-center justify-between gap-md mb-sm"
               >
                 <div className="flex items-center gap-md flex-wrap min-w-0">
-                  <span className="font-mono text-xs text-ink tracking-[0.15em] shrink-0">
+                  <span className="text-xs text-ink shrink-0">
                     {dayLabel(item.scheduledFor)} · {timeLabel(item.scheduledFor)}
                   </span>
-                  <span className="font-mono text-xs text-ink4">
+                  <span className="text-xs text-ink4">
                     {PLATFORM_LABEL[item.platform] ?? item.platform.toLowerCase()} ·{" "}
                     {FORMAT_LABEL[item.format] ?? item.format.toLowerCase()}
                   </span>
-                  <span className="font-mono text-xs text-ink4">
+                  <span className="text-xs text-ink4">
                     {INTENT_LABEL[item.intent] ?? item.intent}
                   </span>
                 </div>
                 <div className="flex items-center gap-sm shrink-0">
                   {isSkipped ? (
-                    <span className="font-mono text-[10px] text-ink5 tracking-[0.15em]">
+                    <span className="text-[11px] text-ink5">
                       SKIPPED
                     </span>
                   ) : isDrafted ? (
                     <>
                       <StatusDot tone="alive" />
-                      <span className="font-mono text-[10px] text-aliveDark tracking-[0.15em]">
+                      <span className="text-[11px] text-aliveDark">
                         DRAFTED
                       </span>
                     </>
                   ) : (
                     <>
                       <StatusDot tone="neutral" />
-                      <span className="font-mono text-[10px] text-ink4 tracking-[0.15em]">
+                      <span className="text-[11px] text-ink4">
                         PLANNED
                       </span>
                     </>
@@ -203,7 +203,7 @@ export function PlanPanel() {
 
               {open ? (
                 <div className="pt-sm border-t-hairline border-border2">
-                  <div className="font-mono text-[10px] text-ink4 tracking-[0.15em] mb-xs">
+                  <div className="text-[11px] text-ink4 mb-xs">
                     WHY THIS SLOT
                   </div>
                   <p className="text-sm text-ink2 mb-md">{item.reasoning}</p>
@@ -216,7 +216,7 @@ export function PlanPanel() {
                             draftItem.mutate({ itemId: item.id })
                           }
                           disabled={draftItem.isPending}
-                          className="bg-ink text-white font-mono text-xs px-md py-[7px] rounded-full disabled:opacity-40"
+                          className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40"
                         >
                           {draftItem.isPending &&
                           draftItem.variables?.itemId === item.id
@@ -227,7 +227,7 @@ export function PlanPanel() {
                           type="button"
                           onClick={() => skipItem.mutate({ itemId: item.id })}
                           disabled={skipItem.isPending}
-                          className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+                          className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
                         >
                           skip
                         </button>
@@ -236,7 +236,7 @@ export function PlanPanel() {
                     {isDrafted && item.draft ? (
                       <a
                         href="/content?tab=drafts"
-                        className="font-mono text-xs text-aliveDark border-hairline border-aliveDark rounded-full px-md py-[6px] hover:opacity-80 transition-opacity"
+                        className="text-xs text-aliveDark border-hairline border-aliveDark rounded-full px-md py-[6px] hover:opacity-80 transition-opacity"
                       >
                         review draft →
                       </a>

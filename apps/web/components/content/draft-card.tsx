@@ -32,13 +32,13 @@ const STATUS_TONE: Record<
   DraftStatus,
   { label: string; color: string; dot: "alive" | "attn" | "urgent" | "neutral" }
 > = {
-  AWAITING_REVIEW: { label: "NEEDS YOU", color: "text-attentionText", dot: "attn" },
-  AWAITING_PHOTOS: { label: "NEEDS PHOTOS", color: "text-attentionText", dot: "attn" },
-  DRAFT: { label: "DRAFT", color: "text-ink3", dot: "neutral" },
-  APPROVED: { label: "SCHEDULED", color: "text-aliveDark", dot: "alive" },
-  PUBLISHED: { label: "PUBLISHED", color: "text-aliveDark", dot: "alive" },
-  REJECTED: { label: "REJECTED", color: "text-ink4", dot: "neutral" },
-  FAILED: { label: "FAILED", color: "text-urgent", dot: "urgent" },
+  AWAITING_REVIEW: { label: "needs you", color: "text-attentionText", dot: "attn" },
+  AWAITING_PHOTOS: { label: "needs photos", color: "text-attentionText", dot: "attn" },
+  DRAFT: { label: "draft", color: "text-ink3", dot: "neutral" },
+  APPROVED: { label: "scheduled", color: "text-aliveDark", dot: "alive" },
+  PUBLISHED: { label: "published", color: "text-aliveDark", dot: "alive" },
+  REJECTED: { label: "rejected", color: "text-ink4", dot: "neutral" },
+  FAILED: { label: "failed", color: "text-urgent", dot: "urgent" },
 };
 
 export function DraftCard({ draft }: { draft: Draft }) {
@@ -97,25 +97,20 @@ export function DraftCard({ draft }: { draft: Draft }) {
   return (
     <Card className="mb-md" id={`d-${draft.id}`}>
       <div className="flex items-center justify-between mb-sm">
-        <div className="flex items-center gap-sm">
+        <div className="flex items-center gap-sm flex-wrap">
           <StatusDot tone={status.dot} animated={status.dot === "attn"} />
-          <span
-            className={`font-mono text-sm tracking-[0.2em] ${status.color}`}
-          >
-            {status.label}
+          <span className={`text-xs ${status.color}`}>
+            {status.label.toLowerCase()}
           </span>
-          <span className="font-mono text-sm text-ink4">·</span>
-          <span className="font-mono text-sm text-ink4">
-            {draft.platform.toLowerCase()}
+          <span className="text-xs text-ink4">
+            · {draft.platform.toLowerCase()}
+            {draft.format
+              ? ` · ${draft.format.toLowerCase().replace(/_/g, " ")}`
+              : ""}
           </span>
-          {draft.format ? (
-            <span className="font-mono text-sm text-ink4">
-              · {draft.format.toLowerCase().replace(/_/g, " ")}
-            </span>
-          ) : null}
         </div>
         {voiceScore !== null && !Number.isNaN(voiceScore) ? (
-          <span className="font-mono text-xs text-ink4">
+          <span className="text-xs text-ink4">
             voice {Math.round(voiceScore * 100)}%
           </span>
         ) : null}
@@ -126,7 +121,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
           <button
             type="button"
             onClick={() => setVariant("primary")}
-            className={`font-mono text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+            className={`text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
               variant === "primary"
                 ? "bg-ink text-white border-ink"
                 : "text-ink2 border-border hover:border-ink hover:text-ink"
@@ -137,7 +132,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
           <button
             type="button"
             onClick={() => setVariant("alternate")}
-            className={`font-mono text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+            className={`text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
               variant === "alternate"
                 ? "bg-ink text-white border-ink"
                 : "text-ink2 border-border hover:border-ink hover:text-ink"
@@ -145,7 +140,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
           >
             variant b
           </button>
-          <span className="font-mono text-[10px] text-ink4 ml-sm">
+          <span className="text-[11px] text-ink4 ml-sm">
             two angles · approve picks the live one
           </span>
         </div>
@@ -190,12 +185,12 @@ export function DraftCard({ draft }: { draft: Draft }) {
             type="button"
             onClick={() => publish.mutate({ id: draft.id })}
             disabled={publish.isPending}
-            className="bg-ink text-white font-mono text-xs px-md py-[7px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
+            className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
           >
             {publish.isPending ? "sending..." : "send newsletter →"}
           </button>
           {publish.data ? (
-            <span className="font-mono text-xs text-aliveDark">
+            <span className="text-xs text-aliveDark">
               ✓ sent to {publish.data.sent}
               {publish.data.failed > 0
                 ? ` · ${publish.data.failed} failed`
@@ -203,7 +198,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
             </span>
           ) : null}
           {publish.error ? (
-            <span className="font-mono text-xs text-urgent">
+            <span className="text-xs text-urgent">
               {publish.error.message}
             </span>
           ) : null}
@@ -211,10 +206,10 @@ export function DraftCard({ draft }: { draft: Draft }) {
       ) : draft.status === "APPROVED" ? (
         <div className="pt-md border-t-hairline border-border2">
           <div className="flex items-center gap-sm flex-wrap">
-            <span className="font-mono text-xs text-attentionText tracking-[0.15em]">
-              ● SCHEDULED
+            <span className="text-xs text-attentionText">
+              ● scheduled
             </span>
-            <span className="font-mono text-xs text-ink4">
+            <span className="text-xs text-ink4">
               waiting on {draft.platform.toLowerCase()} —{" "}
               <a
                 href="/settings#channels"
@@ -246,7 +241,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
             type="button"
             onClick={() => approve.mutate({ id: draft.id, variant })}
             disabled={pending}
-            className="bg-ink text-white font-mono text-xs px-md py-[7px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
+            className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
           >
             {approve.isPending
               ? "approving..."
@@ -258,7 +253,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
             type="button"
             onClick={() => reject.mutate({ id: draft.id })}
             disabled={pending}
-            className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+            className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
           >
             reject
           </button>
@@ -266,7 +261,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
             type="button"
             onClick={() => setEditOpen((v) => !v)}
             disabled={pending}
-            className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+            className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
           >
             {editOpen ? "stop editing" : "edit"}
           </button>
@@ -274,7 +269,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
             type="button"
             onClick={() => setRegenOpen((v) => !v)}
             disabled={pending}
-            className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+            className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
           >
             write differently
           </button>
@@ -282,7 +277,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
             type="button"
             onClick={() => regenImages.mutate({ id: draft.id })}
             disabled={pending || regenImages.isPending}
-            className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+            className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
           >
             {regenImages.isPending ? "rerolling images..." : "reroll images"}
           </button>
@@ -291,7 +286,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
               type="button"
               onClick={() => testSend.mutate({ id: draft.id })}
               disabled={pending || testSend.isPending}
-              className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+              className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
             >
               {testSend.isPending
                 ? "sending test..."

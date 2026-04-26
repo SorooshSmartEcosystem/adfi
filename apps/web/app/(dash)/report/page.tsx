@@ -111,8 +111,8 @@ export default async function ReportPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-lg mb-xl">
         <Card>
-          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
-            REVENUE IMPACT
+          <div className="text-xs text-ink4 mb-sm">
+            revenue impact
           </div>
           <div className="text-3xl font-medium tracking-tight">
             {formatCurrency(report.revenueImpactCents)}
@@ -122,9 +122,7 @@ export default async function ReportPage() {
           </div>
         </Card>
         <Card>
-          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
-            REACH
-          </div>
+          <div className="text-xs text-ink4 mb-sm">reach</div>
           <div className="text-3xl font-medium tracking-tight">
             {formatReach(report.reach)}
           </div>
@@ -149,8 +147,8 @@ export default async function ReportPage() {
           </div>
         </Card>
         <Card>
-          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
-            TIME YOU SAVED
+          <div className="text-xs text-ink4 mb-sm">
+            time you saved
           </div>
           <div className="text-3xl font-medium tracking-tight">
             {timeSaved(report)}
@@ -162,16 +160,16 @@ export default async function ReportPage() {
       </div>
 
       <Card className="mb-xl">
-        <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-md">
-          THIS WEEK&apos;S STORY
+        <div className="text-xs text-ink4 mb-md">
+          this week&apos;s story
         </div>
         <p className="text-lg leading-relaxed">{storyFrom(report)}</p>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-lg">
         <Card>
-          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-lg">
-            WHAT I DID
+          <div className="text-xs text-ink4 mb-lg">
+            what i did
           </div>
           <div className="flex flex-col gap-sm">
             {didItems.map((item) => (
@@ -183,8 +181,8 @@ export default async function ReportPage() {
           </div>
         </Card>
         <Card>
-          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-lg">
-            WHAT I NOTICED
+          <div className="text-xs text-ink4 mb-lg">
+            what i noticed
           </div>
           {report.findings.length === 0 ? (
             <p className="text-sm text-ink3">

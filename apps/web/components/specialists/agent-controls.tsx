@@ -63,7 +63,7 @@ export function AgentControls({ agent }: { agent: DbAgent }) {
         type="button"
         onClick={() => runNow.mutate({ agent })}
         disabled={paused || anyPending}
-        className="font-mono text-xs px-md py-[7px] rounded-full bg-ink text-white disabled:opacity-40 hover:opacity-85 transition-opacity"
+        className="text-xs font-medium px-md py-[7px] rounded-full bg-ink text-white disabled:opacity-40 hover:opacity-85 transition-opacity"
       >
         {runNow.isPending ? "running..." : "run now →"}
       </button>
@@ -73,33 +73,35 @@ export function AgentControls({ agent }: { agent: DbAgent }) {
           paused ? resume.mutate({ agent }) : pause.mutate({ agent })
         }
         disabled={anyPending}
-        className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+        className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
       >
-        {paused ? "resume agent" : "pause agent"}
+        {paused ? "resume" : "pause"}
       </button>
 
       {paused ? (
-        <span className="font-mono text-[10px] text-attentionText tracking-[0.15em]">
-          PAUSED · i won&apos;t run automatically
+        <span className="text-[11px] text-attentionText">
+          paused — i won&apos;t run automatically
         </span>
       ) : null}
 
       {isThisLastRun && lastRun ? (
         <span
-          className={`font-mono text-[10px] tracking-[0.1em] ml-auto ${lastRun.ok ? "text-aliveDark" : "text-urgent"}`}
+          className={`text-[11px] ml-auto ${lastRun.ok ? "text-aliveDark" : "text-urgent"}`}
         >
-          last run {new Date(lastRun.at).toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-          })}{" "}
+          last run{" "}
+          {new Date(lastRun.at)
+            .toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+            })
+            .replace(" ", "")
+            .toLowerCase()}{" "}
           · {lastRun.ok ? "ok" : "failed"}
         </span>
       ) : null}
 
       {flash ? (
-        <span className="font-mono text-[10px] text-ink3 w-full mt-xs">
-          {flash}
-        </span>
+        <span className="text-[11px] text-ink3 w-full mt-xs">{flash}</span>
       ) : null}
     </div>
   );

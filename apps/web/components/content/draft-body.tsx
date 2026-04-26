@@ -14,16 +14,16 @@ function BriefRow({ brief }: { brief: Brief | null }) {
   if (!brief) return null;
   return (
     <div className="flex items-center gap-md flex-wrap mb-md">
-      <span className="font-mono text-[10px] text-ink4 tracking-[0.15em]">
+      <span className="text-[11px] text-ink4">
         intent: <span className="text-ink2">{brief.intent}</span>
       </span>
-      <span className="font-mono text-[10px] text-ink4 tracking-[0.15em]">
+      <span className="text-[11px] text-ink4">
         for: <span className="text-ink2">{brief.audience}</span>
       </span>
-      <span className="font-mono text-[10px] text-ink4 tracking-[0.15em]">
+      <span className="text-[11px] text-ink4">
         pillar: <span className="text-ink2">{brief.pillar}</span>
       </span>
-      <span className="font-mono text-[10px] text-ink4 tracking-[0.15em]">
+      <span className="text-[11px] text-ink4">
         hook: <span className="text-ink2">{brief.hookFramework}</span>
       </span>
     </div>
@@ -33,8 +33,8 @@ function BriefRow({ brief }: { brief: Brief | null }) {
 function HashtagRow({ tags }: { tags: string[] | undefined }) {
   if (!tags || tags.length === 0) return null;
   return (
-    <p className="text-sm text-ink3 font-mono mt-md">
-      {tags.map((t) => `#${t.replace(/^#/, "")}`).join("  ")}
+    <p className="text-xs text-ink4 mt-md">
+      {tags.map((t) => `#${t.replace(/^#/, "")}`).join(" ")}
     </p>
   );
 }
@@ -91,8 +91,8 @@ export function DraftBody({
     return (
       <>
         <BriefRow brief={brief} />
-        <div className="font-mono text-xs text-ink4 tracking-[0.2em] mb-md">
-          CAROUSEL · {body.length + 2} SLIDES
+        <div className="text-xs text-ink4 mb-md">
+          carousel · {body.length + 2} slides
         </div>
         <CarouselArtboard cover={cover} body={body} closer={closer} />
         {c.caption ? (
@@ -117,8 +117,8 @@ export function DraftBody({
     return (
       <>
         <BriefRow brief={brief} />
-        <div className="font-mono text-xs text-ink4 tracking-[0.2em] mb-sm">
-          REEL · {beats.length} BEATS
+        <div className="text-xs text-ink4 mb-sm">
+          reel · {beats.length} beats
         </div>
         <p className="text-md font-medium mb-md">
           🎬 hook (0:00): {(c.hook as string) ?? ""}
@@ -126,7 +126,7 @@ export function DraftBody({
         <div className="border-l-2 border-border pl-md flex flex-col gap-md mb-md">
           {beats.map((b, i) => (
             <div key={i}>
-              <div className="font-mono text-xs text-aliveDark tracking-[0.15em] mb-xs">
+              <div className="font-mono text-xs text-aliveDark mb-xs">
                 {b.timestamp}
               </div>
               <div className="text-md font-medium mb-xs">
@@ -142,8 +142,8 @@ export function DraftBody({
           ))}
         </div>
         {c.audioMood ? (
-          <p className="text-sm text-ink3 font-mono mb-md">
-            audio: {String(c.audioMood)}
+          <p className="text-xs text-ink4 mb-md">
+            audio · {String(c.audioMood)}
           </p>
         ) : null}
         {c.caption ? (
@@ -166,19 +166,13 @@ export function DraftBody({
     return (
       <>
         <BriefRow brief={brief} />
-        <div className="font-mono text-xs text-ink4 tracking-[0.2em] mb-sm">
-          EMAIL
-        </div>
+        <div className="text-xs text-ink4 mb-sm">email</div>
         <div className="bg-bg border-hairline border-border rounded-md p-md mb-md">
-          <div className="font-mono text-xs text-ink4 tracking-[0.15em] mb-xs">
-            SUBJECT
-          </div>
+          <div className="text-[11px] text-ink4 mb-xs">subject</div>
           <div className="text-md font-medium mb-md">
             {(c.subject as string) ?? ""}
           </div>
-          <div className="font-mono text-xs text-ink4 tracking-[0.15em] mb-xs">
-            PREHEADER
-          </div>
+          <div className="text-[11px] text-ink4 mb-xs">preheader</div>
           <div className="text-sm text-ink3">
             {(c.preheader as string) ?? ""}
           </div>
@@ -195,12 +189,12 @@ export function DraftBody({
         ))}
         {cta ? (
           <div className="mt-lg pt-md border-t-hairline border-border2">
-            <div className="font-mono text-xs text-ink4 tracking-[0.15em] mb-xs">
-              CTA · {cta.intent}
+            <div className="text-[11px] text-ink4 mb-xs">
+              cta · {cta.intent}
             </div>
             <div className="text-md font-medium">{cta.label}</div>
             {cta.link ? (
-              <div className="font-mono text-xs text-ink4 mt-xs">
+              <div className="font-mono text-xs text-ink4 mt-xs break-all">
                 {cta.link}
               </div>
             ) : null}
@@ -221,8 +215,8 @@ export function DraftBody({
     return (
       <>
         <BriefRow brief={brief} />
-        <div className="font-mono text-xs text-ink4 tracking-[0.2em] mb-md">
-          STORIES · {frames.length} FRAMES
+        <div className="text-xs text-ink4 mb-md">
+          stories · {frames.length} frames
         </div>
         <div className="flex gap-sm overflow-x-auto pb-sm">
           {frames.map((f, i) => (
@@ -230,17 +224,15 @@ export function DraftBody({
               key={i}
               className="shrink-0 w-[150px] bg-ink text-white rounded-md p-md flex flex-col justify-between min-h-[240px]"
             >
-              <div className="font-mono text-[9px] tracking-[0.2em] opacity-50">
-                FRAME {i + 1}
-              </div>
+              <div className="text-[10px] opacity-50">{i + 1}/{frames.length}</div>
               <div className="text-sm font-medium leading-tight">{f.text}</div>
               <div>
                 {f.interaction !== "none" ? (
-                  <div className="font-mono text-[9px] tracking-[0.15em] opacity-70 mb-xs">
-                    {f.interaction.toUpperCase()}
+                  <div className="text-[10px] opacity-70 mb-xs">
+                    {f.interaction.toLowerCase()}
                   </div>
                 ) : null}
-                <div className="font-mono text-[9px] opacity-50">
+                <div className="text-[10px] opacity-50 leading-snug">
                   {f.visualDirection.slice(0, 60)}
                 </div>
               </div>

@@ -143,7 +143,7 @@ export default function ContentScreen() {
       </View>
 
       <View style={styles.titleBlock}>
-        <Text style={styles.tag}>ECHO · THIS WEEK</Text>
+        <Text style={styles.tag}>this week</Text>
         <Text style={styles.title}>
           {totalScheduled === 0
             ? "nothing on the calendar yet"

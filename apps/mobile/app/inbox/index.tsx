@@ -46,7 +46,7 @@ export default function InboxIndex() {
         <Text style={styles.filterLink}>filter</Text>
       </View>
 
-      <Text style={styles.tag}>SIGNAL · TODAY</Text>
+      <Text style={styles.tag}>today</Text>
       <Text style={styles.title}>
         handled {items.filter((i) => i.handled).length} messages
       </Text>

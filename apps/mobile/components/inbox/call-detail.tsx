@@ -3,10 +3,10 @@ import { colors, fontSizes, radii } from "@orb/ui";
 import { trpc } from "../../lib/trpc";
 
 const STATUS_LABEL: Record<string, string> = {
-  ANSWERED_BY_SIGNAL: "I ANSWERED THE CALL",
-  ANSWERED_BY_USER: "YOU ANSWERED THIS CALL",
-  MISSED_AND_RECOVERED: "I CAUGHT A MISSED CALL",
-  MISSED_NO_RESPONSE: "MISSED — NO RESPONSE YET",
+  ANSWERED_BY_SIGNAL: "i answered the call.",
+  ANSWERED_BY_USER: "you answered this one.",
+  MISSED_AND_RECOVERED: "i caught a missed call.",
+  MISSED_NO_RESPONSE: "missed — no response yet.",
 };
 
 export function CallDetail({ callId }: { callId: string }) {
@@ -33,42 +33,47 @@ export function CallDetail({ callId }: { callId: string }) {
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <Text style={styles.channel}>
-          CALL ·{" "}
-          {call.startedAt.toLocaleString("en-US", {
-            weekday: "short",
-            hour: "numeric",
-            minute: "2-digit",
-          })}
-        </Text>
         <Text style={styles.from}>{call.fromNumber}</Text>
+        <Text style={styles.channel}>
+          call ·{" "}
+          {call.startedAt
+            .toLocaleString("en-US", {
+              weekday: "short",
+              hour: "numeric",
+              minute: "2-digit",
+            })
+            .toLowerCase()}
+        </Text>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardLabel}>
-          {STATUS_LABEL[call.recoveredStatus] ?? "CALL"}
+          {STATUS_LABEL[call.recoveredStatus] ?? "call."}
         </Text>
         <Text style={styles.cardBody}>
-          {intent.summary ?? "no transcript yet — check back once signal finishes processing."}
+          {intent.summary ??
+            "no transcript yet — check back once i finish processing."}
         </Text>
       </View>
 
       {appt ? (
         <View style={styles.appt}>
           <View style={styles.apptTopRow}>
-            <Text style={styles.apptLabel}>APPOINTMENT BOOKED</Text>
+            <Text style={styles.apptLabel}>appointment booked</Text>
             {appt.estimatedValueCents ? (
               <Text style={styles.apptValue}>
-                EST. ${Math.round(appt.estimatedValueCents / 100)}
+                est. ${Math.round(appt.estimatedValueCents / 100)}
               </Text>
             ) : null}
           </View>
           <Text style={styles.apptTitle}>
-            {appt.scheduledFor.toLocaleString("en-US", {
-              weekday: "long",
-              hour: "numeric",
-              minute: "2-digit",
-            })}{" "}
+            {appt.scheduledFor
+              .toLocaleString("en-US", {
+                weekday: "long",
+                hour: "numeric",
+                minute: "2-digit",
+              })
+              .toLowerCase()}{" "}
             · {appt.customerName}
           </Text>
           {appt.notes ? <Text style={styles.apptNotes}>{appt.notes}</Text> : null}
@@ -82,10 +87,9 @@ const styles = StyleSheet.create({
   wrap: { gap: 12 },
   head: { gap: 4, marginBottom: 4 },
   channel: {
-    fontFamily: "Menlo",
     fontSize: fontSizes.xs,
     color: colors.ink4,
-    letterSpacing: 1.4,
+    marginTop: 2,
   },
   from: { fontSize: fontSizes.lg, fontWeight: "500", color: colors.ink },
   card: {
@@ -94,10 +98,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   cardLabel: {
-    fontFamily: "Menlo",
-    fontSize: fontSizes.xs,
-    color: colors.ink4,
-    letterSpacing: 1.4,
+    fontSize: fontSizes.sm,
+    color: colors.ink,
+    fontWeight: "500",
     marginBottom: 8,
   },
   cardBody: {
@@ -118,13 +121,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   apptLabel: {
-    fontFamily: "Menlo",
     fontSize: fontSizes.xs,
     color: colors.attentionText,
-    letterSpacing: 1.4,
   },
   apptValue: {
-    fontFamily: "Menlo",
     fontSize: fontSizes.xs,
     color: colors.attentionText,
   },

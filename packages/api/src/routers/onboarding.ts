@@ -1,11 +1,21 @@
 import { z } from "zod";
-import { randomUUID } from "node:crypto";
 import { Agent, Goal, PhoneNumberStatus, Plan, type Prisma } from "@orb/db";
 import { router, authedProc, publicProc } from "../trpc";
 import { OrbError } from "../errors";
 import { runStrategist } from "../agents/strategist";
 import { provisionNumber } from "../services/twilio";
-import { runOnboardingPreview } from "../services/onboarding-preview";
+import {
+  RateLimitError,
+  attachEmailToPreview,
+  runOnboardingPreview,
+} from "../services/onboarding-preview";
+
+function ipFromHeaders(headers: Headers): string {
+  // Vercel sets x-forwarded-for; fall back to x-real-ip for self-hosted runs.
+  const xff = headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return headers.get("x-real-ip") ?? "0.0.0.0";
+}
 
 export const onboardingRouter = router({
   // Public, unauthenticated. Generates a one-shot demo (brand voice + first
@@ -18,17 +28,38 @@ export const onboardingRouter = router({
         businessDescription: z.string().min(10).max(500),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
-        const result = await runOnboardingPreview({
+        return await runOnboardingPreview({
           businessDescription: input.businessDescription,
-          previewId: randomUUID(),
+          ip: ipFromHeaders(ctx.headers),
         });
-        return result;
       } catch (error) {
+        if (error instanceof RateLimitError) {
+          throw OrbError.VALIDATION(error.message);
+        }
         const msg = error instanceof Error ? error.message : String(error);
         console.error("onboarding preview failed:", error);
         throw OrbError.EXTERNAL_API(msg);
+      }
+    }),
+
+  savePreview: publicProc
+    .input(
+      z.object({
+        resumeToken: z.string().min(8).max(64),
+        email: z.string().email(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        return await attachEmailToPreview({
+          resumeToken: input.resumeToken,
+          email: input.email,
+        });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        throw OrbError.VALIDATION(msg);
       }
     }),
 

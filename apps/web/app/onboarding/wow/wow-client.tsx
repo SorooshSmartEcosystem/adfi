@@ -15,7 +15,11 @@ type PreviewResult = {
     visualDirection: string;
   };
   imageUrl: string | null;
+  resumeToken: string;
 };
+
+const PREVIEW_CACHE_KEY = "adfi.onboarding.preview";
+const PREVIEW_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
 
 const EXAMPLES: { label: string; text: string }[] = [
   {
@@ -48,8 +52,44 @@ export function WowClient() {
   const preview = trpc.onboarding.previewDemo.useMutation({
     onSuccess: (data) => {
       setResult(data);
+      // Persist so a refresh doesn't lose the result. Resume page is the
+      // canonical recovery path; localStorage is just continuity within the
+      // same browser session.
+      try {
+        localStorage.setItem(
+          PREVIEW_CACHE_KEY,
+          JSON.stringify({ at: Date.now(), text, result: data }),
+        );
+      } catch {
+        /* storage unavailable — fine */
+      }
     },
   });
+
+  // Restore an in-progress result on mount if one is still fresh.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PREVIEW_CACHE_KEY);
+      if (!raw) return;
+      const cached = JSON.parse(raw) as {
+        at: number;
+        text: string;
+        result: PreviewResult;
+      };
+      if (Date.now() - cached.at > PREVIEW_CACHE_TTL_MS) {
+        localStorage.removeItem(PREVIEW_CACHE_KEY);
+        return;
+      }
+      if (cached.result?.resumeToken) {
+        setText(cached.text);
+        setResult(cached.result);
+        setStage("ask");
+      }
+    } catch {
+      /* parse failed — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleStart() {
     if (text.trim().length < 10) return;
@@ -61,6 +101,11 @@ export function WowClient() {
     setStage("input");
     setResult(null);
     preview.reset();
+    try {
+      localStorage.removeItem(PREVIEW_CACHE_KEY);
+    } catch {
+      /* ignore */
+    }
   }
 
   return (
@@ -357,6 +402,14 @@ function AskScreen({
   onReplay: () => void;
 }) {
   const router = useRouter();
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const save = trpc.onboarding.savePreview.useMutation();
+
+  function handleSave() {
+    save.mutate({ resumeToken: result.resumeToken, email: email.trim() });
+  }
+
   return (
     <section className="animate-[fade-up_0.5s_ease]">
       <div className="grid grid-cols-1 gap-[32px] lg:grid-cols-[minmax(360px,480px)_1fr] lg:gap-[56px] items-start">
@@ -395,7 +448,7 @@ function AskScreen({
             </button>
             <button
               type="button"
-              onClick={() => router.push("/signup")}
+              onClick={() => setSaveOpen((v) => !v)}
               className="inline-flex items-center justify-center gap-sm px-lg py-[13px] border-hairline border-border bg-white rounded-full text-xs text-ink2 whitespace-nowrap hover:border-ink hover:text-ink transition-colors"
             >
               save this for later
@@ -408,6 +461,58 @@ function AskScreen({
               try again
             </button>
           </div>
+
+          {saveOpen ? (
+            <div className="mt-md p-md bg-white border-hairline border-border rounded-[12px]">
+              {save.data ? (
+                <div className="text-xs text-ink2 leading-[1.6]">
+                  <div className="text-aliveDark font-medium mb-xs">
+                    saved.
+                  </div>
+                  bookmark this link or come back here from the email — your
+                  post will be waiting.
+                  <a
+                    href={save.data.resumeUrl}
+                    className="block mt-sm text-ink underline break-all"
+                  >
+                    {save.data.resumeUrl}
+                  </a>
+                </div>
+              ) : (
+                <>
+                  <label className="text-xs text-ink3 mb-sm block">
+                    where should i send the link?
+                  </label>
+                  <div className="flex gap-sm flex-wrap">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@yourbusiness.com"
+                      className="flex-1 min-w-[200px] px-md py-sm bg-bg border-hairline border-border rounded-md text-sm focus:outline-none focus:border-ink"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={
+                        save.isPending ||
+                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+                      }
+                      className="px-md py-sm bg-ink text-white rounded-md text-xs font-medium disabled:opacity-40"
+                    >
+                      {save.isPending ? "saving..." : "save"}
+                    </button>
+                  </div>
+                  {save.error ? (
+                    <p className="text-xs text-urgent mt-sm">
+                      {save.error.message}
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ) : null}
+
           <div className="text-xs text-ink4 mt-md">
             no card required. cancel anytime.
           </div>

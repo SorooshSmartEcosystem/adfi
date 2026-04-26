@@ -504,6 +504,28 @@ enum FindingSeverity {
 }
 
 // =============================================================
+// OnboardingPreviews — anonymous "wow" runs from /onboarding/wow.
+// Stored so we can rate-limit by ip, capture leads via the
+// 'save for later' email path, and resume a saved preview from a
+// magic-link token.
+// =============================================================
+model OnboardingPreview {
+  id                  String    @id @default(uuid()) @db.Uuid
+  ipHash              String    @map("ip_hash")
+  resumeToken         String    @unique @map("resume_token")
+  businessDescription String    @map("business_description") @db.Text
+  result              Json
+  email               String?
+  savedAt             DateTime? @map("saved_at")
+  convertedUserId     String?   @map("converted_user_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@index([ipHash, createdAt])
+  @@index([email])
+  @@map("onboarding_previews")
+}
+
+// =============================================================
 // AgentEvents — append-only log of agent activity
 // =============================================================
 model AgentEvent {

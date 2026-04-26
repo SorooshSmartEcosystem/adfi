@@ -7,9 +7,20 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const userRouter = router({
   me: authedProc.input(z.void()).query(async ({ ctx }) => {
-    const user = await ctx.db.user.findUnique({ where: { id: ctx.user.id } });
-    if (!user) throw OrbError.NOT_FOUND("user");
-    return user;
+    // Self-healing: if a User row doesn't exist yet for this supabase auth
+    // user (legacy account, missing trigger, etc.) create one from the
+    // session email. Avoids 500ing the dashboard for valid sessions.
+    const existing = await ctx.db.user.findUnique({
+      where: { id: ctx.user.id },
+    });
+    if (existing) return existing;
+    const created = await ctx.db.user.create({
+      data: {
+        id: ctx.user.id,
+        email: ctx.user.email ?? `${ctx.user.id}@no-email.adfi`,
+      },
+    });
+    return created;
   }),
 
   updateProfile: authedProc

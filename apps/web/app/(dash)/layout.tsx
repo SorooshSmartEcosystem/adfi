@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerClient } from "@orb/auth/server";
+import { db } from "@orb/db";
 import { trpcServer } from "../../lib/trpc-server";
 import { AppShell } from "../../components/app-shell/app-shell";
 
@@ -19,6 +20,14 @@ export default async function DashLayout({
   } = await supabase.auth.getUser();
 
   if (!authUser) redirect("/signin");
+
+  // Onboarding gate — without a brand voice the agents can't do anything
+  // meaningful and several specialist pages 500. Bounce to onboarding.
+  const ctx = await db.agentContext.findUnique({
+    where: { userId: authUser.id },
+    select: { strategistOutput: true },
+  });
+  if (!ctx?.strategistOutput) redirect("/onboarding");
 
   const trpc = await trpcServer();
   const [user, home] = await Promise.all([

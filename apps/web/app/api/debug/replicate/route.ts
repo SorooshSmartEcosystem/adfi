@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "../../../../lib/require-admin";
 
 // Hits Replicate's /v1/account from the running serverless function with
 // the same REPLICATE_API_TOKEN our agents use. Confirms (a) the token is
 // reaching the function, (b) which account it belongs to, (c) credit balance.
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const token = process.env.REPLICATE_API_TOKEN;
   if (!token) {
     return NextResponse.json({ error: "REPLICATE_API_TOKEN not set" }, { status: 500 });

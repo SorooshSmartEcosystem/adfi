@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "../../../../lib/require-admin";
 
 // Reports whether key server-side env vars are present at request time.
 // Returns booleans only — never the values themselves.
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const present = (k: string) => Boolean(process.env[k] && process.env[k]!.length > 0);
   return NextResponse.json({
     NEXT_PUBLIC_SUPABASE_URL: present("NEXT_PUBLIC_SUPABASE_URL"),

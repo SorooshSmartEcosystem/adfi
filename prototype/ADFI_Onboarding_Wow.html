@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ADFI · onboarding wow</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    background: #FAFAF7; color: #111; font-weight: 400;
+    line-height: 1.5; font-size: 14px;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    min-height: 100vh;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  textarea, input { font-family: inherit; }
+
+  :root {
+    --bg: #FAFAF7; --ink: #111; --ink2: #444; --ink3: #666; --ink4: #888; --ink5: #aaa;
+    --surface: #F2EFE5; --surface2: #F8F5EA; --border: #E5E3DB; --border2: #EEEBE0;
+    --alive: #7CE896; --alive-dark: #3a9d5c;
+    --attn-bg: #FFF9ED; --attn-border: #F0D98C; --attn-text: #8a6a1e;
+    --urgent: #C84A3E;
+  }
+
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  @keyframes fade-up { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fade-in { from{opacity:0} to{opacity:1} }
+  @keyframes draw-check { from{stroke-dashoffset:24} to{stroke-dashoffset:0} }
+  @keyframes shimmer-bg {
+    0%,100% { transform: translateX(-100%); }
+    50% { transform: translateX(100%); }
+  }
+
+  .header {
+    padding: 24px 32px;
+    display: flex; align-items: center;
+    border-bottom: 0.5px solid var(--border);
+    background: var(--bg);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4a4a4a 0%, #1a1a1a 60%, #000 100%);
+  }
+  .logo-name { font-size: 14px; font-weight: 500; }
+  .live-status {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--ink4);
+  }
+
+  .stage {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 80px 32px 120px;
+  }
+
+  /* SCREEN 1 - one-line input */
+  .s1 { animation: fade-up 0.5s ease; }
+  .s1.hidden { display: none; }
+  .s1 h1 {
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+    margin-bottom: 14px;
+  }
+  .s1-sub {
+    font-size: 16px;
+    color: var(--ink3);
+    line-height: 1.5;
+    margin-bottom: 36px;
+  }
+  .s1-input {
+    width: 100%;
+    padding: 18px 20px;
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    font-size: 16px;
+    color: var(--ink);
+    line-height: 1.5;
+    resize: none;
+    transition: border-color 0.15s;
+    margin-bottom: 14px;
+    outline: none;
+  }
+  .s1-input:focus { border-color: var(--ink); }
+  .s1-input::placeholder { color: var(--ink5); }
+
+  .s1-examples {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 36px;
+  }
+  .s1-example {
+    padding: 6px 12px;
+    border-radius: 100px;
+    border: 0.5px solid var(--border);
+    background: white;
+    font-size: 12px;
+    color: var(--ink3);
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .s1-example:hover { border-color: var(--ink); color: var(--ink); }
+
+  .s1-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 22px;
+    background: var(--ink);
+    color: white;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: opacity 0.15s;
+  }
+  .s1-cta:hover { opacity: 0.85; }
+  .s1-cta:disabled { opacity: 0.4; cursor: not-allowed; }
+  .s1-foot {
+    font-size: 12px; color: var(--ink4);
+    margin-top: 24px;
+  }
+
+  /* SCREEN 2 - live build */
+  .s2 { display: none; animation: fade-up 0.5s ease; }
+  .s2.show { display: block; }
+
+  .s2-thinking {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--alive-dark);
+    font-size: 13px;
+    margin-bottom: 28px;
+  }
+  .s2-thinking-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--alive);
+    animation: pulse-dot 1.2s ease-in-out infinite;
+  }
+
+  .s2-headline {
+    font-size: clamp(28px, 4vw, 36px);
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    margin-bottom: 40px;
+  }
+
+  .step {
+    display: flex; align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 28px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .step.in { opacity: 1; transform: translateY(0); }
+
+  .step-check {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--alive);
+    color: white;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 2px;
+  }
+  .step-check svg {
+    stroke-dasharray: 24;
+    stroke-dashoffset: 24;
+    animation: draw-check 0.4s ease forwards;
+  }
+  .step-pending .step-check {
+    background: transparent;
+    border: 1.5px solid var(--border);
+  }
+  .step-pending .step-check svg { display: none; }
+  .step-pending {
+    opacity: 0.45;
+  }
+  .step-active .step-check {
+    background: white;
+    border: 1.5px solid var(--alive);
+    position: relative;
+  }
+  .step-active .step-check::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: var(--alive);
+    animation: pulse-dot 1.2s ease-in-out infinite;
+  }
+  .step-active .step-check svg { display: none; }
+
+  .step-body { flex: 1; min-width: 0; }
+  .step-label { font-size: 15px; font-weight: 500; }
+  .step-payload {
+    margin-top: 12px;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.6s ease, margin-top 0.6s ease;
+  }
+  .step-payload.open {
+    max-height: 800px;
+    margin-top: 12px;
+  }
+
+  /* Voice tokens (step 2 payload) */
+  .voice-tokens {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .voice-token {
+    padding: 5px 12px;
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+    font-size: 13px;
+    color: var(--ink2);
+    opacity: 0;
+    animation: fade-up 0.5s ease forwards;
+  }
+
+  /* The post (step 3+4 payloads) */
+  .post {
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    max-width: 480px;
+  }
+  .post-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 0.5px solid var(--border2);
+  }
+  .post-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .post-handle { font-size: 13px; font-weight: 500; }
+  .post-platform {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--ink4);
+  }
+  .post-image {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    background: linear-gradient(135deg, #d4a574 0%, #b07c4f 50%, #8a5a35 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .post-image::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.3), transparent 50%);
+  }
+  .post-image-loading {
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink4);
+    font-size: 13px;
+  }
+  .post-image-loading::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+    animation: shimmer-bg 2s ease-in-out infinite;
+  }
+  .post-body {
+    padding: 16px 18px 18px;
+  }
+  .post-hook {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+  .post-text {
+    font-size: 13px;
+    color: var(--ink2);
+    line-height: 1.55;
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+  }
+  .post-tags {
+    font-size: 12px;
+    color: var(--ink4);
+  }
+
+  /* SCREEN 3 - the ask */
+  .s3 { display: none; animation: fade-up 0.5s ease; }
+  .s3.show { display: block; }
+
+  .s3-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+  @media (min-width: 820px) {
+    .s3-grid { grid-template-columns: 480px 1fr; }
+  }
+
+  .s3-pitch h2 {
+    font-size: clamp(28px, 4vw, 36px);
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    margin-bottom: 14px;
+  }
+  .s3-pitch p {
+    font-size: 15px;
+    color: var(--ink3);
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+  .s3-cadence {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--ink2);
+    line-height: 1.6;
+    margin-bottom: 32px;
+  }
+  .s3-cadence strong { font-weight: 500; color: var(--ink); }
+
+  .s3-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 22px;
+    background: var(--ink);
+    color: white;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-right: 10px;
+  }
+  .s3-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 18px;
+    border-radius: 100px;
+    border: 0.5px solid var(--border);
+    background: white;
+    font-size: 13px;
+    color: var(--ink2);
+  }
+  .s3-secondary:hover { border-color: var(--ink); color: var(--ink); }
+  .s3-foot {
+    font-size: 12px; color: var(--ink4);
+    margin-top: 18px;
+  }
+
+  /* Reset / debug controls in the corner so reviewers can replay */
+  .replay {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--ink); color: white;
+    font-size: 11px; padding: 8px 14px;
+    border-radius: 100px;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+  }
+  .replay:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <div class="logo-name">adfi</div>
+  </div>
+  <div class="live-status">
+    <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--alive); animation: pulse-dot 2s ease-in-out infinite;"></span>
+    no signup yet — just show me
+  </div>
+</header>
+
+<div class="stage">
+
+  <!-- SCREEN 1 — single input -->
+  <section class="s1" id="s1">
+    <h1>tell me what you do.</h1>
+    <p class="s1-sub">one sentence is enough. i'll show you what i'd post on monday.</p>
+
+    <textarea
+      class="s1-input"
+      id="s1Input"
+      rows="3"
+      placeholder="e.g. i run a ceramics studio in toronto — handmade tableware and small classes."
+    ></textarea>
+
+    <div class="s1-examples">
+      <button class="s1-example" data-fill="i run a ceramics studio in toronto — handmade tableware and small classes.">ceramics studio</button>
+      <button class="s1-example" data-fill="freelance brand photographer — i shoot lookbooks for indie fashion labels.">photographer</button>
+      <button class="s1-example" data-fill="i'm a private yoga instructor running small group classes in vancouver.">yoga instructor</button>
+      <button class="s1-example" data-fill="sourdough bakery — wholesale to cafes and a saturday market stall.">bakery</button>
+      <button class="s1-example" data-fill="i make custom leather goods — wallets, belts, small bags.">leather goods</button>
+    </div>
+
+    <button class="s1-cta" id="s1Cta" disabled>
+      show me what you'd do
+      <span>→</span>
+    </button>
+
+    <div class="s1-foot">no email needed yet. you'll see the result first.</div>
+  </section>
+
+  <!-- SCREEN 2 — live build -->
+  <section class="s2" id="s2">
+    <div class="s2-thinking" id="s2Thinking">
+      <span class="s2-thinking-dot"></span>
+      <span id="s2ThinkingLabel">i'm reading your business…</span>
+    </div>
+
+    <h2 class="s2-headline" id="s2Headline">building monday's post.</h2>
+
+    <!-- Step 1: read business -->
+    <div class="step step-pending" id="step1">
+      <div class="step-check">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 7L6 10L11 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="step-body">
+        <div class="step-label">i read your business</div>
+        <div class="step-payload" id="payload1">
+          <p style="font-size: 13px; color: var(--ink3); line-height: 1.5; margin-top: 6px;" id="payload1Text"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: brand voice -->
+    <div class="step step-pending" id="step2">
+      <div class="step-check">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 7L6 10L11 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="step-body">
+        <div class="step-label">i wrote your brand voice</div>
+        <div class="step-payload" id="payload2">
+          <div class="voice-tokens" id="voiceTokens"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: drafted post -->
+    <div class="step step-pending" id="step3">
+      <div class="step-check">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 7L6 10L11 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="step-body">
+        <div class="step-label">i drafted monday's post</div>
+        <div class="step-payload" id="payload3">
+          <div style="font-size: 13px; color: var(--ink3); margin-top: 4px; font-style: italic;" id="postHookPreview"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: image -->
+    <div class="step step-pending" id="step4">
+      <div class="step-check">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 7L6 10L11 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="step-body">
+        <div class="step-label">i designed the cover photo</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN 3 — the ask -->
+  <section class="s3" id="s3">
+    <div class="s3-grid">
+      <div id="postSlot">
+        <!-- the post is moved here from screen 2 -->
+      </div>
+
+      <div class="s3-pitch">
+        <h2>this is monday.</h2>
+        <p>
+          i'll do this every weekday — plus answer your dms, catch your missed calls, and watch what works.
+        </p>
+        <div class="s3-cadence" id="cadence">
+          <strong>tuesday</strong> — a behind-the-scenes reel of glaze tests.<br>
+          <strong>wednesday</strong> — your customer's wedding tablescape.<br>
+          <strong>thursday</strong> — newsletter with last week's drop.
+        </div>
+        <button class="s3-cta">start free 14-day trial</button>
+        <button class="s3-secondary">save this for later</button>
+        <div class="s3-foot">no card required. cancel anytime.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<button class="replay" id="replay">↻ replay</button>
+
+<script>
+  const s1 = document.getElementById('s1');
+  const s2 = document.getElementById('s2');
+  const s3 = document.getElementById('s3');
+  const input = document.getElementById('s1Input');
+  const cta = document.getElementById('s1Cta');
+
+  // Tiny demo dataset keyed loosely off keywords. Real version pulls from
+  // Strategist + Echo APIs — this just makes the prototype feel like a real
+  // run for whatever the user types.
+  const FALLBACK = {
+    voice: ['warm', 'specific', 'no jargon', 'process-led', 'quietly funny'],
+    hook: "a customer's wedding had 84 plates on it. all from one kiln.",
+    body: "they ordered 84 dinner plates last february. the wedding was last weekend. she sent me a photo and i couldn't stop staring at it.\n\nthis is the part of the work nobody sees: the slow yes-yes-yes of throwing 84 of the same thing, the finger-crossed glaze fire, the wrap-and-pack at 2am.\n\nshe didn't pick me because i was the cheapest. she picked me because i'd actually answer the phone six months out.",
+    tags: '#ceramics #handmade #weddingtable #toronto',
+    avatar: 'CC',
+    handle: 'ceramicsco',
+    platform: 'instagram',
+  };
+  const DATASETS = {
+    ceramics: { ...FALLBACK },
+    photographer: {
+      voice: ['observant', 'unfussy', 'quiet authority', 'specific', 'craft-led'],
+      hook: 'the best lookbook photo i shot last year was an outtake.',
+      body: "the brand wanted the model laughing. i shot 600 frames of laughs. none worked.\n\nthe one we used: she's tying her shoe. half-frame. the dress catches the window light at exactly the wrong angle, which is also the right one.\n\nlooks aren't designed in lightroom. they're caught.",
+      tags: '#brandphotographer #lookbook #editorialstyle',
+      avatar: 'JP',
+      handle: 'jordanphoto',
+      platform: 'instagram',
+    },
+    yoga: {
+      voice: ['calm', 'precise', 'never preachy', 'specific', 'kind'],
+      hook: "most people i teach can't touch their toes the first session.",
+      body: "and most of them think that's the problem. it isn't. the problem is they're holding their breath when they try.\n\nso we don't start with the toes. we start with five minutes of just breathing — chest soft, back long, eyes closed.\n\nweek three, the toes show up on their own.",
+      tags: '#yoga #vancouver #breathwork',
+      avatar: 'AY',
+      handle: 'ariyoga',
+      platform: 'instagram',
+    },
+    bakery: {
+      voice: ['hands-on', 'a little tired', 'concrete', 'no embellishment', 'patient'],
+      hook: '4am, 30 loaves shaped, and the levain was off by 12 hours.',
+      body: "this is what i mean when i tell wholesale clients i can't promise volume on no notice.\n\nthe bread is alive. it doesn't care about my schedule. when the levain isn't ready, nothing else can be.\n\nnext saturday's market stash is shaped, scored, and in the cooler. tuesday cafe order: saturday's bake.",
+      tags: '#sourdough #bakery #realbread',
+      avatar: 'SB',
+      handle: 'slowbread',
+      platform: 'instagram',
+    },
+    leather: {
+      voice: ['plainspoken', 'no nostalgia bait', 'specific to the craft', 'patient', 'wry'],
+      hook: 'a wallet that cost me $48 to make. i sell it for $180.',
+      body: "people ask why. here's the math.\n\n$48 is leather. $180 is leather + 90 minutes of stitching + 20 years of figuring out which threads outlast the leather and which threads don't.\n\ni'll repair this wallet for free for as long as i'm working. that's the part that's worth the markup, not the leather.",
+      tags: '#leathergoods #handmade #craftsmanship',
+      avatar: 'LG',
+      handle: 'leatherco',
+      platform: 'instagram',
+    },
+  };
+
+  function pickDataset(text) {
+    const t = text.toLowerCase();
+    if (/ceramic|pottery|kiln|tableware/.test(t)) return DATASETS.ceramics;
+    if (/photo|lookbook|fashion|editorial/.test(t)) return DATASETS.photographer;
+    if (/yoga|pilates|movement|fitness/.test(t)) return DATASETS.yoga;
+    if (/bakery|sourdough|bread|pastry/.test(t)) return DATASETS.bakery;
+    if (/leather|wallet|bag|belt/.test(t)) return DATASETS.leather;
+    return DATASETS.ceramics;
+  }
+
+  // Fill examples
+  document.querySelectorAll('.s1-example').forEach(btn => {
+    btn.onclick = () => {
+      input.value = btn.dataset.fill;
+      input.dispatchEvent(new Event('input'));
+      input.focus();
+    };
+  });
+
+  input.addEventListener('input', () => {
+    cta.disabled = input.value.trim().length < 10;
+  });
+
+  cta.onclick = () => {
+    const data = pickDataset(input.value);
+    runReveal(input.value, data);
+  };
+
+  function setStepState(id, state) {
+    const el = document.getElementById(id);
+    el.classList.remove('step-pending', 'step-active', 'step-done');
+    el.classList.add(`step-${state}`);
+    if (state !== 'pending') el.classList.add('in');
+  }
+
+  function showStep(id) {
+    document.getElementById(id).classList.add('in');
+  }
+
+  function buildPostNode(data) {
+    const post = document.createElement('div');
+    post.className = 'post';
+    post.innerHTML = `
+      <div class="post-header">
+        <div class="post-avatar">${data.avatar}</div>
+        <div class="post-handle">${data.handle}</div>
+        <div class="post-platform">${data.platform}</div>
+      </div>
+      <div class="post-image" id="postImage">
+      </div>
+      <div class="post-body">
+        <div class="post-hook">${data.hook}</div>
+        <div class="post-text">${data.body}</div>
+        <div class="post-tags">${data.tags}</div>
+      </div>`;
+    return post;
+  }
+
+  function runReveal(businessText, data) {
+    s1.classList.add('hidden');
+    s2.classList.add('show');
+
+    const thinkingLabel = document.getElementById('s2ThinkingLabel');
+    const headline = document.getElementById('s2Headline');
+
+    // Step 1: read business
+    setTimeout(() => {
+      thinkingLabel.textContent = 'i wrote your brand voice…';
+      setStepState('step1', 'active');
+      document.getElementById('payload1Text').textContent =
+        `"${businessText.slice(0, 140)}${businessText.length > 140 ? '…' : ''}"`;
+      document.getElementById('payload1').classList.add('open');
+    }, 200);
+
+    setTimeout(() => {
+      setStepState('step1', 'done');
+    }, 1400);
+
+    // Step 2: brand voice tokens
+    setTimeout(() => {
+      thinkingLabel.textContent = 'i drafted monday\'s post…';
+      setStepState('step2', 'active');
+      const tokensEl = document.getElementById('voiceTokens');
+      tokensEl.innerHTML = '';
+      data.voice.forEach((tok, i) => {
+        const span = document.createElement('span');
+        span.className = 'voice-token';
+        span.textContent = tok;
+        span.style.animationDelay = `${i * 0.12}s`;
+        tokensEl.appendChild(span);
+      });
+      document.getElementById('payload2').classList.add('open');
+    }, 1600);
+
+    setTimeout(() => {
+      setStepState('step2', 'done');
+    }, 3500);
+
+    // Step 3: post text
+    setTimeout(() => {
+      thinkingLabel.textContent = 'i designed the cover photo…';
+      setStepState('step3', 'active');
+      document.getElementById('postHookPreview').textContent = `"${data.hook}"`;
+      document.getElementById('payload3').classList.add('open');
+    }, 3700);
+
+    setTimeout(() => {
+      setStepState('step3', 'done');
+    }, 5400);
+
+    // Step 4: image
+    setTimeout(() => {
+      thinkingLabel.textContent = 'almost done…';
+      setStepState('step4', 'active');
+    }, 5600);
+
+    setTimeout(() => {
+      setStepState('step4', 'done');
+      thinkingLabel.textContent = 'done.';
+      headline.textContent = 'here\'s monday.';
+    }, 7400);
+
+    // Reveal screen 3 with the post
+    setTimeout(() => {
+      s2.classList.remove('show');
+      s3.classList.add('show');
+      const slot = document.getElementById('postSlot');
+      slot.innerHTML = '';
+      slot.appendChild(buildPostNode(data));
+    }, 8200);
+  }
+
+  document.getElementById('replay').onclick = () => {
+    s2.classList.remove('show');
+    s3.classList.remove('show');
+    s1.classList.remove('hidden');
+    ['step1','step2','step3','step4'].forEach(id => {
+      const el = document.getElementById(id);
+      el.classList.remove('in', 'step-active', 'step-done');
+      el.classList.add('step-pending');
+    });
+    ['payload1','payload2','payload3'].forEach(id => {
+      document.getElementById(id).classList.remove('open');
+    });
+    document.getElementById('voiceTokens').innerHTML = '';
+    document.getElementById('postHookPreview').textContent = '';
+    document.getElementById('payload1Text').textContent = '';
+    document.getElementById('s2Headline').textContent = 'building monday\'s post.';
+    document.getElementById('s2ThinkingLabel').textContent = 'i\'m reading your business…';
+  };
+</script>
+</body>
+</html>

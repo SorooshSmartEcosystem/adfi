@@ -25,17 +25,17 @@ export function Hero() {
 
         <div className="flex gap-sm justify-center flex-wrap mb-md">
           <Link
-            href="/signup"
+            href="/onboarding/wow"
             className="bg-ink text-white px-[26px] py-md rounded-full text-base font-medium"
+          >
+            see what i&apos;d post for you
+          </Link>
+          <Link
+            href="/signup"
+            className="bg-transparent text-ink px-[22px] py-md rounded-full text-base font-medium border-hairline border-border hover:border-ink transition-colors"
           >
             start 7 days free
           </Link>
-          <a
-            href="#how"
-            className="bg-transparent text-ink px-[22px] py-md rounded-full text-base font-medium border-hairline border-border hover:border-ink transition-colors"
-          >
-            see how it works
-          </a>
         </div>
 
         <div className="flex justify-center items-center gap-lg mt-lg flex-wrap">

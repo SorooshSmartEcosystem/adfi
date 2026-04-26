@@ -1,11 +1,37 @@
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { Agent, Goal, PhoneNumberStatus, Plan, type Prisma } from "@orb/db";
-import { router, authedProc } from "../trpc";
+import { router, authedProc, publicProc } from "../trpc";
 import { OrbError } from "../errors";
 import { runStrategist } from "../agents/strategist";
 import { provisionNumber } from "../services/twilio";
+import { runOnboardingPreview } from "../services/onboarding-preview";
 
 export const onboardingRouter = router({
+  // Public, unauthenticated. Generates a one-shot demo (brand voice + first
+  // post + hero image) so visitors see real output before they sign up.
+  // Cost ~6¢/call; production should add an IP-based rate limit (Vercel KV
+  // or similar) before this is on a public landing page.
+  previewDemo: publicProc
+    .input(
+      z.object({
+        businessDescription: z.string().min(10).max(500),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const result = await runOnboardingPreview({
+          businessDescription: input.businessDescription,
+          previewId: randomUUID(),
+        });
+        return result;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("onboarding preview failed:", error);
+        throw OrbError.EXTERNAL_API(msg);
+      }
+    }),
+
   saveBusinessDescription: authedProc
     .input(z.object({ text: z.string().min(10).max(500) }))
     .mutation(async ({ ctx, input }) => {

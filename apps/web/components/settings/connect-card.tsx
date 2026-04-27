@@ -390,7 +390,7 @@ function TelegramDiagnostics() {
       </DiagSection>
 
       {d.recentFindings.length > 0 ? (
-        <DiagSection label="recent findings">
+        <DiagSection label="recent findings (newest first)">
           <div className="flex flex-col gap-sm">
             {d.recentFindings.map((f, i) => {
               const payload = (f.payload ?? {}) as { error?: string };
@@ -399,7 +399,12 @@ function TelegramDiagnostics() {
                   key={i}
                   className="text-[11px] text-ink2 break-words"
                 >
-                  <div>{f.summary}</div>
+                  <div className="flex items-baseline gap-sm">
+                    <span className="text-ink4 shrink-0">
+                      {formatRelative(f.createdAt)}
+                    </span>
+                    <span>{f.summary}</span>
+                  </div>
                   {payload.error ? (
                     <div className="text-urgent font-mono mt-[2px] whitespace-pre-wrap break-all">
                       {String(payload.error).slice(0, 400)}
@@ -408,6 +413,11 @@ function TelegramDiagnostics() {
                 </div>
               );
             })}
+          </div>
+          <div className="text-[11px] text-ink4 mt-md leading-relaxed">
+            tip: findings stay until acknowledged. if the most recent one
+            predates your latest deploy, the fix is already live — send a
+            fresh dm to test.
           </div>
         </DiagSection>
       ) : null}
@@ -428,6 +438,18 @@ function DiagSection({
       {children}
     </div>
   );
+}
+
+function formatRelative(at: Date | string): string {
+  const t = typeof at === "string" ? new Date(at).getTime() : at.getTime();
+  const diff = Date.now() - t;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 }
 
 function TelegramBotForm() {

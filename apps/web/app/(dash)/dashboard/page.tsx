@@ -54,12 +54,15 @@ export default async function DashboardPage() {
   if (!authUser) redirect("/signin");
 
   const trpc = await trpcServer();
-  const [{ home }, activity, reachDaily, working] = await Promise.all([
-    getDashUserAndHome(),
-    trpc.user.getRecentActivity({ limit: 6 }),
-    trpc.user.getReachTimeseries({ rangeDays: 365 }),
-    trpc.user.getWhatsWorking(),
-  ]);
+  const [{ home }, activity, reachDaily, working, connections] =
+    await Promise.all([
+      getDashUserAndHome(),
+      trpc.user.getRecentActivity({ limit: 6 }),
+      trpc.user.getReachTimeseries({ rangeDays: 365 }),
+      trpc.user.getWhatsWorking(),
+      trpc.connections.list(),
+    ]);
+  const connectedProviders = new Set(connections.map((c) => c.provider));
 
   const w = home.weeklyStats;
 
@@ -133,22 +136,50 @@ export default async function DashboardPage() {
     "1Y": [fmtAxisDate(364), "today"] as [string, string],
   };
 
+  const igConnected = connectedProviders.has("INSTAGRAM");
+  const fbConnected = connectedProviders.has("FACEBOOK");
+  const liConnected = connectedProviders.has("LINKEDIN");
+  const tgBotConnected = connectedProviders.has("TELEGRAM");
+  const tgChannelConnected = connectedProviders.has("TELEGRAM_CHANNEL");
+
   const channels: Channel[] = [
     {
       name: "Instagram",
-      status: "idle",
+      status: igConnected ? "alive" : "idle",
+      meta: igConnected ? "connected" : undefined,
       href: "/settings#channels",
     },
     {
       name: "LinkedIn",
-      status: "idle",
+      status: liConnected ? "alive" : "idle",
+      meta: liConnected ? "connected" : undefined,
+      href: "/settings#channels",
+    },
+    {
+      name: "Facebook",
+      status: fbConnected ? "alive" : "idle",
+      meta: fbConnected ? "connected" : undefined,
+      href: "/settings#channels",
+    },
+    {
+      name: "Telegram bot",
+      status: tgBotConnected ? "alive" : "idle",
+      meta: tgBotConnected ? "answers dms" : undefined,
+      href: "/settings#channels",
+    },
+    {
+      name: "Telegram channel",
+      status: tgChannelConnected ? "alive" : "idle",
+      meta: tgChannelConnected ? "publishes posts" : undefined,
       href: "/settings#channels",
     },
     {
       name: "calls + sms",
       status: home.phoneStatus.active ? "alive" : "idle",
-      num: String(w.callsHandled + w.messagesHandled),
-      meta: "handled this week",
+      num: home.phoneStatus.active
+        ? String(w.callsHandled + w.messagesHandled)
+        : undefined,
+      meta: home.phoneStatus.active ? "handled this week" : undefined,
       delta:
         w.appointmentsBooked > 0
           ? `${w.appointmentsBooked} booked`
@@ -156,8 +187,9 @@ export default async function DashboardPage() {
       href: "/inbox",
     },
     {
-      name: "Facebook",
-      status: "idle",
+      name: "Email",
+      status: "alive",
+      meta: "newsletter ready",
       href: "/settings#channels",
     },
   ];

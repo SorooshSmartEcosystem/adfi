@@ -43,6 +43,17 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M3 7l9 6 9-6" />
     </svg>
   ),
+  "Telegram bot": (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 4 3 11l6 2 2 6 4-4 5 4 1-15z" />
+    </svg>
+  ),
+  "Telegram channel": (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11l18-7-3 16-6-3-3 5-1-7z" />
+      <path d="M9 13l5-4" />
+    </svg>
+  ),
 };
 
 export function ChannelsGrid({ channels }: { channels: Channel[] }) {
@@ -84,13 +95,13 @@ function ChannelCard({ channel }: { channel: Channel }) {
 
         {idle ? (
           <div className="text-xs text-ink3 pt-[4px]">connect →</div>
-        ) : (
+        ) : channel.num ? (
           <>
             <div
               className="font-medium leading-none mb-[6px]"
               style={{ fontSize: "22px", letterSpacing: "-0.02em" }}
             >
-              {channel.num ?? "—"}
+              {channel.num}
             </div>
             <div className="text-xs text-ink4">
               {channel.meta ?? ""}
@@ -102,6 +113,10 @@ function ChannelCard({ channel }: { channel: Channel }) {
               ) : null}
             </div>
           </>
+        ) : (
+          <div className="text-xs text-aliveDark pt-[4px]">
+            {channel.meta ?? "connected"}
+          </div>
         )}
       </div>
     </Wrap>

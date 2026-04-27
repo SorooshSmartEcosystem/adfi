@@ -36,6 +36,9 @@ export function MessageThread({ threadId }: { threadId: string }) {
   const takeOver = trpc.messaging.takeOver.useMutation({
     onSuccess: () => utils.messaging.getThread.invalidate({ threadId }),
   });
+  const letSignalHandle = trpc.messaging.letSignalHandle.useMutation({
+    onSuccess: () => utils.messaging.getThread.invalidate({ threadId }),
+  });
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -63,6 +66,10 @@ export function MessageThread({ threadId }: { threadId: string }) {
   const messages = query.data.messages;
   const contact = query.data.contact;
   const first = messages[0]!;
+  const last = messages[messages.length - 1]!;
+  // Thread handoff state — once any outbound is handledBy="user", new
+  // inbounds skip signal. Drive the header buttons off the latest row.
+  const userHandling = last.handledBy === "user";
   const headerName = contact.displayName ?? first.fromAddress;
   const initials = (() => {
     const parts = headerName.trim().split(/\s+/).slice(0, 2);
@@ -91,13 +98,23 @@ export function MessageThread({ threadId }: { threadId: string }) {
             </div>
           </div>
         </div>
-        <button
-          onClick={() => takeOver.mutate({ threadId })}
-          disabled={takeOver.isPending}
-          className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors shrink-0"
-        >
-          take over
-        </button>
+        {userHandling ? (
+          <button
+            onClick={() => letSignalHandle.mutate({ threadId })}
+            disabled={letSignalHandle.isPending}
+            className="text-xs text-aliveDark border-hairline border-alive rounded-full px-md py-[5px] hover:bg-alive/20 transition-colors shrink-0"
+          >
+            {letSignalHandle.isPending ? "handing back..." : "let signal handle"}
+          </button>
+        ) : (
+          <button
+            onClick={() => takeOver.mutate({ threadId })}
+            disabled={takeOver.isPending}
+            className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors shrink-0"
+          >
+            take over
+          </button>
+        )}
       </div>
 
       <div
@@ -131,6 +148,13 @@ export function MessageThread({ threadId }: { threadId: string }) {
           );
         })}
       </div>
+
+      {userHandling ? (
+        <div className="text-[11px] text-ink4 mt-md shrink-0 leading-relaxed">
+          you&apos;re handling this thread — signal won&apos;t auto-reply.
+          tap &apos;let signal handle&apos; above to hand it back.
+        </div>
+      ) : null}
 
       <form
         onSubmit={handleSubmit}

@@ -34,7 +34,10 @@ const SignalOutputSchema = z.object({
     "general",
     "spam",
   ]),
-  response: z.string().min(1).max(320),
+  // 1000 covers Messenger/IG/Telegram comfortably (Telegram caps at 4096
+  // but messages that long don't read like a person; SMS is enforced
+  // separately at send time by twilio's 1600-char hard cap).
+  response: z.string().min(1).max(1000),
   needsHandoff: z.boolean(),
   suggestedAction: z
     .object({

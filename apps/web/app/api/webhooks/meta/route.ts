@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
   const raw = await req.text();
   const sig = req.headers.get("x-hub-signature-256");
   if (!verifyWebhookSignature({ rawBody: raw, signatureHeader: sig })) {
+    console.warn("[meta-webhook] bad signature");
     return new NextResponse("bad signature", { status: 401 });
   }
 
@@ -43,7 +44,12 @@ export async function POST(req: NextRequest) {
     return new NextResponse("bad json", { status: 400 });
   }
 
+  console.log(
+    `[meta-webhook] object=${payload.object} entries=${(payload.entry ?? []).length}`,
+  );
+
   if (payload.object !== "page" && payload.object !== "instagram") {
+    console.log(`[meta-webhook] skipping object=${payload.object}`);
     return NextResponse.json({ ok: true });
   }
 
@@ -51,11 +57,35 @@ export async function POST(req: NextRequest) {
     const channel: "MESSENGER" | "INSTAGRAM_DM" =
       payload.object === "instagram" ? "INSTAGRAM_DM" : "MESSENGER";
 
+    const messagingCount = (entry.messaging ?? []).length;
+    const changesCount = (entry.changes ?? []).length;
+    console.log(
+      `[meta-webhook] entry.id=${entry.id} channel=${channel} messaging=${messagingCount} changes=${changesCount}`,
+    );
+
+    if (messagingCount === 0) {
+      // Most likely a 'feed' or 'changes'-shaped event (page post/comment),
+      // not a DM. Skip silently — v1 only handles inbound DMs.
+      continue;
+    }
+
     for (const event of entry.messaging ?? []) {
       // Skip echoes of our own outbound messages.
-      if (event.message?.is_echo) continue;
+      if (event.message?.is_echo) {
+        console.log(`[meta-webhook] skipping echo from sender=${event.sender?.id}`);
+        continue;
+      }
       const text = event.message?.text;
-      if (!text || !event.sender?.id) continue;
+      if (!text || !event.sender?.id) {
+        console.log(
+          `[meta-webhook] skipping event — text=${!!text} sender=${!!event.sender?.id}`,
+        );
+        continue;
+      }
+
+      console.log(
+        `[meta-webhook] inbound ${channel} from=${event.sender.id} text="${text.slice(0, 80)}"`,
+      );
 
       const result = await processInboundMessenger({
         pageId: entry.id,
@@ -63,9 +93,13 @@ export async function POST(req: NextRequest) {
         body: text,
         channel,
       }).catch((err) => {
-        console.error("processInboundMessenger failed:", err);
+        console.error("[meta-webhook] processInboundMessenger threw:", err);
         return null;
       });
+
+      console.log(
+        `[meta-webhook] processed: handled=${result?.handled} reason=${result?.reason ?? "n/a"} hasReply=${!!result?.reply}`,
+      );
 
       if (!result?.handled || !result.reply) continue;
 
@@ -73,7 +107,12 @@ export async function POST(req: NextRequest) {
       const account = await db.connectedAccount.findFirst({
         where: { externalId: entry.id, disconnectedAt: null },
       });
-      if (!account) continue;
+      if (!account) {
+        console.warn(
+          `[meta-webhook] no ConnectedAccount for entry.id=${entry.id} — cannot send reply`,
+        );
+        continue;
+      }
 
       try {
         await sendMessengerReply({
@@ -81,8 +120,9 @@ export async function POST(req: NextRequest) {
           recipientPsid: event.sender.id,
           text: result.reply,
         });
+        console.log(`[meta-webhook] reply sent to ${event.sender.id}`);
       } catch (err) {
-        console.error("messenger reply send failed:", err);
+        console.error("[meta-webhook] reply send failed:", err);
       }
     }
   }
@@ -104,6 +144,10 @@ type WebhookPayload = {
         text?: string;
         is_echo?: boolean;
       };
+    }>;
+    changes?: Array<{
+      field: string;
+      value: unknown;
     }>;
   }>;
 };

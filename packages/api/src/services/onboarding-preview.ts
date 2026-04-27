@@ -194,7 +194,7 @@ function previewSavedHtml(args: { resumeUrl: string }): string {
           <table cellpadding="0" cellspacing="0" border="0">
             <tr>
               <td valign="middle" style="padding-right:10px;">
-                <div style="width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #4a4a4a 0%, #1a1a1a 60%, #000 100%);"></div>
+                <div style="width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 30% 25%, #5a5a5a 0%, #2a2a2a 35%, #0a0a0a 75%, #000 100%);"></div>
               </td>
               <td valign="middle" style="font-size:15px;font-weight:500;color:#111;letter-spacing:-0.01em;">adfi</td>
             </tr>

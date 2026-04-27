@@ -61,15 +61,16 @@ export default function OpenGraphImage() {
         >
           <div
             style={{
+              display: "flex",
+              flexDirection: "column",
               fontSize: 88,
               fontWeight: 500,
               lineHeight: 1.05,
               letterSpacing: -2,
             }}
           >
-            an ai marketing team
-            <br />
-            for solopreneurs.
+            <div style={{ display: "flex" }}>an ai marketing team</div>
+            <div style={{ display: "flex" }}>for solopreneurs.</div>
           </div>
           <div
             style={{

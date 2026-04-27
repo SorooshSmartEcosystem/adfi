@@ -7,7 +7,11 @@ type Step = { title: string; body: string };
 
 // db Provider enum values we surface in the UI. "EMAIL"/"LINKEDIN" aren't
 // in the db enum yet — those entries skip the connection-status lookup.
-type DbProvider = "INSTAGRAM" | "FACEBOOK";
+type DbProvider =
+  | "INSTAGRAM"
+  | "FACEBOOK"
+  | "TELEGRAM"
+  | "TELEGRAM_CHANNEL";
 
 type Provider = {
   code: string;
@@ -23,6 +27,8 @@ type Provider = {
   // when set, ConnectionsList looks up trpc.connections.list for a row with
   // this provider value to show 'connected' state + a disconnect button.
   dbProvider?: DbProvider;
+  // optional inline form (no OAuth) — shown in place of the connect link
+  customForm?: "telegram-bot" | "telegram-channel";
 };
 
 const PROVIDERS: Provider[] = [
@@ -99,6 +105,46 @@ const PROVIDERS: Provider[] = [
       {
         title: "click the connect button below",
         body: "we'll open meta's authorization flow. grant adfi access to the page (post + read engagement), messenger (page messaging), and ads (so we can run marketplace-placement ads when you turn that on).",
+      },
+    ],
+  },
+  {
+    code: "TG",
+    name: "Telegram bot",
+    status: "manual",
+    customForm: "telegram-bot",
+    dbProvider: "TELEGRAM",
+    blurb: "answer dms in your voice, route bookings to you.",
+    steps: [
+      {
+        title: "open @BotFather on telegram",
+        body: "in telegram, search for @BotFather and start a chat. send /newbot, pick a name + handle. botfather replies with a token.",
+      },
+      {
+        title: "paste the token below",
+        body: "we'll validate it, register a webhook, and signal will start replying to dms in your voice the next time someone messages your bot.",
+      },
+    ],
+  },
+  {
+    code: "TC",
+    name: "Telegram channel",
+    status: "manual",
+    customForm: "telegram-channel",
+    dbProvider: "TELEGRAM_CHANNEL",
+    blurb: "publish posts to your channel via the bot.",
+    steps: [
+      {
+        title: "connect your telegram bot first (above)",
+        body: "channels publish through the bot — without a bot we can't post.",
+      },
+      {
+        title: "add the bot as an admin of your channel",
+        body: "open your telegram channel → administrators → add admin → search your bot's @username → grant 'post messages'.",
+      },
+      {
+        title: "paste the channel @username below",
+        body: "we'll resolve it to a chat id and store it. echo will be able to draft channel posts and you'll approve them in /content.",
       },
     ],
   },
@@ -185,12 +231,10 @@ export function ConnectCard({
             ))}
           </ol>
           {provider.status === "manual" ? (
-            <div className="flex items-center gap-sm mt-lg pt-md border-t-hairline border-border2 flex-wrap">
+            <div className="mt-lg pt-md border-t-hairline border-border2">
               {connected ? (
-                <>
-                  <span className="text-xs text-aliveDark">
-                    ✓ connected
-                  </span>
+                <div className="flex items-center gap-sm flex-wrap">
+                  <span className="text-xs text-aliveDark">✓ connected</span>
                   {onDisconnect ? (
                     <button
                       type="button"
@@ -200,16 +244,20 @@ export function ConnectCard({
                       disconnect
                     </button>
                   ) : null}
-                </>
+                </div>
+              ) : provider.customForm === "telegram-bot" ? (
+                <TelegramBotForm />
+              ) : provider.customForm === "telegram-channel" ? (
+                <TelegramChannelForm />
               ) : provider.connectHref ? (
                 <a
                   href={provider.connectHref}
-                  className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full hover:opacity-85 transition-opacity"
+                  className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full hover:opacity-85 transition-opacity inline-block"
                 >
                   connect {provider.name.toLowerCase()} →
                 </a>
               ) : (
-                <>
+                <div className="flex items-center gap-sm flex-wrap">
                   <button
                     type="button"
                     disabled
@@ -220,13 +268,125 @@ export function ConnectCard({
                   <span className="text-[11px] text-ink4">
                     button activates once oauth ships
                   </span>
-                </>
+                </div>
               )}
             </div>
           ) : null}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function TelegramBotForm() {
+  const utils = trpc.useUtils();
+  const [token, setToken] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const connect = trpc.connections.connectTelegramBot.useMutation({
+    onSuccess: (r) => {
+      setSuccess(`connected — bot @${r.botUsername} is live`);
+      setError(null);
+      setToken("");
+      utils.connections.list.invalidate();
+    },
+    onError: (e) => {
+      setError(e.message);
+      setSuccess(null);
+    },
+  });
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!token.trim()) return;
+        connect.mutate({ token: token.trim() });
+      }}
+      className="flex flex-col gap-sm"
+    >
+      <input
+        type="password"
+        value={token}
+        onChange={(e) => setToken(e.target.value)}
+        placeholder="paste botfather token"
+        autoComplete="off"
+        spellCheck={false}
+        className="px-md py-[8px] border-hairline border-border rounded-full text-sm focus:outline-none focus:border-ink"
+        disabled={connect.isPending}
+      />
+      <div className="flex items-center gap-sm flex-wrap">
+        <button
+          type="submit"
+          disabled={connect.isPending || !token.trim()}
+          className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40"
+        >
+          {connect.isPending ? "validating..." : "connect bot →"}
+        </button>
+        {error ? (
+          <span className="text-[11px] text-urgent">{error}</span>
+        ) : success ? (
+          <span className="text-[11px] text-aliveDark">{success}</span>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
+function TelegramChannelForm() {
+  const utils = trpc.useUtils();
+  const [handle, setHandle] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const connect = trpc.connections.connectTelegramChannel.useMutation({
+    onSuccess: (r) => {
+      setSuccess(
+        `connected — ${r.title ?? r.channelHandle} ready for posting`,
+      );
+      setError(null);
+      setHandle("");
+      utils.connections.list.invalidate();
+    },
+    onError: (e) => {
+      setError(e.message);
+      setSuccess(null);
+    },
+  });
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!handle.trim()) return;
+        connect.mutate({ channelHandle: handle.trim() });
+      }}
+      className="flex flex-col gap-sm"
+    >
+      <input
+        type="text"
+        value={handle}
+        onChange={(e) => setHandle(e.target.value)}
+        placeholder="@yourchannel"
+        autoComplete="off"
+        spellCheck={false}
+        className="px-md py-[8px] border-hairline border-border rounded-full text-sm focus:outline-none focus:border-ink"
+        disabled={connect.isPending}
+      />
+      <div className="flex items-center gap-sm flex-wrap">
+        <button
+          type="submit"
+          disabled={connect.isPending || !handle.trim()}
+          className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40"
+        >
+          {connect.isPending ? "resolving..." : "connect channel →"}
+        </button>
+        {error ? (
+          <span className="text-[11px] text-urgent">{error}</span>
+        ) : success ? (
+          <span className="text-[11px] text-aliveDark">{success}</span>
+        ) : null}
+      </div>
+    </form>
   );
 }
 
@@ -261,7 +421,7 @@ export function ConnectionsList() {
                 isConnected && p.dbProvider
                   ? () =>
                       disconnect.mutate({
-                        provider: p.dbProvider as "INSTAGRAM" | "FACEBOOK",
+                        provider: p.dbProvider as DbProvider,
                       })
                   : undefined
               }

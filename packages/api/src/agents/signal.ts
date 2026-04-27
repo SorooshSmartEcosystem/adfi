@@ -422,3 +422,149 @@ export async function processInboundMessenger(args: {
   // access token it already loaded.
   return { handled: true, reply: result.response };
 }
+
+// Inbound Telegram message — bot got a private DM. Look up the user via the
+// bot identity (ConnectedAccount.externalId = bot id), persist + reply via
+// Signal unless the thread was taken over.
+//
+// Channel posts are emitted by Telegram with the bot as a member of a
+// channel; we don't process those here — the bot is read-only on channels
+// for now and only used as a publisher.
+export async function processInboundTelegram(args: {
+  botId: string; // ConnectedAccount.externalId for the TELEGRAM provider
+  fromId: string; // Telegram user id sending the DM
+  fromName: string | null;
+  body: string;
+}): Promise<{ handled: boolean; reason?: string; reply?: string }> {
+  const account = await db.connectedAccount.findFirst({
+    where: {
+      provider: "TELEGRAM",
+      externalId: args.botId,
+      disconnectedAt: null,
+    },
+    include: {
+      user: { include: { agentContext: true } },
+    },
+  });
+  if (!account) {
+    return { handled: false, reason: "unknown_bot" };
+  }
+  const user = account.user;
+  const channel = MessageChannel.TELEGRAM;
+
+  void (async () => {
+    try {
+      await db.contact.upsert({
+        where: {
+          userId_channel_externalId: {
+            userId: user.id,
+            channel,
+            externalId: args.fromId,
+          },
+        },
+        create: {
+          userId: user.id,
+          channel,
+          externalId: args.fromId,
+          displayName: args.fromName,
+          avatarUrl: null,
+        },
+        update: {
+          displayName: args.fromName ?? undefined,
+          lastSeenAt: new Date(),
+        },
+      });
+    } catch (err) {
+      console.warn("telegram contact upsert failed:", err);
+    }
+  })();
+
+  const existingThread = await db.message.findFirst({
+    where: { userId: user.id, fromAddress: args.fromId, channel },
+    orderBy: { createdAt: "desc" },
+    select: { threadId: true, handledBy: true },
+  });
+  const threadId = existingThread?.threadId ?? randomUUID();
+
+  await db.message.create({
+    data: {
+      userId: user.id,
+      threadId,
+      channel,
+      fromAddress: args.fromId,
+      direction: Direction.INBOUND,
+      body: args.body,
+    },
+  });
+
+  if (existingThread?.handledBy === "user") {
+    return { handled: false, reason: "user_handled" };
+  }
+
+  const history = await db.message.findMany({
+    where: { userId: user.id, threadId },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+    select: { direction: true, body: true },
+  });
+
+  const result = await runSignal({
+    brandVoice: user.agentContext?.strategistOutput ?? {},
+    businessDescription: user.businessDescription ?? "",
+    threadHistory: history,
+    inboundMessage: args.body,
+    userId: user.id,
+  });
+
+  await db.message.create({
+    data: {
+      userId: user.id,
+      threadId,
+      channel,
+      fromAddress: args.fromId,
+      direction: Direction.OUTBOUND,
+      body: result.response,
+      handledBy: "signal",
+      metadata: {
+        intent: result.intent,
+        needsHandoff: result.needsHandoff,
+        suggestedAction: result.suggestedAction
+          ? (result.suggestedAction as Prisma.InputJsonValue)
+          : null,
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  await db.agentEvent.create({
+    data: {
+      userId: user.id,
+      agent: Agent.SIGNAL,
+      eventType: "telegram_handled",
+      payload: {
+        threadId,
+        intent: result.intent,
+        inboundLength: args.body.length,
+        responseLength: result.response.length,
+        needsHandoff: result.needsHandoff,
+      },
+    },
+  });
+
+  if (result.needsHandoff) {
+    await db.finding.create({
+      data: {
+        userId: user.id,
+        agent: Agent.SIGNAL,
+        severity: FindingSeverity.NEEDS_ATTENTION,
+        summary: `${args.fromName ?? args.fromId} on telegram needs your attention`,
+        payload: {
+          threadId,
+          intent: result.intent,
+          lastMessage: args.body,
+        },
+      },
+    });
+  }
+
+  return { handled: true, reply: result.response };
+}

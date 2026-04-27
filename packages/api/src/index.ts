@@ -89,4 +89,18 @@ export {
 
 export { encryptToken, decryptToken } from "./services/crypto";
 
-export { processInboundMessenger } from "./agents/signal";
+export {
+  getMe as getTelegramBotIdentity,
+  getChat as getTelegramChat,
+  setWebhook as setTelegramWebhook,
+  deleteWebhook as deleteTelegramWebhook,
+  sendMessage as sendTelegramMessage,
+  buildWebhookUrl as buildTelegramWebhookUrl,
+  type TelegramBotIdentity,
+  type TelegramChat,
+} from "./services/telegram";
+
+export {
+  processInboundMessenger,
+  processInboundTelegram,
+} from "./agents/signal";

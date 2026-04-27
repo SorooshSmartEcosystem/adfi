@@ -7,6 +7,7 @@ Format note: write changes from the user's perspective in plain English. "Users 
 ## [Unreleased]
 
 ### Added
+- Telegram bot + channel connection on /settings. Paste a BotFather token to let signal answer telegram dms in your voice; paste a channel @username (with the bot added as admin) to publish posts to the channel.
 - Echo generates real photos for every format — single posts get a per-platform hero, carousels get a cover photo plus full-bleed image_cue slides, email newsletters get a 16:9 hero embedded in the html, reels get a 9:16 still per beat, and stories get one per frame. Powered by Replicate Flux Schnell; per-image cost surfaces in the admin financials.
 - "Reroll images" button on every draft re-runs Replicate against the current copy when the first pass produced something off-brand.
 - "Send to me first" button on email-newsletter drafts fires a one-recipient preview to the owner's inbox before approving for the list.

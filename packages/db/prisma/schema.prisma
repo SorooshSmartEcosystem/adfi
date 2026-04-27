@@ -152,7 +152,7 @@ model ConnectedAccount {
 
   user             User              @relation(fields: [userId], references: [id])
 
-  @@unique([userId, provider])
+  @@unique([userId, provider, externalId])
   @@map("connected_accounts")
 }
 
@@ -161,6 +161,9 @@ enum Provider {
   FACEBOOK
   LINKEDIN
   GOOGLE_CALENDAR
+  TELEGRAM
+  TELEGRAM_CHANNEL
+  TWITTER
 }
 
 // =============================================================
@@ -267,6 +270,9 @@ enum Platform {
   LINKEDIN
   EMAIL
   PINTEREST
+  TWITTER
+  TELEGRAM
+  WEBSITE_ARTICLE
 }
 
 enum DraftStatus {
@@ -328,6 +334,7 @@ enum MessageChannel {
   INSTAGRAM_DM
   MESSENGER
   EMAIL
+  TELEGRAM
 }
 
 enum Direction {

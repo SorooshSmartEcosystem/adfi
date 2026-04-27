@@ -74,9 +74,10 @@ export async function GET(req: NextRequest) {
 
     await db.connectedAccount.upsert({
       where: {
-        userId_provider: {
+        userId_provider_externalId: {
           userId: user.id,
           provider: Provider.FACEBOOK,
+          externalId: page.id,
         },
       },
       create: {
@@ -88,7 +89,6 @@ export async function GET(req: NextRequest) {
         expiresAt,
       },
       update: {
-        externalId: page.id,
         encryptedToken: encryptToken(page.accessToken),
         scope: "page_access_token",
         expiresAt,
@@ -100,9 +100,10 @@ export async function GET(req: NextRequest) {
     if (page.igBusinessId) {
       await db.connectedAccount.upsert({
         where: {
-          userId_provider: {
+          userId_provider_externalId: {
             userId: user.id,
             provider: Provider.INSTAGRAM,
+            externalId: page.igBusinessId,
           },
         },
         create: {
@@ -114,7 +115,6 @@ export async function GET(req: NextRequest) {
           expiresAt,
         },
         update: {
-          externalId: page.igBusinessId,
           encryptedToken: encryptToken(page.accessToken),
           scope: "ig_via_page",
           expiresAt,

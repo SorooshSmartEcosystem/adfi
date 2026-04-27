@@ -83,6 +83,7 @@ Putting model names in env vars lets us swap models via config without a code de
 | `EXPO_PUBLIC_META_APP_ID` | Client | Same | Mobile OAuth. |
 | `META_WEBHOOK_VERIFY_TOKEN` | Server | You define this | Random string you set in Meta dashboard. |
 | `META_WEBHOOK_APP_SECRET` | Server | Same as `META_APP_SECRET` | For validating webhook signatures. |
+| `TELEGRAM_WEBHOOK_SECRET` | Server | You define this (random 32+ chars) | Used as both URL path-segment secret and `secret_token` header for Telegram bot webhooks. |
 
 ### App URLs
 

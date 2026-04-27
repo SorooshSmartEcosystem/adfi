@@ -4,13 +4,14 @@ import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import { sendSms } from "../services/twilio";
 import { sendMessengerReply } from "../services/meta";
+import { sendMessage as sendTelegramMessage } from "../services/telegram";
 import { decryptToken } from "../services/crypto";
 
 export type InboxItem =
   | {
       kind: "thread";
       id: string;
-      channel: "SMS" | "INSTAGRAM_DM" | "MESSENGER" | "EMAIL";
+      channel: "SMS" | "INSTAGRAM_DM" | "MESSENGER" | "EMAIL" | "TELEGRAM";
       fromAddress: string;
       displayName: string | null;
       avatarUrl: string | null;
@@ -36,7 +37,9 @@ export const messagingRouter = router({
   inboxFeed: authedProc
     .input(
       z.object({
-        filter: z.enum(["all", "calls", "texts", "dms"]).default("all"),
+        filter: z
+          .enum(["all", "calls", "texts", "dms", "telegram"])
+          .default("all"),
         limit: z.number().min(1).max(50).default(30),
       }),
     )
@@ -90,7 +93,9 @@ export const messagingRouter = router({
       const threadItems: InboxItem[] = Array.from(threadMap.values())
         .filter((m) => {
           if (input.filter === "texts") return m.channel === "SMS";
-          if (input.filter === "dms") return m.channel === "INSTAGRAM_DM";
+          if (input.filter === "dms")
+            return m.channel === "INSTAGRAM_DM" || m.channel === "MESSENGER";
+          if (input.filter === "telegram") return m.channel === "TELEGRAM";
           return true;
         })
         .map((m) => {
@@ -218,6 +223,24 @@ export const messagingRouter = router({
             from: phone.number,
             to: last.fromAddress,
             body: input.body,
+          });
+        } else if (last.channel === MessageChannel.TELEGRAM) {
+          const account = await ctx.db.connectedAccount.findFirst({
+            where: {
+              userId: ctx.user.id,
+              provider: Provider.TELEGRAM,
+              disconnectedAt: null,
+            },
+          });
+          if (!account) {
+            throw new Error(
+              "no connected telegram bot — reconnect on /settings",
+            );
+          }
+          await sendTelegramMessage({
+            token: decryptToken(account.encryptedToken),
+            chatId: last.fromAddress,
+            text: input.body,
           });
         } else if (
           last.channel === MessageChannel.MESSENGER ||

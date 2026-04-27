@@ -13,6 +13,7 @@ import { summarizePerformance } from "../services/performance";
 import { publishNewsletter, testSendNewsletter } from "../services/newsletter";
 import { sendMessage as sendTelegramMessage } from "../services/telegram";
 import { decryptToken } from "../services/crypto";
+import { notifyAdminOfError } from "../services/admin-notify";
 
 const paginationInput = z.object({
   limit: z.number().min(1).max(100).default(20),
@@ -164,8 +165,16 @@ export const contentRouter = router({
         if (error instanceof Error && error.message.includes("Brand voice")) {
           throw OrbError.VALIDATION(error.message);
         }
-        console.error("Echo generate failed:", error);
-        throw OrbError.EXTERNAL_API("Claude");
+        await notifyAdminOfError({
+          source: "content.generate",
+          error,
+          meta: {
+            userId: ctx.user.id,
+            format: input.format ?? null,
+            platform: input.platform ?? null,
+          },
+        });
+        throw OrbError.EXTERNAL_API("the writing service");
       }
     }),
 
@@ -188,8 +197,12 @@ export const contentRouter = router({
         if (error instanceof Error && error.message.includes("Brand voice")) {
           throw OrbError.VALIDATION(error.message);
         }
-        console.error("Echo regenerate failed:", error);
-        throw OrbError.EXTERNAL_API("Claude");
+        await notifyAdminOfError({
+          source: "content.regenerateDraft",
+          error,
+          meta: { userId: ctx.user.id, draftId: input.id },
+        });
+        throw OrbError.EXTERNAL_API("the writing service");
       }
     }),
 
@@ -236,8 +249,12 @@ export const contentRouter = router({
         await backfillImagesForDraft(draft.id, draft.userId, draft.platform);
         return { success: true as const };
       } catch (error) {
-        console.error("regenerateImages failed:", error);
-        throw OrbError.EXTERNAL_API("Replicate");
+        await notifyAdminOfError({
+          source: "content.regenerateImages",
+          error,
+          meta: { userId: ctx.user.id, draftId: input.id },
+        });
+        throw OrbError.EXTERNAL_API("the image service");
       }
     }),
 
@@ -301,8 +318,12 @@ export const contentRouter = router({
         if (error instanceof Error && error.message.includes("Brand voice")) {
           throw OrbError.VALIDATION(error.message);
         }
-        console.error("Planner failed:", error);
-        throw OrbError.EXTERNAL_API("Claude");
+        await notifyAdminOfError({
+          source: "content.generatePlan",
+          error,
+          meta: { userId: ctx.user.id, weekOf: input?.weekOf?.toISOString() ?? null },
+        });
+        throw OrbError.EXTERNAL_API("the planning service");
       }
     }),
 
@@ -324,8 +345,12 @@ export const contentRouter = router({
         const draftId = await draftPlanItem(input.itemId, input.hint);
         return { draftId };
       } catch (error) {
-        console.error("Echo draftPlanItem failed:", error);
-        throw OrbError.EXTERNAL_API("Claude");
+        await notifyAdminOfError({
+          source: "content.draftPlanItem",
+          error,
+          meta: { userId: ctx.user.id, itemId: input.itemId },
+        });
+        throw OrbError.EXTERNAL_API("the writing service");
       }
     }),
 
@@ -381,7 +406,12 @@ export const contentRouter = router({
           ) {
             throw OrbError.VALIDATION(msg);
           }
-          throw OrbError.EXTERNAL_API(`SendGrid: ${msg}`);
+          await notifyAdminOfError({
+            source: "content.publishDraft.newsletter",
+            error,
+            meta: { userId: ctx.user.id, draftId: draft.id },
+          });
+          throw OrbError.EXTERNAL_API("the email delivery service");
         }
       }
 
@@ -430,9 +460,16 @@ export const contentRouter = router({
           });
           return { ok: true as const, messageId: sent.messageId };
         } catch (error) {
-          const msg = error instanceof Error ? error.message : String(error);
-          console.error("Telegram publish failed:", error);
-          throw OrbError.EXTERNAL_API(`Telegram: ${msg}`);
+          await notifyAdminOfError({
+            source: "content.publishDraft.telegram",
+            error,
+            meta: {
+              userId: ctx.user.id,
+              draftId: draft.id,
+              channelExternalId: channel.externalId,
+            },
+          });
+          throw OrbError.EXTERNAL_API("the telegram service");
         }
       }
 
@@ -496,8 +533,21 @@ export const contentRouter = router({
         });
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        console.error("Newsletter test send failed:", error);
-        throw OrbError.EXTERNAL_API(`SendGrid: ${msg}`);
+        const lower = msg.toLowerCase();
+        if (
+          lower.includes("missing subject") ||
+          lower.includes("missing sections") ||
+          lower.includes("draft is missing") ||
+          lower.includes("no owner email")
+        ) {
+          throw OrbError.VALIDATION(msg);
+        }
+        await notifyAdminOfError({
+          source: "content.testSendNewsletter",
+          error,
+          meta: { userId: ctx.user.id, draftId: input.id },
+        });
+        throw OrbError.EXTERNAL_API("the email delivery service");
       }
     }),
 

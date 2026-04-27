@@ -10,6 +10,7 @@ import {
   MONTHLY_BRANDKIT_CAP,
 } from "../services/brand-kit";
 import { effectivePlan } from "../services/abuse-guard";
+import { notifyAdminOfError } from "../services/admin-notify";
 
 export const brandKitRouter = router({
   // Read the user's current kit. Returns null if they haven't generated
@@ -57,9 +58,19 @@ export const brandKitRouter = router({
         });
         return result;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error("brandKit.generate failed:", err);
-        throw OrbError.EXTERNAL_API(`couldn't generate brandkit: ${msg}`);
+        // Send the raw detail to admins; show the user a clean message.
+        // This is especially important here because Replicate's 429 body
+        // includes account-credit context the user shouldn't see.
+        await notifyAdminOfError({
+          source: "brandKit.generate",
+          error: err,
+          meta: {
+            userId: ctx.user.id,
+            plan,
+            refinementHint: input.refinementHint ?? null,
+          },
+        });
+        throw OrbError.EXTERNAL_API("the design service");
       }
     }),
 

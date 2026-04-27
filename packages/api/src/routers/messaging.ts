@@ -6,6 +6,7 @@ import { sendSms } from "../services/twilio";
 import { sendMessengerReply } from "../services/meta";
 import { sendMessage as sendTelegramMessage } from "../services/telegram";
 import { decryptToken } from "../services/crypto";
+import { notifyAdminOfError } from "../services/admin-notify";
 
 export type InboxItem =
   | {
@@ -300,8 +301,24 @@ export const messagingRouter = router({
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error("messaging.sendReply delivery failed:", err);
-        throw OrbError.EXTERNAL_API(`couldn't send: ${msg}`);
+        // Surface user-actionable errors verbatim (missing connection, etc.);
+        // route opaque provider errors (rate limit, billing, 5xx) to admins.
+        const userActionable =
+          msg.toLowerCase().includes("no connected") ||
+          msg.toLowerCase().includes("no active");
+        if (userActionable) {
+          throw OrbError.VALIDATION(msg);
+        }
+        await notifyAdminOfError({
+          source: "messaging.sendReply",
+          error: err,
+          meta: {
+            userId: ctx.user.id,
+            channel: last.channel,
+            threadId: input.threadId,
+          },
+        });
+        throw OrbError.EXTERNAL_API("the messaging service");
       }
 
       return ctx.db.message.create({

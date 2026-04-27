@@ -160,62 +160,92 @@ export async function generateBrandKit(args: {
   // 2. Images. Logo prompts are deliberately tight — Flux Schnell does
   // best with concrete visual direction. Cover samples use the spec's
   // imageStyle prepended to a short scene cue.
+  //
+  // Replicate throttles new accounts at 6 predictions / minute (with a
+  // burst of 1 below $5 credit), so we run images in batches of 3 with a
+  // 12s pause between batches rather than firing all 7 at once. Slower
+  // generation, but actually completes for users who haven't topped up
+  // their Replicate balance.
   const logoBase = `Minimalist icon-style logo mark for "${businessName}". Concept: ${spec.logoConcept}. Centered on plain white background. No typography, no text, no letters. Flat geometric shapes. Single accent color: ${spec.palette.accent}. Studio lighting, vector-style finish.`;
   const coverBase = `${spec.imageStyle} Editorial photograph for "${businessName}".`;
-
   const slug = (s: string) => `brandkit-${s}`;
-  const [primary, mark, mono, dark, cover1, cover2, cover3] = await Promise.all([
-    generateImage({
-      userId: args.userId,
-      draftId: "brandkit",
+
+  const jobs: Array<{
+    slug: string;
+    prompt: string;
+    aspectRatio: "1:1" | "16:9";
+  }> = [
+    {
       slug: slug("logo-primary"),
       prompt: logoBase,
       aspectRatio: "1:1",
-    }),
-    generateImage({
-      userId: args.userId,
-      draftId: "brandkit",
+    },
+    {
       slug: slug("logo-mark"),
       prompt: `${logoBase} Just the icon mark, simplified, centered.`,
       aspectRatio: "1:1",
-    }),
-    generateImage({
-      userId: args.userId,
-      draftId: "brandkit",
+    },
+    {
       slug: slug("logo-mono"),
       prompt: `Monochrome black icon mark on white background. ${spec.logoConcept}. Flat shapes, no gradient, no text.`,
       aspectRatio: "1:1",
-    }),
-    generateImage({
-      userId: args.userId,
-      draftId: "brandkit",
+    },
+    {
       slug: slug("logo-dark"),
       prompt: `White icon mark on solid charcoal background. ${spec.logoConcept}. Flat shapes, no gradient, no text.`,
       aspectRatio: "1:1",
-    }),
-    generateImage({
-      userId: args.userId,
-      draftId: "brandkit",
+    },
+    {
       slug: slug("cover-1"),
       prompt: `${coverBase} Scene: a quiet workspace shot, hands at work, no faces.`,
       aspectRatio: "16:9",
-    }),
-    generateImage({
-      userId: args.userId,
-      draftId: "brandkit",
+    },
+    {
       slug: slug("cover-2"),
       prompt: `${coverBase} Scene: a tight product or detail shot. No people.`,
       aspectRatio: "16:9",
-    }),
-    generateImage({
-      userId: args.userId,
-      draftId: "brandkit",
+    },
+    {
       slug: slug("cover-3"),
       prompt: `${coverBase} Scene: lifestyle, atmospheric, sense of place.`,
       aspectRatio: "16:9",
-    }),
-  ]);
+    },
+  ];
 
+  const results: Array<{ url: string; costCents: number }> = [];
+  const BATCH_SIZE = 3;
+  const BATCH_PAUSE_MS = 12_000;
+  for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
+    const batch = jobs.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map((job) =>
+        generateImage({
+          userId: args.userId,
+          draftId: "brandkit",
+          slug: job.slug,
+          prompt: job.prompt,
+          aspectRatio: job.aspectRatio,
+        }),
+      ),
+    );
+    results.push(...batchResults);
+    if (i + BATCH_SIZE < jobs.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_PAUSE_MS));
+    }
+  }
+
+  const [primary, mark, mono, dark, cover1, cover2, cover3] = results;
+  if (
+    !primary ||
+    !mark ||
+    !mono ||
+    !dark ||
+    !cover1 ||
+    !cover2 ||
+    !cover3
+  ) {
+    throw new Error("brandkit image batch returned an unexpected shape");
+  }
   const totalCostCents =
     primary.costCents +
     mark.costCents +

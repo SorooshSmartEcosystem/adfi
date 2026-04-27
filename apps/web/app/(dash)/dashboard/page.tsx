@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerClient } from "@orb/auth/server";
-import { trpcServer } from "../../../lib/trpc-server";
+import { trpcServer, getDashUserAndHome } from "../../../lib/trpc-server";
 import { DashGreeting } from "../../../components/dashboard/dash-greeting";
 import { NeedsYouBanner } from "../../../components/dashboard/needs-you-banner";
 import { KpiGrid } from "../../../components/dashboard/kpi-grid";
@@ -54,8 +54,8 @@ export default async function DashboardPage() {
   if (!authUser) redirect("/signin");
 
   const trpc = await trpcServer();
-  const [home, activity, reachDaily, working] = await Promise.all([
-    trpc.user.getHomeData(),
+  const [{ home }, activity, reachDaily, working] = await Promise.all([
+    getDashUserAndHome(),
     trpc.user.getRecentActivity({ limit: 6 }),
     trpc.user.getReachTimeseries({ rangeDays: 365 }),
     trpc.user.getWhatsWorking(),

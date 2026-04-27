@@ -14,6 +14,21 @@ const nextConfig = {
   // engine binary path.
   serverExternalPackages: ["@prisma/client", ".prisma/client"],
 
+  // Hosts we proxy images from. Required for next/image — without this it
+  // 400s on remote sources.
+  images: {
+    remotePatterns: [
+      // Replicate-generated draft photos (Echo + Flux Schnell).
+      { protocol: "https", hostname: "replicate.delivery" },
+      { protocol: "https", hostname: "**.replicate.delivery" },
+      // Meta-served avatars (messenger profile pics).
+      { protocol: "https", hostname: "**.fbcdn.net" },
+      { protocol: "https", hostname: "**.cdninstagram.com" },
+      // Supabase Storage — used for business logos and onboarding uploads.
+      { protocol: "https", hostname: "**.supabase.co" },
+    ],
+  },
+
   // Monorepo root — tells Next's file tracer where the project actually starts
   // (Vercel mounts this at /var/task at runtime).
   outputFileTracingRoot: path.join(__dirname, "../../"),

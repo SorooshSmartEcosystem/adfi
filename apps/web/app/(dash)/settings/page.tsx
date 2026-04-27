@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerClient } from "@orb/auth/server";
-import { trpcServer } from "../../../lib/trpc-server";
+import { getDashUserAndHome } from "../../../lib/trpc-server";
 import { Card } from "../../../components/shared/card";
 import { Row, Section } from "../../../components/settings/section";
 import { BillingCard } from "../../../components/settings/billing-card";
@@ -25,11 +25,7 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser();
   if (!authUser) redirect("/signin");
 
-  const trpc = await trpcServer();
-  const [user, home] = await Promise.all([
-    trpc.user.me(),
-    trpc.user.getHomeData(),
-  ]);
+  const { user, home } = await getDashUserAndHome();
 
   return (
     <div className="max-w-[680px]">

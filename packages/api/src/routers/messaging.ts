@@ -44,13 +44,35 @@ export const messagingRouter = router({
       }),
     )
     .query(async ({ ctx, input }): Promise<InboxItem[]> => {
+      // Look back 30 days. Older threads can be paged in later if we need
+      // them; for the inbox preview list this slashes the row count by ~10x.
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const [msgs, calls, appts, contacts] = await Promise.all([
         input.filter === "calls"
-          ? Promise.resolve([])
+          ? Promise.resolve(
+              [] as Array<{
+                threadId: string;
+                channel: MessageChannel;
+                fromAddress: string;
+                body: string;
+                createdAt: Date;
+                handledBy: string | null;
+              }>,
+            )
           : ctx.db.message.findMany({
-              where: { userId: ctx.user.id },
+              where: { userId: ctx.user.id, createdAt: { gte: since } },
               orderBy: { createdAt: "desc" },
-              take: 500,
+              take: 250,
+              // Drop the metadata JSON column + id from the wire — the
+              // inbox only renders the preview line per thread.
+              select: {
+                threadId: true,
+                channel: true,
+                fromAddress: true,
+                body: true,
+                createdAt: true,
+                handledBy: true,
+              },
             }),
         input.filter === "texts" || input.filter === "dms"
           ? Promise.resolve([])

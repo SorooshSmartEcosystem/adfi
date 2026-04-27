@@ -7,6 +7,7 @@ Format note: write changes from the user's perspective in plain English. "Users 
 ## [Unreleased]
 
 ### Added
+- Web app feels noticeably faster: every dash route now paints structure immediately via streaming `loading.tsx` skeletons, the same getHomeData / user.me query is no longer fetched twice on a single render (deduped via React `cache`), and the inbox feed scans 30 days of messages instead of all-time and selects only the columns needed to render previews. Together these eliminate ~1s of perceived latency on most page navigations.
 - Platform filter chips on /content. Filter the drafts tab by instagram / twitter / linkedin / facebook / telegram / website article / email; same filter on the performance tab.
 - Twitter, Telegram channel posts, and website-article drafts are first-class platforms in echo. Twitter drafts stay manual — approve, copy, open compose, then "mark as posted" once it's live (we don't pay for Twitter's API tier in v1).
 - Telegram bot + channel connection on /settings. Paste a BotFather token to let signal answer telegram dms in your voice; paste a channel @username (with the bot added as admin) to publish posts to the channel.

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createServerClient } from "@orb/auth/server";
 import { db } from "@orb/db";
-import { trpcServer } from "../../lib/trpc-server";
+import { getDashUserAndHome } from "../../lib/trpc-server";
 import { AppShell } from "../../components/app-shell/app-shell";
 
 function initialsFrom(name: string): string {
@@ -29,11 +29,7 @@ export default async function DashLayout({
   });
   if (!ctx?.strategistOutput) redirect("/onboarding");
 
-  const trpc = await trpcServer();
-  const [user, home] = await Promise.all([
-    trpc.user.me(),
-    trpc.user.getHomeData(),
-  ]);
+  const { user, home } = await getDashUserAndHome();
 
   const businessName =
     user.businessDescription?.split(/[.\n]/)[0]?.slice(0, 30)?.trim() ||

@@ -115,8 +115,16 @@ export const messagingRouter = router({
       const threadItems: InboxItem[] = Array.from(threadMap.values())
         .filter((m) => {
           if (input.filter === "texts") return m.channel === "SMS";
-          if (input.filter === "dms")
-            return m.channel === "INSTAGRAM_DM" || m.channel === "MESSENGER";
+          if (input.filter === "dms") {
+            // "dms" is the user-facing umbrella for messaging-app DMs.
+            // Includes IG / Messenger / Telegram so flipping to it doesn't
+            // silently exclude an entire channel the user expects to see.
+            return (
+              m.channel === "INSTAGRAM_DM" ||
+              m.channel === "MESSENGER" ||
+              m.channel === "TELEGRAM"
+            );
+          }
           if (input.filter === "telegram") return m.channel === "TELEGRAM";
           return true;
         })

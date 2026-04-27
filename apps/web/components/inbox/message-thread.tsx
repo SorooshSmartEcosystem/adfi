@@ -1,5 +1,5 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { trpc } from "../../lib/trpc";
 
 function channelLabel(channel: string): string {
@@ -23,6 +23,7 @@ export function MessageThread({ threadId }: { threadId: string }) {
   const utils = trpc.useUtils();
   const query = trpc.messaging.getThread.useQuery({ threadId });
   const [reply, setReply] = useState("");
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const sendReply = trpc.messaging.sendReply.useMutation({
     onSuccess: () => {
@@ -41,6 +42,13 @@ export function MessageThread({ threadId }: { threadId: string }) {
     if (!reply.trim()) return;
     sendReply.mutate({ threadId, body: reply.trim() });
   }
+
+  // Auto-scroll to the newest message whenever the thread updates.
+  const messageCount = query.data?.messages.length ?? 0;
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messageCount, threadId]);
 
   if (query.isLoading) {
     return <div className="p-xl text-sm text-ink3">one second</div>;
@@ -62,8 +70,8 @@ export function MessageThread({ threadId }: { threadId: string }) {
   })();
 
   return (
-    <>
-      <div className="flex items-start justify-between gap-md mb-lg">
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex items-start justify-between gap-md mb-md shrink-0">
         <div className="flex items-center gap-md min-w-0">
           {contact.avatarUrl ? (
             <img
@@ -92,7 +100,10 @@ export function MessageThread({ threadId }: { threadId: string }) {
         </button>
       </div>
 
-      <div className="flex flex-col gap-sm mb-lg">
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-sm pr-xs"
+      >
         {messages.map((m) => {
           const outbound = m.direction === "OUTBOUND";
           return (
@@ -123,7 +134,7 @@ export function MessageThread({ threadId }: { threadId: string }) {
 
       <form
         onSubmit={handleSubmit}
-        className="flex items-center gap-sm border-t-hairline border-border2 pt-md"
+        className="flex items-center gap-sm border-t-hairline border-border2 pt-md mt-md shrink-0"
       >
         <input
           type="text"
@@ -141,6 +152,6 @@ export function MessageThread({ threadId }: { threadId: string }) {
           {sendReply.isPending ? "sending..." : "send"}
         </button>
       </form>
-    </>
+    </div>
   );
 }

@@ -72,7 +72,7 @@ export const LANDING_SCRIPT = `\
       cards.forEach(c => c.classList.remove('show'));
     }
     function showMomentCards(momentId, staggered, delay) {
-      const cardsForMoment = canvas.querySelectorAll("[data-moment=\""+momentId+"\"]");
+      const cardsForMoment = canvas.querySelectorAll('[data-moment="' + momentId + '"]');
       if (staggered) {
         cardsForMoment.forEach((c, i) => {
           setTimeout(() => c.classList.add('show'), delay + (i * 200));

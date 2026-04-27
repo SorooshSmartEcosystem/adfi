@@ -13,6 +13,7 @@ import { billingRouter } from "./billing";
 import { adminRouter } from "./admin";
 import { agentRouter } from "./agent";
 import { subscribersRouter } from "./subscribers";
+import { connectionsRouter } from "./connections";
 
 export const appRouter = router({
   system: systemRouter,
@@ -29,6 +30,7 @@ export const appRouter = router({
   admin: adminRouter,
   agent: agentRouter,
   subscribers: subscribersRouter,
+  connections: connectionsRouter,
 });
 
 export type AppRouter = typeof appRouter;

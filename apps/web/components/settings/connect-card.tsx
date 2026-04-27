@@ -1,8 +1,13 @@
 "use client";
 import { useState } from "react";
 import { Card } from "../shared/card";
+import { trpc } from "../../lib/trpc";
 
 type Step = { title: string; body: string };
+
+// db Provider enum values we surface in the UI. "EMAIL"/"LINKEDIN" aren't
+// in the db enum yet — those entries skip the connection-status lookup.
+type DbProvider = "INSTAGRAM" | "FACEBOOK";
 
 type Provider = {
   code: string;
@@ -15,6 +20,9 @@ type Provider = {
   // when set, the connect button below the steps becomes a real link to
   // this OAuth start route; otherwise it stays disabled with a helper note.
   connectHref?: string;
+  // when set, ConnectionsList looks up trpc.connections.list for a row with
+  // this provider value to show 'connected' state + a disconnect button.
+  dbProvider?: DbProvider;
 };
 
 const PROVIDERS: Provider[] = [
@@ -23,6 +31,7 @@ const PROVIDERS: Provider[] = [
     name: "Instagram",
     status: "manual",
     connectHref: "/api/auth/meta/start",
+    dbProvider: "INSTAGRAM",
     blurb: "post for you, dm replies, story sequences.",
     steps: [
       {
@@ -80,6 +89,7 @@ const PROVIDERS: Provider[] = [
     name: "Facebook Page",
     status: "manual",
     connectHref: "/api/auth/meta/start",
+    dbProvider: "FACEBOOK",
     blurb: "post + messenger replies + marketplace ad placement.",
     steps: [
       {
@@ -101,21 +111,32 @@ const PROVIDERS: Provider[] = [
   },
 ];
 
-export function ConnectCard({ provider }: { provider: Provider }) {
+export function ConnectCard({
+  provider,
+  connected,
+  onDisconnect,
+}: {
+  provider: Provider;
+  connected?: boolean;
+  onDisconnect?: () => void;
+}) {
   const [open, setOpen] = useState(false);
 
-  const statusChip =
-    provider.status === "live" ? (
-      <span className="text-[11px] text-aliveDark bg-alive/30 px-md py-[3px] rounded-full">
-        live
-      </span>
-    ) : provider.status === "manual" ? (
-      <span className="text-[11px] text-attentionText bg-attentionBg border-hairline border-attentionBorder px-md py-[3px] rounded-full">
-        setup steps
-      </span>
-    ) : (
-      <span className="text-[11px] text-ink5">soon</span>
-    );
+  const statusChip = connected ? (
+    <span className="text-[11px] text-aliveDark bg-alive/30 px-md py-[3px] rounded-full">
+      connected
+    </span>
+  ) : provider.status === "live" ? (
+    <span className="text-[11px] text-aliveDark bg-alive/30 px-md py-[3px] rounded-full">
+      live
+    </span>
+  ) : provider.status === "manual" ? (
+    <span className="text-[11px] text-attentionText bg-attentionBg border-hairline border-attentionBorder px-md py-[3px] rounded-full">
+      setup steps
+    </span>
+  ) : (
+    <span className="text-[11px] text-ink5">soon</span>
+  );
 
   return (
     <div
@@ -164,8 +185,23 @@ export function ConnectCard({ provider }: { provider: Provider }) {
             ))}
           </ol>
           {provider.status === "manual" ? (
-            <div className="flex items-center gap-sm mt-lg pt-md border-t-hairline border-border2">
-              {provider.connectHref ? (
+            <div className="flex items-center gap-sm mt-lg pt-md border-t-hairline border-border2 flex-wrap">
+              {connected ? (
+                <>
+                  <span className="text-xs text-aliveDark">
+                    ✓ connected
+                  </span>
+                  {onDisconnect ? (
+                    <button
+                      type="button"
+                      onClick={onDisconnect}
+                      className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-urgent hover:text-urgent transition-colors"
+                    >
+                      disconnect
+                    </button>
+                  ) : null}
+                </>
+              ) : provider.connectHref ? (
                 <a
                   href={provider.connectHref}
                   className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full hover:opacity-85 transition-opacity"
@@ -195,16 +231,44 @@ export function ConnectCard({ provider }: { provider: Provider }) {
 }
 
 export function ConnectionsList() {
+  const utils = trpc.useUtils();
+  const connections = trpc.connections.list.useQuery();
+  const disconnect = trpc.connections.disconnect.useMutation({
+    onSuccess: () => utils.connections.list.invalidate(),
+  });
+
+  const connectedSet = new Set(
+    (connections.data ?? []).map((c) => c.provider as string),
+  );
+
   return (
     <Card padded={false}>
-      {PROVIDERS.map((p, i) => (
-        <div
-          key={p.code}
-          className={i < PROVIDERS.length - 1 ? "hairline-b2 border-border2" : ""}
-        >
-          <ConnectCard provider={p} />
-        </div>
-      ))}
+      {PROVIDERS.map((p, i) => {
+        const isConnected = p.dbProvider
+          ? connectedSet.has(p.dbProvider)
+          : false;
+        return (
+          <div
+            key={p.code}
+            className={
+              i < PROVIDERS.length - 1 ? "hairline-b2 border-border2" : ""
+            }
+          >
+            <ConnectCard
+              provider={p}
+              connected={isConnected}
+              onDisconnect={
+                isConnected && p.dbProvider
+                  ? () =>
+                      disconnect.mutate({
+                        provider: p.dbProvider as "INSTAGRAM" | "FACEBOOK",
+                      })
+                  : undefined
+              }
+            />
+          </div>
+        );
+      })}
     </Card>
   );
 }

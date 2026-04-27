@@ -144,6 +144,38 @@ export async function sendMessage(args: {
   return { messageId: r.message_id };
 }
 
+// Best-effort fetch of a user's avatar URL via the Bot API. Two calls:
+// getUserProfilePhotos to find the latest photo's file_id, then getFile to
+// resolve a download path. The returned URL embeds the bot token and is
+// stable as long as the bot stays connected — fine for inbox display.
+// Returns null on any failure (user has no avatar, privacy blocks, etc.).
+export async function getUserAvatarUrl(args: {
+  token: string;
+  userId: string | number;
+}): Promise<string | null> {
+  try {
+    const photos = await call<{
+      total_count: number;
+      photos?: Array<Array<{ file_id: string; width: number }>>;
+    }>(args.token, "getUserProfilePhotos", {
+      user_id: args.userId,
+      limit: 1,
+    });
+    const sizes = photos.photos?.[0];
+    if (!sizes || sizes.length === 0) return null;
+    // Pick the largest resolution available.
+    const best = sizes.reduce((a, b) => (b.width > a.width ? b : a));
+    const file = await call<{ file_path?: string }>(args.token, "getFile", {
+      file_id: best.file_id,
+    });
+    if (!file.file_path) return null;
+    return `https://api.telegram.org/file/bot${args.token}/${file.file_path}`;
+  } catch (err) {
+    console.warn("telegram getUserAvatarUrl failed:", err);
+    return null;
+  }
+}
+
 // Build the webhook url Telegram should call. We pack `<botId>.<routeSecret>`
 // into the URL path so a single deployment can host webhooks for many bots
 // (one per connected account) — the route handler parses out the bot id and

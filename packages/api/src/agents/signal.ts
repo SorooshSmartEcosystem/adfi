@@ -17,6 +17,7 @@ import {
 } from "../services/anthropic";
 import { sendSms } from "../services/twilio";
 import { getMessengerProfile } from "../services/meta";
+import { getUserAvatarUrl as getTelegramAvatarUrl } from "../services/telegram";
 import { decryptToken } from "../services/crypto";
 import { SIGNAL_SYSTEM_PROMPT } from "./prompts/signal";
 
@@ -454,6 +455,37 @@ export async function processInboundTelegram(args: {
 
   void (async () => {
     try {
+      const existing = await db.contact.findUnique({
+        where: {
+          userId_channel_externalId: {
+            userId: user.id,
+            channel,
+            externalId: args.fromId,
+          },
+        },
+      });
+      const avatarStale =
+        !existing?.avatarUrl ||
+        Date.now() - existing.updatedAt.getTime() > 24 * 60 * 60 * 1000;
+
+      let avatarUrl: string | null = existing?.avatarUrl ?? null;
+      if (avatarStale) {
+        const token = (() => {
+          try {
+            return decryptToken(account.encryptedToken);
+          } catch {
+            return null;
+          }
+        })();
+        if (token) {
+          const fetched = await getTelegramAvatarUrl({
+            token,
+            userId: args.fromId,
+          });
+          if (fetched) avatarUrl = fetched;
+        }
+      }
+
       await db.contact.upsert({
         where: {
           userId_channel_externalId: {
@@ -467,10 +499,11 @@ export async function processInboundTelegram(args: {
           channel,
           externalId: args.fromId,
           displayName: args.fromName,
-          avatarUrl: null,
+          avatarUrl,
         },
         update: {
-          displayName: args.fromName ?? undefined,
+          displayName: args.fromName ?? existing?.displayName ?? undefined,
+          avatarUrl,
           lastSeenAt: new Date(),
         },
       });
@@ -508,13 +541,53 @@ export async function processInboundTelegram(args: {
     select: { direction: true, body: true },
   });
 
-  const result = await runSignal({
-    brandVoice: user.agentContext?.strategistOutput ?? {},
-    businessDescription: user.businessDescription ?? "",
-    threadHistory: history,
-    inboundMessage: args.body,
-    userId: user.id,
-  });
+  // If the user hasn't completed onboarding (no strategistOutput) signal
+  // can't reply in their voice — surface this as a Finding rather than
+  // silently failing.
+  if (!user.agentContext?.strategistOutput) {
+    await db.finding.create({
+      data: {
+        userId: user.id,
+        agent: Agent.SIGNAL,
+        severity: FindingSeverity.NEEDS_ATTENTION,
+        summary: `telegram dm from ${args.fromName ?? args.fromId} — finish onboarding so i can reply`,
+        payload: {
+          threadId,
+          channel: "TELEGRAM",
+          lastMessage: args.body,
+        },
+      },
+    });
+    return { handled: false, reason: "no_brand_voice" };
+  }
+
+  let result: SignalOutput;
+  try {
+    result = await runSignal({
+      brandVoice: user.agentContext.strategistOutput,
+      businessDescription: user.businessDescription ?? "",
+      threadHistory: history,
+      inboundMessage: args.body,
+      userId: user.id,
+    });
+  } catch (err) {
+    console.error("processInboundTelegram: runSignal threw:", err);
+    await db.finding.create({
+      data: {
+        userId: user.id,
+        agent: Agent.SIGNAL,
+        severity: FindingSeverity.NEEDS_ATTENTION,
+        summary: `telegram dm from ${args.fromName ?? args.fromId} — i couldn't draft a reply, take over from /inbox`,
+        payload: {
+          threadId,
+          channel: "TELEGRAM",
+          lastMessage: args.body,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      },
+    });
+    return { handled: false, reason: "signal_failed" };
+  }
 
   await db.message.create({
     data: {

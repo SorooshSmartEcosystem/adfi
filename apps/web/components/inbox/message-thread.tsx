@@ -7,7 +7,9 @@ function channelLabel(channel: string): string {
   if (channel === "SMS") return "text";
   if (channel === "INSTAGRAM_DM") return "ig dm";
   if (channel === "MESSENGER") return "messenger";
-  return "email";
+  if (channel === "TELEGRAM") return "telegram";
+  if (channel === "EMAIL") return "email";
+  return channel.toLowerCase();
 }
 
 function timeLabel(at: Date): string {

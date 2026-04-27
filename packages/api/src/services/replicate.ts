@@ -34,49 +34,83 @@ function token(): string {
   return t;
 }
 
+// Replicate throttles aggressively (6/min + burst of 1 below $5 credit, much
+// higher above). Honor their `retry_after` header on 429 and retry up to N
+// times before giving up. Sleep durations come from the response body — the
+// server always tells us exactly how long to wait.
+const MAX_REPLICATE_RETRIES = 4;
+const DEFAULT_RETRY_AFTER_SECONDS = 12;
+
 async function runPrediction(args: {
   model: ImageModel;
   prompt: string;
   aspectRatio: AspectRatio;
 }): Promise<string> {
-  const res = await fetch(
-    `https://api.replicate.com/v1/models/${MODEL_PATH[args.model]}/predictions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token()}`,
-        "Content-Type": "application/json",
-        Prefer: "wait=60",
-      },
-      body: JSON.stringify({
-        input: {
-          prompt: args.prompt,
-          aspect_ratio: args.aspectRatio,
-          output_format: "webp",
-          output_quality: 90,
+  for (let attempt = 0; attempt <= MAX_REPLICATE_RETRIES; attempt++) {
+    const res = await fetch(
+      `https://api.replicate.com/v1/models/${MODEL_PATH[args.model]}/predictions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token()}`,
+          "Content-Type": "application/json",
+          Prefer: "wait=60",
         },
-      }),
-    },
-  );
+        body: JSON.stringify({
+          input: {
+            prompt: args.prompt,
+            aspect_ratio: args.aspectRatio,
+            output_format: "webp",
+            output_quality: 90,
+          },
+        }),
+      },
+    );
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Replicate ${res.status}: ${body.slice(0, 400)}`);
-  }
+    if (res.status === 429) {
+      const body = await res.text();
+      // Replicate body shape: {"detail":"...","status":429,"retry_after":10}
+      const match = body.match(/"retry_after"\s*:\s*(\d+)/);
+      const headerRetry = res.headers.get("retry-after");
+      const waitSec = match
+        ? parseInt(match[1]!, 10)
+        : headerRetry
+          ? parseInt(headerRetry, 10)
+          : DEFAULT_RETRY_AFTER_SECONDS;
+      if (attempt === MAX_REPLICATE_RETRIES) {
+        // Out of retries — surface a clean error to the caller.
+        throw new Error(
+          `Replicate 429 after ${MAX_REPLICATE_RETRIES + 1} attempts (last retry_after ${waitSec}s)`,
+        );
+      }
+      const buffer = Math.min(60, Math.max(1, waitSec)) + 1;
+      console.warn(
+        `[replicate] 429 throttle on attempt ${attempt + 1}; sleeping ${buffer}s before retry`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, buffer * 1000));
+      continue;
+    }
 
-  const data = (await res.json()) as {
-    status: string;
-    output?: string | string[] | null;
-    error?: string | null;
-  };
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Replicate ${res.status}: ${body.slice(0, 400)}`);
+    }
 
-  if (data.status === "failed" || data.error) {
-    throw new Error(`Replicate failed: ${data.error ?? "unknown"}`);
+    const data = (await res.json()) as {
+      status: string;
+      output?: string | string[] | null;
+      error?: string | null;
+    };
+
+    if (data.status === "failed" || data.error) {
+      throw new Error(`Replicate failed: ${data.error ?? "unknown"}`);
+    }
+    if (!data.output) {
+      throw new Error(`Replicate returned no output (status: ${data.status})`);
+    }
+    return Array.isArray(data.output) ? data.output[0]! : data.output;
   }
-  if (!data.output) {
-    throw new Error(`Replicate returned no output (status: ${data.status})`);
-  }
-  return Array.isArray(data.output) ? data.output[0]! : data.output;
+  throw new Error("Replicate retry loop exhausted (unreachable)");
 }
 
 async function persistToStorage(args: {

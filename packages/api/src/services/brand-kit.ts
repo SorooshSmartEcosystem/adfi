@@ -212,26 +212,21 @@ export async function generateBrandKit(args: {
     },
   ];
 
+  // Sequential, not batched. Replicate's free-tier throttle has a 'burst of 1'
+  // even when the per-minute quota allows more, so any parallelism trips a
+  // 429 on the second concurrent call. The retry-with-backoff in
+  // services/replicate.ts handles transient throttles within a single call;
+  // serializing across calls keeps us out of trouble entirely.
   const results: Array<{ url: string; costCents: number }> = [];
-  const BATCH_SIZE = 3;
-  const BATCH_PAUSE_MS = 12_000;
-  for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
-    const batch = jobs.slice(i, i + BATCH_SIZE);
-    const batchResults = await Promise.all(
-      batch.map((job) =>
-        generateImage({
-          userId: args.userId,
-          draftId: "brandkit",
-          slug: job.slug,
-          prompt: job.prompt,
-          aspectRatio: job.aspectRatio,
-        }),
-      ),
-    );
-    results.push(...batchResults);
-    if (i + BATCH_SIZE < jobs.length) {
-      await new Promise((resolve) => setTimeout(resolve, BATCH_PAUSE_MS));
-    }
+  for (const job of jobs) {
+    const result = await generateImage({
+      userId: args.userId,
+      draftId: "brandkit",
+      slug: job.slug,
+      prompt: job.prompt,
+      aspectRatio: job.aspectRatio,
+    });
+    results.push(result);
   }
 
   const [primary, mark, mono, dark, cover1, cover2, cover3] = results;

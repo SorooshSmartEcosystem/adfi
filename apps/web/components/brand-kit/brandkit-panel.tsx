@@ -62,8 +62,33 @@ function applyPalette(svg: string, palette: Palette): string {
     .replace(/\{\{bg\}\}/g, palette.bg);
 }
 
-function svgDataUri(svg: string): string {
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+// Strip any XML declaration / BOM the model might've slipped in — those
+// break <img src=data:...> rendering. Used both for inline embedding and
+// for download payloads.
+function cleanSvg(svg: string): string {
+  return svg.replace(/^\s*<\?xml[^?]*\?>\s*/i, "").trim();
+}
+
+// Inline SVG rendering via dangerouslySetInnerHTML. We tried data URIs
+// first but Opus's SVG output occasionally breaks the encoding (special
+// characters in <defs> ids, stray whitespace, etc.). Inline rendering
+// sidesteps the entire URI layer and is faster on a page with 20+ SVGs.
+function InlineSvg({
+  svg,
+  className,
+  style,
+}: {
+  svg: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      className={className}
+      style={style}
+      dangerouslySetInnerHTML={{ __html: cleanSvg(svg) }}
+    />
+  );
 }
 
 function downloadSvg(filename: string, svg: string) {
@@ -281,7 +306,6 @@ function BrandBook(p: BookProps) {
 
 function SizeShowcase({ logo, palette }: { logo: string; palette: Palette }) {
   const rendered = applyPalette(logo, palette);
-  const uri = svgDataUri(rendered);
   const sizes = [
     { px: 16, label: "16PX · favicon" },
     { px: 32, label: "32PX · ui" },
@@ -296,12 +320,10 @@ function SizeShowcase({ logo, palette }: { logo: string; palette: Palette }) {
       <div className="flex items-end justify-around flex-wrap gap-lg py-md">
         {sizes.map((s) => (
           <div key={s.px} className="flex flex-col items-center gap-sm">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={uri}
-              alt=""
+            <div
               style={{ width: s.px, height: s.px }}
-              className="object-contain"
+              className="[&>svg]:w-full [&>svg]:h-full"
+              dangerouslySetInnerHTML={{ __html: cleanSvg(rendered) }}
             />
             <div className="font-mono text-[10px] text-ink4">{s.label}</div>
           </div>
@@ -319,7 +341,6 @@ function UsageSection({
   palette: Palette;
 }) {
   const rendered = applyPalette(logo, palette);
-  const uri = svgDataUri(rendered);
   return (
     <div>
       <SectionHeader
@@ -333,8 +354,10 @@ function UsageSection({
           tip="give the mark room. minimum padding equal to half its diameter on every side."
           surface={palette.bg}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={uri} alt="" className="w-[80px] h-[80px] object-contain" />
+          <div
+            className="w-[80px] h-[80px] [&>svg]:w-full [&>svg]:h-full"
+            dangerouslySetInnerHTML={{ __html: cleanSvg(rendered) }}
+          />
         </UsageCard>
         <UsageCard
           tone="dont"
@@ -342,8 +365,10 @@ function UsageSection({
           surface={palette.bg}
         >
           <div className="flex items-center gap-[2px]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={uri} alt="" className="w-[60px] h-[60px] object-contain" />
+            <div
+              className="w-[60px] h-[60px] [&>svg]:w-full [&>svg]:h-full"
+              dangerouslySetInnerHTML={{ __html: cleanSvg(rendered) }}
+            />
             <span
               className="text-2xl font-medium tracking-tight"
               style={{ color: palette.ink }}
@@ -357,8 +382,10 @@ function UsageSection({
           tip="use the on-dark variant when placing the mark on ink. provides the contrast it needs."
           surface={palette.ink}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={uri} alt="" className="w-[80px] h-[80px] object-contain opacity-90" />
+          <div
+            className="w-[80px] h-[80px] opacity-90 [&>svg]:w-full [&>svg]:h-full"
+            dangerouslySetInnerHTML={{ __html: cleanSvg(rendered) }}
+          />
         </UsageCard>
         <UsageCard
           tone="dont"
@@ -419,8 +446,8 @@ function MockupsSection({
   wordmark: string;
   palette: Palette;
 }) {
-  const logoUri = svgDataUri(applyPalette(logo, palette));
-  const wordmarkUri = svgDataUri(applyPalette(wordmark, palette));
+  const logoSvg = cleanSvg(applyPalette(logo, palette));
+  const wordmarkSvg = cleanSvg(applyPalette(wordmark, palette));
   return (
     <div>
       <SectionHeader
@@ -439,11 +466,9 @@ function MockupsSection({
               className="bg-white rounded-md shadow-sm border-hairline border-border p-sm flex items-center gap-sm"
               style={{ minWidth: 240 }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoUri}
-                alt=""
-                className="w-[16px] h-[16px] object-contain shrink-0"
+              <div
+                className="w-[16px] h-[16px] shrink-0 [&>svg]:w-full [&>svg]:h-full"
+                dangerouslySetInnerHTML={{ __html: logoSvg }}
               />
               <span
                 className="text-xs truncate"
@@ -473,12 +498,10 @@ function MockupsSection({
                 background: palette.ink,
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoUri}
-                alt=""
-                className="w-[60%] h-[60%] object-contain"
+              <div
+                className="w-[60%] h-[60%] [&>svg]:w-full [&>svg]:h-full"
                 style={{ filter: "invert(1) brightness(2)" }}
+                dangerouslySetInnerHTML={{ __html: logoSvg }}
               />
             </div>
           </div>
@@ -503,11 +526,9 @@ function MockupsSection({
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={wordmarkUri}
-                alt=""
-                className="max-w-[85%] max-h-[60%] object-contain"
+              <div
+                className="max-w-[85%] max-h-[60%] [&>svg]:w-full [&>svg]:h-auto"
+                dangerouslySetInnerHTML={{ __html: wordmarkSvg }}
               />
             </div>
           </div>
@@ -647,11 +668,9 @@ function LogoCard({
           background: dark ? palette.ink : palette.bg,
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={svgDataUri(rendered)}
-          alt={label}
-          className="max-w-[60%] max-h-[80%] object-contain"
+        <InlineSvg
+          svg={rendered}
+          className="[&>svg]:max-w-[60%] [&>svg]:max-h-[80%] [&>svg]:w-auto [&>svg]:h-auto"
         />
       </div>
       <div className="px-lg py-md flex items-center justify-between gap-sm">
@@ -904,16 +923,10 @@ function GraphicsSection({
               className="bg-white border-hairline border-border rounded-[16px] overflow-hidden"
             >
               <div
-                className="aspect-[1200/630] flex items-center justify-center"
+                className="aspect-[1200/630] flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
                 style={{ background: palette.bg }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={svgDataUri(rendered)}
-                  alt={`graphic ${i + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+                dangerouslySetInnerHTML={{ __html: cleanSvg(rendered) }}
+              />
               <div className="px-lg py-md flex items-center justify-between">
                 <div className="text-xs text-ink4">graphic {i + 1}</div>
                 <button

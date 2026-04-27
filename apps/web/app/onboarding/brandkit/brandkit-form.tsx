@@ -33,8 +33,8 @@ function applyPalette(svg: string, palette: Palette): string {
     .replace(/\{\{surface\}\}/g, palette.surface)
     .replace(/\{\{bg\}\}/g, palette.bg);
 }
-function svgDataUri(svg: string): string {
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+function cleanSvg(svg: string): string {
+  return svg.replace(/^\s*<\?xml[^?]*\?>\s*/i, "").trim();
 }
 
 export function BrandKitOnboardingForm() {
@@ -124,20 +124,14 @@ export function BrandKitOnboardingForm() {
                   return (
                     <div
                       key={k}
-                      className={`aspect-square rounded-md border-hairline border-border overflow-hidden flex items-center justify-center p-sm`}
+                      className="aspect-square rounded-md border-hairline border-border overflow-hidden flex items-center justify-center p-sm [&>svg]:w-full [&>svg]:h-full"
                       style={{
                         background: k === "lightOnDark" ? palette.ink : palette.bg,
                       }}
-                    >
-                      {rendered ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={svgDataUri(rendered)}
-                          alt=""
-                          className="w-full h-full object-contain"
-                        />
-                      ) : null}
-                    </div>
+                      dangerouslySetInnerHTML={
+                        rendered ? { __html: cleanSvg(rendered) } : undefined
+                      }
+                    />
                   );
                 },
               )}

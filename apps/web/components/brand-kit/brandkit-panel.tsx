@@ -25,6 +25,13 @@ type LogoTemplates = {
   lightOnDark: string;
   wordmark: string;
 };
+type VoiceTone = {
+  voiceTone?: string[];
+  brandValues?: string[];
+  audienceSegments?: { name: string; description: string }[];
+  contentPillars?: string[];
+  doNotDoList?: string[];
+};
 
 const PALETTE_KEYS: { key: keyof Palette; label: string; role: string }[] = [
   { key: "primary", label: "primary", role: "ctas, key ui" },
@@ -174,6 +181,7 @@ export function BrandKitPanel() {
         graphics,
         imageStyle: kit.imageStyle,
         logoConcept: kit.logoConcept,
+        voiceTone: kit.voiceTone as VoiceTone | null,
       }}
       remainingLine={remainingLine}
       hint={hint}
@@ -216,6 +224,7 @@ type BookProps = {
     graphics: string[];
     imageStyle: string;
     logoConcept: string;
+    voiceTone: VoiceTone | null;
   };
   remainingLine: string;
   hint: string;
@@ -240,15 +249,20 @@ function BrandBook(p: BookProps) {
     <div className="flex flex-col gap-2xl">
       <ControlsBar {...p} />
       <LogoSection logos={kit.logos} palette={palette} concept={kit.logoConcept} />
-      <ColorSection
-        palette={palette}
-        onUpdate={p.onUpdatePalette}
-      />
+      <SizeShowcase logo={kit.logos.mark} palette={palette} />
+      <ColorSection palette={palette} onUpdate={p.onUpdatePalette} />
       <TypographySection
         typography={kit.typography}
         onUpdate={p.onUpdateTypography}
       />
       <GraphicsSection graphics={kit.graphics} palette={palette} />
+      <UsageSection logo={kit.logos.mark} palette={palette} />
+      <MockupsSection
+        logo={kit.logos.mark}
+        wordmark={kit.logos.wordmark}
+        palette={palette}
+      />
+      <VoiceSection voice={kit.voiceTone} />
       <ImageStyleSection
         imageStyle={kit.imageStyle}
         editing={p.editingStyle}
@@ -261,6 +275,248 @@ function BrandBook(p: BookProps) {
         error={p.saveStyleError}
       />
       <AssetsSection logos={kit.logos} palette={palette} typography={kit.typography} />
+    </div>
+  );
+}
+
+function SizeShowcase({ logo, palette }: { logo: string; palette: Palette }) {
+  const rendered = applyPalette(logo, palette);
+  const uri = svgDataUri(rendered);
+  const sizes = [
+    { px: 16, label: "16PX · favicon" },
+    { px: 32, label: "32PX · ui" },
+    { px: 64, label: "64PX · app icon" },
+    { px: 120, label: "120PX · hero" },
+  ];
+  return (
+    <Card>
+      <div className="text-[11px] text-ink4 mb-md tracking-[0.1em]">
+        SCALES
+      </div>
+      <div className="flex items-end justify-around flex-wrap gap-lg py-md">
+        {sizes.map((s) => (
+          <div key={s.px} className="flex flex-col items-center gap-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={uri}
+              alt=""
+              style={{ width: s.px, height: s.px }}
+              className="object-contain"
+            />
+            <div className="font-mono text-[10px] text-ink4">{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function UsageSection({
+  logo,
+  palette,
+}: {
+  logo: string;
+  palette: Palette;
+}) {
+  const rendered = applyPalette(logo, palette);
+  const uri = svgDataUri(rendered);
+  return (
+    <div>
+      <SectionHeader
+        num="07 · USAGE"
+        title="how to use the mark."
+        sub="give the logo room. keep it on-palette. these rules protect it."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+        <UsageCard
+          tone="do"
+          tip="give the mark room. minimum padding equal to half its diameter on every side."
+          surface={palette.bg}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={uri} alt="" className="w-[80px] h-[80px] object-contain" />
+        </UsageCard>
+        <UsageCard
+          tone="dont"
+          tip="don't crowd the mark against text. keep at least 14px of breathing room in any lockup."
+          surface={palette.bg}
+        >
+          <div className="flex items-center gap-[2px]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={uri} alt="" className="w-[60px] h-[60px] object-contain" />
+            <span
+              className="text-2xl font-medium tracking-tight"
+              style={{ color: palette.ink }}
+            >
+              brand
+            </span>
+          </div>
+        </UsageCard>
+        <UsageCard
+          tone="do"
+          tip="use the on-dark variant when placing the mark on ink. provides the contrast it needs."
+          surface={palette.ink}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={uri} alt="" className="w-[80px] h-[80px] object-contain opacity-90" />
+        </UsageCard>
+        <UsageCard
+          tone="dont"
+          tip="don't recolor the mark outside the palette. brand colors stay scarce — that's what makes them powerful."
+          surface={palette.bg}
+        >
+          <div
+            className="w-[80px] h-[80px] rounded-md"
+            style={{
+              background: "linear-gradient(135deg, #ff6b6b 0%, #d32d2d 100%)",
+            }}
+          />
+        </UsageCard>
+      </div>
+    </div>
+  );
+}
+
+function UsageCard({
+  tone,
+  tip,
+  surface,
+  children,
+}: {
+  tone: "do" | "dont";
+  tip: string;
+  surface: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
+      <div
+        className="h-[180px] flex items-center justify-center p-lg"
+        style={{ background: surface }}
+      >
+        {children}
+      </div>
+      <div className="px-lg py-md">
+        <div
+          className={`font-mono text-[10px] tracking-[0.15em] mb-xs ${
+            tone === "do" ? "text-aliveDark" : "text-urgent"
+          }`}
+        >
+          {tone === "do" ? "✓ DO" : "✗ DON'T"}
+        </div>
+        <p className="text-sm text-ink2 leading-relaxed">{tip}</p>
+      </div>
+    </div>
+  );
+}
+
+function MockupsSection({
+  logo,
+  wordmark,
+  palette,
+}: {
+  logo: string;
+  wordmark: string;
+  palette: Palette;
+}) {
+  const logoUri = svgDataUri(applyPalette(logo, palette));
+  const wordmarkUri = svgDataUri(applyPalette(wordmark, palette));
+  return (
+    <div>
+      <SectionHeader
+        num="08 · IN CONTEXT"
+        title="real-world applications."
+        sub="how the mark looks where it actually lives — favicon, social avatar, business card."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+        {/* Favicon mockup */}
+        <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
+          <div
+            className="h-[180px] flex items-center justify-center"
+            style={{ background: palette.surface }}
+          >
+            <div
+              className="bg-white rounded-md shadow-sm border-hairline border-border p-sm flex items-center gap-sm"
+              style={{ minWidth: 240 }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUri}
+                alt=""
+                className="w-[16px] h-[16px] object-contain shrink-0"
+              />
+              <span
+                className="text-xs truncate"
+                style={{ color: palette.ink, fontFamily: "system-ui" }}
+              >
+                yourbrand.com
+              </span>
+            </div>
+          </div>
+          <div className="px-lg py-md">
+            <div className="text-xs font-medium">favicon · 16px</div>
+            <div className="text-[11px] text-ink4">browser tab</div>
+          </div>
+        </div>
+
+        {/* Social avatar mockup */}
+        <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
+          <div
+            className="h-[180px] flex items-center justify-center"
+            style={{ background: palette.surface }}
+          >
+            <div
+              className="rounded-full overflow-hidden flex items-center justify-center"
+              style={{
+                width: 96,
+                height: 96,
+                background: palette.ink,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUri}
+                alt=""
+                className="w-[60%] h-[60%] object-contain"
+                style={{ filter: "invert(1) brightness(2)" }}
+              />
+            </div>
+          </div>
+          <div className="px-lg py-md">
+            <div className="text-xs font-medium">social avatar</div>
+            <div className="text-[11px] text-ink4">instagram, linkedin, x</div>
+          </div>
+        </div>
+
+        {/* Business card mockup */}
+        <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
+          <div
+            className="h-[180px] flex items-center justify-center p-md"
+            style={{ background: palette.surface }}
+          >
+            <div
+              className="rounded-md p-md flex items-center justify-center"
+              style={{
+                background: palette.bg,
+                aspectRatio: "85/54",
+                width: "85%",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={wordmarkUri}
+                alt=""
+                className="max-w-[85%] max-h-[60%] object-contain"
+              />
+            </div>
+          </div>
+          <div className="px-lg py-md">
+            <div className="text-xs font-medium">business card</div>
+            <div className="text-[11px] text-ink4">85x54mm · landscape</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -673,6 +929,89 @@ function GraphicsSection({
         })}
       </div>
     </div>
+  );
+}
+
+function VoiceSection({ voice }: { voice: VoiceTone | null }) {
+  if (!voice) return null;
+  const { voiceTone, brandValues, contentPillars, doNotDoList, audienceSegments } =
+    voice;
+  const hasContent =
+    (voiceTone?.length ?? 0) > 0 ||
+    (brandValues?.length ?? 0) > 0 ||
+    (contentPillars?.length ?? 0) > 0 ||
+    (doNotDoList?.length ?? 0) > 0;
+  if (!hasContent) return null;
+  return (
+    <div>
+      <SectionHeader
+        num="09 · VOICE"
+        title="how the brand sounds."
+        sub="frozen from your strategist run. echo + signal both write to this voice. edit the live version on /specialist/strategist."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+        {voiceTone && voiceTone.length > 0 ? (
+          <VoiceCard label="voice tone" items={voiceTone} />
+        ) : null}
+        {brandValues && brandValues.length > 0 ? (
+          <VoiceCard label="brand values" items={brandValues} />
+        ) : null}
+        {contentPillars && contentPillars.length > 0 ? (
+          <VoiceCard label="content pillars" items={contentPillars} />
+        ) : null}
+        {doNotDoList && doNotDoList.length > 0 ? (
+          <VoiceCard label="do not do" items={doNotDoList} tone="dont" />
+        ) : null}
+      </div>
+      {audienceSegments && audienceSegments.length > 0 ? (
+        <div className="mt-md">
+          <Card>
+            <div className="text-[11px] text-ink4 mb-md tracking-[0.1em]">
+              AUDIENCE
+            </div>
+            <div className="flex flex-col gap-md">
+              {audienceSegments.map((seg, i) => (
+                <div key={i}>
+                  <div className="text-sm font-medium mb-xs">{seg.name}</div>
+                  <p className="text-sm text-ink3 leading-relaxed">
+                    {seg.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function VoiceCard({
+  label,
+  items,
+  tone,
+}: {
+  label: string;
+  items: string[];
+  tone?: "do" | "dont";
+}) {
+  return (
+    <Card>
+      <div
+        className={`font-mono text-[10px] tracking-[0.15em] mb-md ${
+          tone === "dont" ? "text-urgent" : "text-ink4"
+        }`}
+      >
+        {label.toUpperCase()}
+      </div>
+      <ul className="flex flex-col gap-sm">
+        {items.map((item, i) => (
+          <li key={i} className="text-sm text-ink2 leading-relaxed">
+            · {item}
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

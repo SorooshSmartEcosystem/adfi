@@ -32,7 +32,17 @@ function paragraphsToHtml(body: string): string {
 
 export function renderNewsletterHtml(
   content: EmailContent,
-  args: { senderName: string; unsubscribeUrl: string },
+  args: {
+    senderName: string;
+    unsubscribeUrl: string;
+    // Business branding — surfaces in the header (logo + name) and the
+    // CTA fallback link (websiteUrl) so the email looks like it's from
+    // the user's business, not from adfi.
+    businessName?: string | null;
+    businessLogoUrl?: string | null;
+    businessWebsiteUrl?: string | null;
+    ownerEmail?: string | null;
+  },
 ): { html: string; text: string } {
   const sections = content.sections ?? [];
   const bodyHtml = sections
@@ -44,9 +54,15 @@ export function renderNewsletterHtml(
     })
     .join('<div style="height: 12px"></div>');
 
+  // CTA fallback chain: explicit link → owner's website → owner's email
+  // (mailto:) → "#" (last resort, but logged on the server).
+  const ctaFallback =
+    args.businessWebsiteUrl ??
+    (args.ownerEmail ? `mailto:${args.ownerEmail}` : "#");
+  const ctaHref = content.cta?.link?.trim() || ctaFallback;
   const ctaHtml = content.cta
     ? `<div style="margin: 24px 0;">
-         <a href="${escapeHtml(content.cta.link ?? "#")}" style="display: inline-block; background: #111; color: #fff; padding: 12px 22px; border-radius: 100px; text-decoration: none; font-size: 14px; font-weight: 500;">
+         <a href="${escapeHtml(ctaHref)}" style="display: inline-block; background: #111; color: #fff; padding: 12px 22px; border-radius: 100px; text-decoration: none; font-size: 14px; font-weight: 500;">
            ${escapeHtml(content.cta.label)}
          </a>
        </div>`
@@ -56,25 +72,36 @@ export function renderNewsletterHtml(
     ? `<div style="display: none; max-height: 0; overflow: hidden; opacity: 0;">${escapeHtml(content.preheader)}</div>`
     : "";
 
-  // Email-safe orb mark: a radial-gradient div + the lowercase "adfi"
-  // wordmark. Inline styles only — most clients strip <head> CSS.
+  // Header now shows the BUSINESS branding, not adfi. Logo (if uploaded)
+  // takes the orb's place; the wordmark is the business name. ADFI gets a
+  // tiny "made with adfi" line in the footer.
+  const headerName = args.businessName?.trim() || args.senderName;
+  const headerLogo = args.businessLogoUrl
+    ? `<img src="${escapeHtml(args.businessLogoUrl)}" alt="" width="28" height="28" style="width: 28px; height: 28px; border-radius: 50%; display: block; object-fit: cover;" />`
+    : `<div style="width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #5a5a5a 0%, #2a2a2a 35%, #0a0a0a 75%, #000 100%);"></div>`;
   const headerHtml = `
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
       <tr>
         <td align="left" style="padding: 28px 32px 0;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
             <tr>
-              <td valign="middle" style="padding-right: 10px;">
-                <div style="width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #5a5a5a 0%, #2a2a2a 35%, #0a0a0a 75%, #000 100%);"></div>
-              </td>
-              <td valign="middle" style="font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; font-size: 15px; font-weight: 500; color: #111; letter-spacing: -0.01em;">
-                adfi
+              <td valign="middle" style="padding-right: 12px;">${headerLogo}</td>
+              <td valign="middle" style="font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; font-size: 16px; font-weight: 500; color: #111; letter-spacing: -0.01em;">
+                ${escapeHtml(headerName)}
               </td>
             </tr>
           </table>
         </td>
       </tr>
     </table>`;
+
+  // Footer attributes ADFI without overshadowing the business. Single line,
+  // small, with the orb mark next to a soft tagline.
+  const adfiFooter = `
+    <div style="display: inline-flex; align-items: center; gap: 6px; color: #aaa; letter-spacing: 0.04em;">
+      <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #5a5a5a 0%, #2a2a2a 35%, #0a0a0a 75%, #000 100%); vertical-align: middle;"></span>
+      <span style="vertical-align: middle;">made with <a href="https://www.adfi.ca" style="color: #888; text-decoration: none;">adfi</a> — the ai marketing team for solopreneurs</span>
+    </div>`;
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(content.subject ?? "")}</title></head>
@@ -98,11 +125,11 @@ export function renderNewsletterHtml(
           </tr>
           <tr>
             <td style="padding: 16px 32px 28px; border-top: 0.5px solid #E5E3DB; font-family: 'SF Mono', 'Courier New', monospace; font-size: 11px; color: #888; text-align: center;">
-              <div style="margin-bottom: 8px; color: #111;">${escapeHtml(args.senderName)}</div>
+              <div style="margin-bottom: 8px; color: #111;">${escapeHtml(headerName)}</div>
               <div style="margin-bottom: 12px;">
                 <a href="${args.unsubscribeUrl}" style="color: #888; text-decoration: underline;">unsubscribe</a>
               </div>
-              <div style="color: #aaa; letter-spacing: 0.08em;">SENT BY ADFI · MADE FOR SOLOPRENEURS</div>
+              ${adfiFooter}
             </td>
           </tr>
         </table>
@@ -147,9 +174,11 @@ export async function testSendNewsletter(args: {
   const recipient = draft.user.email;
   if (!recipient) throw new Error("No owner email on record");
 
-  const senderName =
+  const businessName =
+    draft.user.businessName?.trim() ||
     draft.user.businessDescription?.split(/[.\n]/)[0]?.slice(0, 40)?.trim() ||
-    "ADFI";
+    null;
+  const senderName = businessName ?? "ADFI";
   const fromAddr = { email: newsletterFromEmail(), name: senderName };
   // Test sends use a synthetic unsubscribe token so the link still renders
   // but isn't tied to a real subscriber row.
@@ -157,11 +186,22 @@ export async function testSendNewsletter(args: {
   const { html, text } = renderNewsletterHtml(content, {
     senderName,
     unsubscribeUrl: unsubUrl,
+    businessName,
+    businessLogoUrl: draft.user.businessLogoUrl,
+    businessWebsiteUrl: draft.user.businessWebsiteUrl,
+    ownerEmail: draft.user.email,
   });
+  // Subject prefixed with business name so the inbox preview makes the
+  // sender obvious. Skip the prefix if the user already wrote the
+  // business name into the subject (avoid stutter).
+  const subjectLine =
+    businessName && !content.subject.toLowerCase().includes(businessName.toLowerCase())
+      ? `${businessName} · ${content.subject}`
+      : content.subject;
   await sendgridSend({
     to: { email: recipient },
     from: fromAddr,
-    subject: `[test] ${content.subject}`,
+    subject: `[test] ${subjectLine}`,
     text,
     html,
     unsubscribeUrl: unsubUrl,
@@ -209,14 +249,23 @@ export async function publishNewsletter(args: {
   );
   await consumeCredits(args.userId, creditCost, "newsletter_send");
 
-  const senderName =
+  const businessName =
+    draft.user.businessName?.trim() ||
     draft.user.businessDescription?.split(/[.\n]/)[0]?.slice(0, 40)?.trim() ||
-    "ADFI";
+    null;
+  const senderName = businessName ?? "ADFI";
   const fromEmail = newsletterFromEmail();
   const fromAddr = { email: fromEmail, name: senderName };
   const replyTo = draft.user.email
     ? { email: draft.user.email, name: senderName }
     : undefined;
+  // Subject prefix so subscribers see the business name in their inbox
+  // preview (avoiding stutter if it's already in the subject).
+  const subjectLine =
+    businessName &&
+    !content.subject.toLowerCase().includes(businessName.toLowerCase())
+      ? `${businessName} · ${content.subject}`
+      : content.subject;
 
   let sent = 0;
   let failed = 0;
@@ -227,13 +276,17 @@ export async function publishNewsletter(args: {
     const { html, text } = renderNewsletterHtml(content, {
       senderName,
       unsubscribeUrl: unsubUrl,
+      businessName,
+      businessLogoUrl: draft.user.businessLogoUrl,
+      businessWebsiteUrl: draft.user.businessWebsiteUrl,
+      ownerEmail: draft.user.email,
     });
     try {
       await sendgridSend({
         to: { email: sub.email, ...(sub.name && { name: sub.name }) },
         from: fromAddr,
         ...(replyTo && { replyTo }),
-        subject: content.subject,
+        subject: subjectLine,
         text,
         html,
         unsubscribeUrl: unsubUrl,

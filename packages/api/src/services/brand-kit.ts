@@ -217,8 +217,20 @@ export async function generateBrandKit(args: {
   // 429 on the second concurrent call. The retry-with-backoff in
   // services/replicate.ts handles transient throttles within a single call;
   // serializing across calls keeps us out of trouble entirely.
+  //
+  // Progress logging: each step prints to vercel logs with a checkpoint so
+  // we (and the admin email on failure) can tell exactly which image stage
+  // failed instead of seeing a blank stretch in the function trace.
+  const t0 = Date.now();
+  console.log(
+    `[brandkit] starting image pipeline for user=${args.userId} (7 images, sequential)`,
+  );
   const results: Array<{ url: string; costCents: number }> = [];
-  for (const job of jobs) {
+  for (const [idx, job] of jobs.entries()) {
+    const stepT = Date.now();
+    console.log(
+      `[brandkit] step ${idx + 1}/${jobs.length}: ${job.slug} (elapsed ${Math.round((stepT - t0) / 1000)}s)`,
+    );
     const result = await generateImage({
       userId: args.userId,
       draftId: "brandkit",
@@ -226,8 +238,14 @@ export async function generateBrandKit(args: {
       prompt: job.prompt,
       aspectRatio: job.aspectRatio,
     });
+    console.log(
+      `[brandkit] step ${idx + 1}/${jobs.length} done in ${Math.round((Date.now() - stepT) / 1000)}s`,
+    );
     results.push(result);
   }
+  console.log(
+    `[brandkit] image pipeline complete in ${Math.round((Date.now() - t0) / 1000)}s for user=${args.userId}`,
+  );
 
   const [primary, mark, mono, dark, cover1, cover2, cover3] = results;
   if (

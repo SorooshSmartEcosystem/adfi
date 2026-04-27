@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { Card } from "../shared/card";
+import { buildBrandKitHtml } from "./build-html-export";
 
 type Palette = {
   primary: string;
@@ -103,6 +104,18 @@ function downloadSvg(filename: string, svg: string) {
   URL.revokeObjectURL(url);
 }
 
+function downloadHtml(filename: string, html: string) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function downloadJson(filename: string, json: unknown) {
   const blob = new Blob([JSON.stringify(json, null, 2)], {
     type: "application/json",
@@ -120,6 +133,7 @@ function downloadJson(filename: string, json: unknown) {
 export function BrandKitPanel() {
   const utils = trpc.useUtils();
   const query = trpc.brandKit.getMine.useQuery();
+  const meQuery = trpc.user.me.useQuery();
   const generate = trpc.brandKit.generate.useMutation({
     onSuccess: () => utils.brandKit.getMine.invalidate(),
   });
@@ -194,6 +208,7 @@ export function BrandKitPanel() {
   const typography = kit.typography as unknown as Typography;
   const logos = kit.logoTemplates as unknown as LogoTemplates;
   const graphics = (kit.coverSamples as unknown as string[]) ?? [];
+  const businessName = meQuery.data?.businessName?.trim() || "your brand";
 
   return (
     <BrandBook
@@ -207,6 +222,7 @@ export function BrandKitPanel() {
         imageStyle: kit.imageStyle,
         logoConcept: kit.logoConcept,
         voiceTone: kit.voiceTone as VoiceTone | null,
+        businessName,
       }}
       remainingLine={remainingLine}
       hint={hint}
@@ -250,6 +266,7 @@ type BookProps = {
     imageStyle: string;
     logoConcept: string;
     voiceTone: VoiceTone | null;
+    businessName: string;
   };
   remainingLine: string;
   hint: string;
@@ -299,7 +316,8 @@ function BrandBook(p: BookProps) {
         pending={p.saveStylePending}
         error={p.saveStyleError}
       />
-      <AssetsSection logos={kit.logos} palette={palette} typography={kit.typography} />
+      <AssetsSection kit={kit} palette={palette} />
+      <HistorySection currentVersion={kit.version} />
     </div>
   );
 }
@@ -1106,14 +1124,13 @@ function ImageStyleSection({
 }
 
 function AssetsSection({
-  logos,
+  kit,
   palette,
-  typography,
 }: {
-  logos: LogoTemplates;
+  kit: BookProps["kit"];
   palette: Palette;
-  typography: Typography;
 }) {
+  const { logos, typography, graphics, businessName } = kit;
   const renderedLogos = useMemo(
     () =>
       Object.fromEntries(
@@ -1129,14 +1146,41 @@ function AssetsSection({
     typography,
   };
 
+  const slug = businessName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "brand";
+  const htmlFilename = `${slug}-brand-book-v${kit.version}.html`;
+
   return (
     <div>
       <SectionHeader
         num="06 · ASSETS"
         title="downloads."
-        sub="every logo as svg + a tokens.json with all palette + typography values for handing off to a designer."
+        sub="a one-file html brand book to share, every logo as svg, and a tokens.json for handing off to a designer."
       />
       <div className="bg-white border-hairline border-border rounded-[16px] divide-y divide-border2">
+        <AssetRow
+          name={htmlFilename}
+          meta="BRAND BOOK · ONE-FILE HTML · SHARE WITH ANYONE"
+          onClick={() =>
+            downloadHtml(
+              htmlFilename,
+              buildBrandKitHtml({
+                businessName,
+                version: kit.version,
+                generatedAt: kit.generatedAt,
+                palette,
+                typography,
+                logos,
+                graphics,
+                imageStyle: kit.imageStyle,
+                logoConcept: kit.logoConcept,
+                voiceTone: kit.voiceTone,
+              }),
+            )
+          }
+        />
         {LOGO_DEFS.map((def) => (
           <AssetRow
             key={def.key}
@@ -1180,5 +1224,92 @@ function AssetRow({
         download →
       </span>
     </button>
+  );
+}
+
+function HistorySection({ currentVersion }: { currentVersion: number }) {
+  const utils = trpc.useUtils();
+  const versions = trpc.brandKit.listVersions.useQuery();
+  const restore = trpc.brandKit.restoreVersion.useMutation({
+    onSuccess: () => {
+      utils.brandKit.getMine.invalidate();
+      utils.brandKit.listVersions.invalidate();
+    },
+  });
+
+  if (!versions.data || versions.data.length <= 1) return null;
+
+  return (
+    <div>
+      <SectionHeader
+        num="07 · HISTORY"
+        title="every kit you've made."
+        sub="restore any past version into the live kit. doesn't burn a regeneration credit — no model is called."
+      />
+      <div className="bg-white border-hairline border-border rounded-[16px] divide-y divide-border2">
+        {versions.data.map((v) => {
+          const palette = v.palette as unknown as Palette;
+          const isLive = v.version === currentVersion;
+          const date = new Date(v.createdAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          return (
+            <div
+              key={v.id}
+              className="px-lg py-md flex items-center justify-between gap-md"
+            >
+              <div className="flex items-center gap-md min-w-0">
+                <div className="flex shrink-0">
+                  {(["primary", "secondary", "accent", "ink", "surface", "bg"] as const).map(
+                    (k) => (
+                      <div
+                        key={k}
+                        className="w-5 h-5 border-hairline border-border first:rounded-l-[4px] last:rounded-r-[4px] -ml-px first:ml-0"
+                        style={{ background: palette[k] }}
+                        title={`${k} · ${palette[k]}`}
+                      />
+                    ),
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">
+                    v{v.version}
+                    {isLive ? (
+                      <span className="ml-sm font-mono text-[10px] text-ink4 tracking-[0.1em]">
+                        · LIVE
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="font-mono text-[11px] text-ink4 truncate">
+                    {date.toUpperCase()}
+                  </div>
+                </div>
+              </div>
+              {isLive ? (
+                <span className="font-mono text-[11px] text-ink3 shrink-0">
+                  current
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => restore.mutate({ versionId: v.id })}
+                  disabled={restore.isPending}
+                  className="font-mono text-[11px] text-ink2 shrink-0 hover:text-ink disabled:text-ink4 transition-colors"
+                >
+                  {restore.isPending && restore.variables?.versionId === v.id
+                    ? "restoring…"
+                    : "restore →"}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {restore.error ? (
+        <p className="text-sm text-urgent mt-md">{restore.error.message}</p>
+      ) : null}
+    </div>
   );
 }

@@ -214,6 +214,7 @@ packages/api/
 │   │   ├── appointments.ts
 │   │   ├── competitors.ts
 │   │   ├── insights.ts
+│   │   ├── brand-kit.ts          # Senior-designer agent: kit generate / edit / version history
 │   │   └── admin.ts
 │   │
 │   ├── agents/                  # Agent implementations

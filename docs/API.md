@@ -25,6 +25,7 @@ export const appRouter = t.router({
   appointments: appointmentsRouter,
   competitors: competitorsRouter,
   insights: insightsRouter,
+  brandKit: brandKitRouter,
   admin: adminRouter,
 });
 
@@ -202,6 +203,22 @@ insights.acknowledgeFinding         input: { id: string }                   → 
 insights.getWeeklyReport            input: { weekOf?: Date }                → WeeklyReport
 insights.getPerformancePatterns     input: z.void()                         → Pattern[]
 ```
+
+## brandKit
+
+The senior-designer agent's domain. One brand kit per user; regeneration is gated by a per-plan monthly credit (no LLM call = no credit consumed).
+
+```
+brandKit.getMine                    input: z.void()                         → { kit: BrandKit | null, plan, quota: { used, cap, remaining }, generationCostCents, monthlyCap }
+brandKit.generate                   input: { refinementHint?: string }      → BrandKit
+brandKit.updateImageStyle           input: { imageStyle: string }           → { ok: true }
+brandKit.updatePalette              input: Partial<Palette>                 → { ok: true }
+brandKit.updateTypography           input: Partial<Typography>              → { ok: true }
+brandKit.listVersions               input: z.void()                         → BrandKitVersion[]   // newest first
+brandKit.restoreVersion             input: { versionId: string }            → { newVersion: number }
+```
+
+Every successful `generate` snapshots into `brand_kit_versions`. `restoreVersion` copies a past version back into the live `brand_kits` row and creates a new version row at the bumped number — so restoring v2 over v5 makes the live row v6, and v6 is itself preserved as a new history entry. Manual edits via `updatePalette` / `updateTypography` / `updateImageStyle` mutate the live row in place and do **not** create a new version (they're cheap iteration on the latest snapshot).
 
 ## admin
 

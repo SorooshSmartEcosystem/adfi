@@ -595,8 +595,34 @@ model BrandKit {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   user         User     @relation(fields: [userId], references: [id])
+  versions     BrandKitVersion[]
 
   @@map("brand_kits")
+}
+
+// =============================================================
+// BrandKitVersion — append-only history of every generation. The live
+// BrandKit row mirrors the latest accepted version; users can restore
+// any past version to go back to a kit they liked better.
+// =============================================================
+model BrandKitVersion {
+  id            String   @id @default(uuid()) @db.Uuid
+  brandKitId    String   @map("brand_kit_id") @db.Uuid
+  version       Int
+  palette       Json
+  typography    Json
+  logoTemplates Json     @map("logo_templates")
+  coverSamples  Json     @map("cover_samples")
+  imageStyle    String   @map("image_style") @db.Text
+  logoConcept   String   @map("logo_concept") @db.Text
+  voiceTone     Json?    @map("voice_tone")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  brandKit      BrandKit @relation(fields: [brandKitId], references: [id], onDelete: Cascade)
+
+  @@unique([brandKitId, version])
+  @@index([brandKitId, createdAt])
+  @@map("brand_kit_versions")
 }
 
 // =============================================================

@@ -8,6 +8,8 @@ import {
   updateBrandKitPalette,
   updateBrandKitTypography,
   getBrandKit,
+  listBrandKitVersions,
+  restoreBrandKitVersion,
   BRANDKIT_GENERATION_COST_CENTS,
   MONTHLY_BRANDKIT_CAP,
 } from "../services/brand-kit";
@@ -114,6 +116,31 @@ export const brandKitRouter = router({
         palette: input,
       });
       return { ok: true as const };
+    }),
+
+  // All historical versions of the user's brand kit, newest first.
+  listVersions: authedProc.input(z.void()).query(async ({ ctx }) => {
+    return listBrandKitVersions(ctx.user.id);
+  }),
+
+  // Restore a past version into the live row. Doesn't consume a
+  // regeneration credit — no LLM is called.
+  restoreVersion: authedProc
+    .input(z.object({ versionId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const result = await restoreBrandKitVersion({
+          userId: ctx.user.id,
+          versionId: input.versionId,
+        });
+        return result;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("not found") || msg.includes("no brandkit")) {
+          throw OrbError.NOT_FOUND("brand kit version");
+        }
+        throw err;
+      }
     }),
 
   updateTypography: authedProc

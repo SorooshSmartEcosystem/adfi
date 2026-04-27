@@ -522,6 +522,27 @@ export async function generateBrandKit(args: {
     },
   });
 
+  // Snapshot this generation as a BrandKitVersion so the user can come
+  // back to it later. The live BrandKit row above mirrors the same data;
+  // versions are an append-only history table.
+  await db.brandKitVersion.create({
+    data: {
+      brandKitId: kit.id,
+      version: kit.version,
+      palette: spec.palette as unknown as Prisma.InputJsonValue,
+      typography: spec.typography as unknown as Prisma.InputJsonValue,
+      logoTemplates: logos as unknown as Prisma.InputJsonValue,
+      coverSamples: [
+        graphics.graphic1,
+        graphics.graphic2,
+        graphics.graphic3,
+      ] as unknown as Prisma.InputJsonValue,
+      imageStyle: spec.imageStyle,
+      logoConcept: spec.logoConcept,
+      voiceTone: (voiceTone ?? Prisma.DbNull) as Prisma.InputJsonValue,
+    },
+  });
+
   await db.agentEvent.create({
     data: {
       userId: args.userId,
@@ -640,4 +661,71 @@ export async function updateBrandKitTypography(args: {
 
 export async function getBrandKit(userId: string) {
   return db.brandKit.findUnique({ where: { userId } });
+}
+
+// All historical versions of the user's brand kit, newest first. Used
+// to render the 'history' panel — every entry is restorable.
+export async function listBrandKitVersions(userId: string) {
+  const kit = await db.brandKit.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!kit) return [];
+  return db.brandKitVersion.findMany({
+    where: { brandKitId: kit.id },
+    orderBy: { version: "desc" },
+  });
+}
+
+// Copy a past version's data into the live BrandKit row. Doesn't burn a
+// regeneration credit — restoring is free since no LLM call happens.
+// Bumps the version number forward (so e.g. restoring v2 over v5 makes
+// the live row v6, which is itself snapshotted as a new version row).
+export async function restoreBrandKitVersion(args: {
+  userId: string;
+  versionId: string;
+}): Promise<{ newVersion: number }> {
+  const kit = await db.brandKit.findUnique({
+    where: { userId: args.userId },
+    select: { id: true, version: true },
+  });
+  if (!kit) throw new Error("no brandkit to restore into");
+
+  const target = await db.brandKitVersion.findFirst({
+    where: { id: args.versionId, brandKitId: kit.id },
+  });
+  if (!target) throw new Error("version not found");
+
+  const newVersion = kit.version + 1;
+  await db.$transaction([
+    db.brandKit.update({
+      where: { id: kit.id },
+      data: {
+        palette: target.palette as Prisma.InputJsonValue,
+        typography: target.typography as Prisma.InputJsonValue,
+        logoTemplates: target.logoTemplates as Prisma.InputJsonValue,
+        coverSamples: target.coverSamples as Prisma.InputJsonValue,
+        imageStyle: target.imageStyle,
+        logoConcept: target.logoConcept,
+        voiceTone: (target.voiceTone ?? Prisma.DbNull) as Prisma.InputJsonValue,
+        version: newVersion,
+        generatedAt: new Date(),
+      },
+    }),
+    db.brandKitVersion.create({
+      data: {
+        brandKitId: kit.id,
+        version: newVersion,
+        palette: target.palette as Prisma.InputJsonValue,
+        typography: target.typography as Prisma.InputJsonValue,
+        logoTemplates: target.logoTemplates as Prisma.InputJsonValue,
+        coverSamples: target.coverSamples as Prisma.InputJsonValue,
+        imageStyle: target.imageStyle,
+        logoConcept: target.logoConcept,
+        voiceTone: (target.voiceTone ?? Prisma.DbNull) as Prisma.InputJsonValue,
+      },
+    }),
+  ]);
+
+  return { newVersion };
 }

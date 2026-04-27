@@ -7,6 +7,8 @@ Format note: write changes from the user's perspective in plain English. "Users 
 ## [Unreleased]
 
 ### Added
+- Brand-kit history. Every generation is snapshotted to `brand_kit_versions`; the brand-kit panel now shows a "history" section with a palette swatch + date for each past version and a one-click restore. Restore copies the chosen version into the live row and bumps the version number; no model is called and no monthly credit is consumed.
+- One-file HTML brand book download. The downloads section now leads with `<slug>-brand-book-v<n>.html` — a self-contained file with every SVG inlined that opens in any browser and is ready to share with a designer.
 - Web app feels noticeably faster: every dash route now paints structure immediately via streaming `loading.tsx` skeletons, the same getHomeData / user.me query is no longer fetched twice on a single render (deduped via React `cache`), and the inbox feed scans 30 days of messages instead of all-time and selects only the columns needed to render previews. Together these eliminate ~1s of perceived latency on most page navigations.
 - Platform filter chips on /content. Filter the drafts tab by instagram / twitter / linkedin / facebook / telegram / website article / email; same filter on the performance tab.
 - Twitter, Telegram channel posts, and website-article drafts are first-class platforms in echo. Twitter drafts stay manual — approve, copy, open compose, then "mark as posted" once it's live (we don't pay for Twitter's API tier in v1).

@@ -1,7 +1,10 @@
 import { z } from "zod";
-import { Direction, MessageChannel } from "@orb/db";
+import { Direction, MessageChannel, Provider } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
+import { sendSms } from "../services/twilio";
+import { sendMessengerReply } from "../services/meta";
+import { decryptToken } from "../services/crypto";
 
 export type InboxItem =
   | {
@@ -154,6 +157,54 @@ export const messagingRouter = router({
         orderBy: { createdAt: "desc" },
       });
       if (!last) throw OrbError.NOT_FOUND("thread");
+
+      // Deliver to the right provider before we persist the outbound row,
+      // so a delivery failure surfaces as an error to the user instead of
+      // silently saving a phantom 'sent' message.
+      try {
+        if (last.channel === MessageChannel.SMS) {
+          // SMS replies go via the user's adfi twilio number.
+          const phone = await ctx.db.phoneNumber.findFirst({
+            where: { userId: ctx.user.id, status: "ACTIVE" },
+          });
+          if (!phone) throw new Error("no active adfi number to send from");
+          await sendSms({
+            from: phone.number,
+            to: last.fromAddress,
+            body: input.body,
+          });
+        } else if (
+          last.channel === MessageChannel.MESSENGER ||
+          last.channel === MessageChannel.INSTAGRAM_DM
+        ) {
+          const provider =
+            last.channel === MessageChannel.INSTAGRAM_DM
+              ? Provider.INSTAGRAM
+              : Provider.FACEBOOK;
+          const account = await ctx.db.connectedAccount.findFirst({
+            where: {
+              userId: ctx.user.id,
+              provider,
+              disconnectedAt: null,
+            },
+          });
+          if (!account) {
+            throw new Error(
+              `no connected ${provider.toLowerCase()} account — reconnect on /settings`,
+            );
+          }
+          await sendMessengerReply({
+            pageAccessToken: decryptToken(account.encryptedToken),
+            recipientPsid: last.fromAddress,
+            text: input.body,
+          });
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("messaging.sendReply delivery failed:", err);
+        throw OrbError.EXTERNAL_API(`couldn't send: ${msg}`);
+      }
+
       return ctx.db.message.create({
         data: {
           userId: ctx.user.id,

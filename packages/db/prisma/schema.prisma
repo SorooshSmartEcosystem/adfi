@@ -571,12 +571,21 @@ model BrandKit {
   palette      Json
   // { headingFont, bodyFont, weights, rationale }
   typography   Json
-  // { primary, mark, monochrome, lightOnDark } — public asset urls
-  logoVariants Json     @map("logo_variants")
-  // [url, url, url] — three sample covers in the brand's image style
+  // SVG markup strings keyed by variant — { primary, mark, monochrome,
+  // lightOnDark, wordmark }. Each contains color-token placeholders
+  // ({{primary}}, {{accent}}, {{ink}}, etc.) replaced at render time
+  // with the user's current palette. This lets logos update live when
+  // the user edits a swatch — no re-generation needed.
+  logoTemplates Json     @map("logo_templates")
+  // [url, url, url] — three sample covers in the brand's image style.
+  // Still raster (these are real photos, generated via Flux).
   coverSamples Json     @map("cover_samples")
   // 1-2 sentence prompt fragment prepended to every Echo image generation
   imageStyle   String   @map("image_style") @db.Text
+  // Short visual concept used to seed logo generation; surfaced in the
+  // panel as 'logo concept' so users see why their mark looks the way
+  // it does.
+  logoConcept  String   @map("logo_concept") @db.Text
   // Frozen snapshot of voice tone at generation time so we can rerun
   // without re-pulling agentContext (which may have drifted).
   voiceTone    Json?    @map("voice_tone")

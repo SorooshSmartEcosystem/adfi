@@ -1,14 +1,18 @@
-// BrandKit generation pipeline.
+// BrandKit generation pipeline. Pure-Anthropic — no Replicate calls.
 //
-//   Step 1 — Anthropic (Sonnet) writes a brand SPEC: palette + typography +
-//            imageStyle + a logoConcept.
-//   Step 2 — Replicate (Flux Schnell) renders 4 logo variants + 3 cover
-//            samples in parallel.
-//   Step 3 — Persist BrandKit row + AgentEvent for usage tracking.
+//   Step 1 — Sonnet generates the brand SPEC: palette, typography,
+//            imageStyle, and a logo concept (used to seed the SVGs).
+//   Step 2 — Sonnet generates 5 SVG logo templates (primary, mark,
+//            monochrome, lightOnDark, wordmark) with palette tokens
+//            ({{primary}}, {{accent}}, {{ink}}, etc.) so the user can
+//            edit colors later and the logos update live.
+//   Step 3 — Sonnet generates 3 SVG brand-graphic covers — geometric
+//            abstract compositions usable for social headers, business
+//            cards, presentation backgrounds. Also tokenized.
+//   Step 4 — Persist BrandKit row + AgentEvent for usage tracking.
 //
-// Cost per generation: ~$0.02 (Sonnet) + 7 × ~$0.003 (Flux) ≈ $0.04.
-// Plan caps live in `MONTHLY_BRANDKIT_CAP` and are enforced by callers via
-// `brandKitGenerationsRemaining()`.
+// Cost per generation: ~$0.06 in Anthropic only (3 Sonnet calls).
+// Plan caps in MONTHLY_BRANDKIT_CAP enforced by the router.
 
 import { z } from "zod";
 import {
@@ -23,11 +27,8 @@ import {
   MODELS,
   recordAnthropicUsage,
 } from "./anthropic";
-import { generateImage } from "./replicate";
 
-// Plan ceilings on brand-kit generations per 30 days. The first generation
-// per user is essentially free (anyone can have a brandkit); subsequent
-// regenerations are bounded so a user can't spin the wheel infinitely.
+// Plan ceilings on brand-kit generations per 30 days.
 export const MONTHLY_BRANDKIT_CAP: Record<Plan | "TRIAL", number> = {
   TRIAL: 1,
   SOLO: 3,
@@ -35,9 +36,13 @@ export const MONTHLY_BRANDKIT_CAP: Record<Plan | "TRIAL", number> = {
   STUDIO: 999,
 };
 
-// Approximate per-generation cost (cents). Used for admin financials and
-// surfaced in the UI so the user knows what a regenerate costs.
-export const BRANDKIT_GENERATION_COST_CENTS = 4;
+// Approximate per-generation cost (cents). Three Sonnet calls — spec,
+// logos batch, graphics batch. Used in the UI quota line.
+export const BRANDKIT_GENERATION_COST_CENTS = 6;
+
+// =============================================================
+// Spec generation
+// =============================================================
 
 const PaletteSchema = z.object({
   primary: z.string(),
@@ -65,15 +70,22 @@ const BrandSpecSchema = z.object({
 
 export type BrandSpec = z.infer<typeof BrandSpecSchema>;
 
-const SYSTEM_PROMPT = `You are the visual director for a solopreneur's marketing system. You design tight, intentional brand specs — never generic, never trend-chasing.
+const SPEC_SYSTEM_PROMPT = `You are the visual director for a solopreneur's marketing system. You design tight, intentional brand specs — never generic, never trend-chasing.
 
-For palette: choose 6 hex colors that feel coherent and confident. Avoid pure-black/pure-white unless the brand's voice calls for it. Include rationale: why these colors fit the business.
+For palette: choose 6 hex colors that feel coherent and confident. Avoid pure-black/pure-white unless the brand's voice calls for it. Palette roles:
+- primary: the dominant brand color (used on CTAs, key UI)
+- secondary: supporting color (used on secondary buttons, links)
+- accent: a single sparing accent (status dots, gold trim, callouts)
+- ink: text color (very dark, not pure black)
+- surface: card / elevated surface fill (warm off-white if light brand, very dark if dark brand)
+- bg: page background (always slightly cooler/lighter than surface)
+Include a one-sentence rationale.
 
-For typography: pick web-safe font pairings (Google Fonts or system stack). Heading + body. Include weights and a one-sentence rationale.
+For typography: pick web-safe pairings. Heading font + body font + 2-3 weights. Always include a Google Fonts pairing or a system stack. Examples: 'Cormorant Garamond' + 'Inter', 'Fraunces' + 'IBM Plex Sans', system + system. Include rationale.
 
-For imageStyle: write a 1-2 sentence prompt fragment we will prepend to every image generation. Describe the photographic look, color cast, and mood. Use specific photography terms ('warm natural light', 'editorial documentary feel', 'shallow depth of field', 'desaturated color grading').
+For imageStyle: a 1-2 sentence prompt fragment we will prepend to every photo generation downstream (used by Echo for blog/social images). Specific photography terms — 'warm natural light', 'editorial documentary feel', 'desaturated color grading', etc.
 
-For logoConcept: a short visual description for an icon-style mark. We'll render it as four PNG variants — keep the concept simple enough to read at 32px.`;
+For logoConcept: a short visual description for an icon-style mark — concrete enough to render as SVG. Example: 'minimalist house silhouette with cabinetry grid lines' or 'concentric arcs forming a stylized eye'. Keep it geometric and renderable; avoid 'a logo that captures the essence of...'.`;
 
 export async function generateBrandKitSpec(args: {
   businessName: string;
@@ -96,7 +108,7 @@ ${args.refinementHint ? `Owner refinement hint for this generation: ${args.refin
     system: [
       {
         type: "text",
-        text: SYSTEM_PROMPT,
+        text: SPEC_SYSTEM_PROMPT,
         cache_control: { type: "ephemeral" },
       },
     ],
@@ -125,8 +137,169 @@ ${args.refinementHint ? `Owner refinement hint for this generation: ${args.refin
   return BrandSpecSchema.parse(JSON.parse(block.text));
 }
 
-// Full BrandKit generation. Idempotent at the row level — if a kit exists
-// we update it (and bump version); otherwise we create one.
+// =============================================================
+// SVG generation — logos + brand graphics
+// =============================================================
+
+const LogoTemplatesSchema = z.object({
+  // Square mark on the brand's surface color. The "hero" version of
+  // the logo. Should stand alone at any size.
+  primary: z.string(),
+  // Just the icon, no text, optimized for tiny sizes (favicon-friendly).
+  mark: z.string(),
+  // Pure black on white, used for embossing / single-color print.
+  monochrome: z.string(),
+  // Light variant for use on the brand's dark/ink background.
+  lightOnDark: z.string(),
+  // Wordmark + icon horizontal lockup.
+  wordmark: z.string(),
+});
+
+const BrandGraphicsSchema = z.object({
+  graphic1: z.string(),
+  graphic2: z.string(),
+  graphic3: z.string(),
+});
+
+const LOGO_SYSTEM_PROMPT = `You are a senior brand designer producing publishable SVG logo marks. Your output renders directly to <img src=data:...> in the user's brand book — there is no human cleanup pass.
+
+Output 5 SVG variants of the same logo concept. Every SVG MUST:
+- Use viewBox="0 0 240 240" for square variants and viewBox="0 0 480 240" for the wordmark.
+- Be self-contained (no external <link> or <script>). All gradients/patterns inline in <defs>.
+- Use color tokens for fills/strokes — write them literally as the strings {{primary}}, {{secondary}}, {{accent}}, {{ink}}, {{surface}}, {{bg}}. The system replaces these with the user's palette at render time. Never inline literal hex codes.
+- Keep geometry simple — straight lines, arcs, polygons, simple paths. No raster <image>, no embedded fonts, no <foreignObject>.
+- The wordmark variant MUST include <text> with the business name in lowercase, font-family="Inter, system-ui, sans-serif" (the actual font swaps in via CSS), font-weight="500", and reasonable letter-spacing.
+- Aim for the visual density of a Wirecutter / Frank Body / Aesop logo — restrained, intentional, every line earns its place.
+
+Variants:
+- primary: full mark on surface color background (rect filling the viewBox is fine), the mark in {{ink}} or {{primary}}.
+- mark: just the icon, no background rect, no text. Optimized for clarity at 32px.
+- monochrome: pure {{ink}} on transparent. Single color, no fills with {{accent}}.
+- lightOnDark: a {{ink}}-filled rect background, mark in {{surface}} or {{bg}} (light on dark).
+- wordmark: horizontal lockup — icon on the left, business name in {{ink}} on the right. 480×240 viewBox.
+
+Keep each SVG under 1500 chars where possible.`;
+
+export async function generateLogoTemplates(args: {
+  businessName: string;
+  logoConcept: string;
+  userId?: string;
+}): Promise<z.infer<typeof LogoTemplatesSchema>> {
+  const userMessage = `Business name: ${args.businessName}
+Logo concept: ${args.logoConcept}
+
+Generate the 5 SVG variants.`;
+  const response = await anthropic().messages.create({
+    model: MODELS.SONNET,
+    max_tokens: 8000,
+    system: [
+      { type: "text", text: LOGO_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+    ],
+    messages: [{ role: "user", content: userMessage }],
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: jsonSchemaForAnthropic(LogoTemplatesSchema),
+      },
+    },
+  });
+  if (args.userId) {
+    void recordAnthropicUsage({
+      userId: args.userId,
+      agent: Agent.STRATEGIST,
+      eventType: "brandkit_logos",
+      response,
+    });
+  }
+  const block = response.content.find((b) => b.type === "text");
+  if (!block || block.type !== "text") {
+    throw new Error("logo generation returned no text content");
+  }
+  return LogoTemplatesSchema.parse(JSON.parse(block.text));
+}
+
+const GRAPHICS_SYSTEM_PROMPT = `You are a senior brand designer producing decorative SVG cover graphics — abstract geometric compositions used as social-media headers, presentation slides, and business-card backs. Hand-tuned vectors only; never raster.
+
+Output 3 distinct compositions in the same brand world. Every SVG MUST:
+- Use viewBox="0 0 1200 630" (Twitter / OG image proportions).
+- Use color tokens {{primary}} / {{secondary}} / {{accent}} / {{ink}} / {{surface}} / {{bg}} for all fills/strokes — never literal hex codes.
+- Use simple geometric primitives — circles, rectangles, lines, paths, arcs, polygons. Optional simple patterns via <pattern>. No <image> tags, no <foreignObject>, no embedded fonts.
+- Compose intentionally: one bold focal element + supporting marks, or a rhythmic grid, or stacked arcs. Never a generic 'gradient mesh background'.
+- Keep each under 4000 chars.
+
+Variants — three different aesthetics so the user has range:
+- graphic1: tight focal composition (one strong shape with surrounding accents).
+- graphic2: rhythmic / grid-based pattern that could repeat (think editorial spread).
+- graphic3: atmospheric / spatial (overlapping forms suggesting depth, like a stage set).
+
+Treat the whole canvas — fill the {{bg}} or {{surface}} background; don't leave white-on-white.`;
+
+export async function generateBrandGraphics(args: {
+  businessName: string;
+  imageStyle: string;
+  userId?: string;
+}): Promise<z.infer<typeof BrandGraphicsSchema>> {
+  const userMessage = `Business name: ${args.businessName}
+Brand image style (for atmosphere — translate to vector geometry):
+${args.imageStyle}
+
+Generate the 3 SVG cover graphics.`;
+  const response = await anthropic().messages.create({
+    model: MODELS.SONNET,
+    max_tokens: 12000,
+    system: [
+      {
+        type: "text",
+        text: GRAPHICS_SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [{ role: "user", content: userMessage }],
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: jsonSchemaForAnthropic(BrandGraphicsSchema),
+      },
+    },
+  });
+  if (args.userId) {
+    void recordAnthropicUsage({
+      userId: args.userId,
+      agent: Agent.STRATEGIST,
+      eventType: "brandkit_graphics",
+      response,
+    });
+  }
+  const block = response.content.find((b) => b.type === "text");
+  if (!block || block.type !== "text") {
+    throw new Error("graphics generation returned no text content");
+  }
+  return BrandGraphicsSchema.parse(JSON.parse(block.text));
+}
+
+// =============================================================
+// Token replacement — the rendering side of the SVG-template approach
+// =============================================================
+
+export type Palette = z.infer<typeof PaletteSchema>;
+
+// Replaces {{primary}} / {{accent}} / etc. tokens in an SVG string with
+// the actual hex codes from the user's palette. Used both for live
+// previews (UI) and exported assets (downloads / Echo composition).
+export function applyPaletteToSvg(svg: string, palette: Palette): string {
+  return svg
+    .replace(/\{\{primary\}\}/g, palette.primary)
+    .replace(/\{\{secondary\}\}/g, palette.secondary)
+    .replace(/\{\{accent\}\}/g, palette.accent)
+    .replace(/\{\{ink\}\}/g, palette.ink)
+    .replace(/\{\{surface\}\}/g, palette.surface)
+    .replace(/\{\{bg\}\}/g, palette.bg);
+}
+
+// =============================================================
+// Top-level generate
+// =============================================================
+
 export async function generateBrandKit(args: {
   userId: string;
   refinementHint?: string;
@@ -148,6 +321,9 @@ export async function generateBrandKit(args: {
   const description = user.businessDescription ?? "";
   const voiceTone = user.agentContext?.strategistOutput ?? null;
 
+  const t0 = Date.now();
+  console.log(`[brandkit] starting generation for user=${args.userId}`);
+
   // 1. Spec
   const spec = await generateBrandKitSpec({
     businessName,
@@ -156,117 +332,29 @@ export async function generateBrandKit(args: {
     refinementHint: args.refinementHint,
     userId: args.userId,
   });
-
-  // 2. Images. Logo prompts are deliberately tight — Flux Schnell does
-  // best with concrete visual direction. Cover samples use the spec's
-  // imageStyle prepended to a short scene cue.
-  //
-  // Replicate throttles new accounts at 6 predictions / minute (with a
-  // burst of 1 below $5 credit), so we run images in batches of 3 with a
-  // 12s pause between batches rather than firing all 7 at once. Slower
-  // generation, but actually completes for users who haven't topped up
-  // their Replicate balance.
-  const logoBase = `Minimalist icon-style logo mark for "${businessName}". Concept: ${spec.logoConcept}. Centered on plain white background. No typography, no text, no letters. Flat geometric shapes. Single accent color: ${spec.palette.accent}. Studio lighting, vector-style finish.`;
-  const coverBase = `${spec.imageStyle} Editorial photograph for "${businessName}".`;
-  const slug = (s: string) => `brandkit-${s}`;
-
-  const jobs: Array<{
-    slug: string;
-    prompt: string;
-    aspectRatio: "1:1" | "16:9";
-  }> = [
-    {
-      slug: slug("logo-primary"),
-      prompt: logoBase,
-      aspectRatio: "1:1",
-    },
-    {
-      slug: slug("logo-mark"),
-      prompt: `${logoBase} Just the icon mark, simplified, centered.`,
-      aspectRatio: "1:1",
-    },
-    {
-      slug: slug("logo-mono"),
-      prompt: `Monochrome black icon mark on white background. ${spec.logoConcept}. Flat shapes, no gradient, no text.`,
-      aspectRatio: "1:1",
-    },
-    {
-      slug: slug("logo-dark"),
-      prompt: `White icon mark on solid charcoal background. ${spec.logoConcept}. Flat shapes, no gradient, no text.`,
-      aspectRatio: "1:1",
-    },
-    {
-      slug: slug("cover-1"),
-      prompt: `${coverBase} Scene: a quiet workspace shot, hands at work, no faces.`,
-      aspectRatio: "16:9",
-    },
-    {
-      slug: slug("cover-2"),
-      prompt: `${coverBase} Scene: a tight product or detail shot. No people.`,
-      aspectRatio: "16:9",
-    },
-    {
-      slug: slug("cover-3"),
-      prompt: `${coverBase} Scene: lifestyle, atmospheric, sense of place.`,
-      aspectRatio: "16:9",
-    },
-  ];
-
-  // Sequential, not batched. Replicate's free-tier throttle has a 'burst of 1'
-  // even when the per-minute quota allows more, so any parallelism trips a
-  // 429 on the second concurrent call. The retry-with-backoff in
-  // services/replicate.ts handles transient throttles within a single call;
-  // serializing across calls keeps us out of trouble entirely.
-  //
-  // Progress logging: each step prints to vercel logs with a checkpoint so
-  // we (and the admin email on failure) can tell exactly which image stage
-  // failed instead of seeing a blank stretch in the function trace.
-  const t0 = Date.now();
   console.log(
-    `[brandkit] starting image pipeline for user=${args.userId} (7 images, sequential)`,
+    `[brandkit] spec done in ${Math.round((Date.now() - t0) / 1000)}s`,
   );
-  const results: Array<{ url: string; costCents: number }> = [];
-  for (const [idx, job] of jobs.entries()) {
-    const stepT = Date.now();
-    console.log(
-      `[brandkit] step ${idx + 1}/${jobs.length}: ${job.slug} (elapsed ${Math.round((stepT - t0) / 1000)}s)`,
-    );
-    const result = await generateImage({
+
+  // 2. Logo SVGs (parallel with graphics for speed — both Anthropic, no
+  // rate limit concerns at the per-account level for this volume).
+  const logosT = Date.now();
+  const graphicsT = Date.now();
+  const [logos, graphics] = await Promise.all([
+    generateLogoTemplates({
+      businessName,
+      logoConcept: spec.logoConcept,
       userId: args.userId,
-      draftId: "brandkit",
-      slug: job.slug,
-      prompt: job.prompt,
-      aspectRatio: job.aspectRatio,
-    });
-    console.log(
-      `[brandkit] step ${idx + 1}/${jobs.length} done in ${Math.round((Date.now() - stepT) / 1000)}s`,
-    );
-    results.push(result);
-  }
+    }),
+    generateBrandGraphics({
+      businessName,
+      imageStyle: spec.imageStyle,
+      userId: args.userId,
+    }),
+  ]);
   console.log(
-    `[brandkit] image pipeline complete in ${Math.round((Date.now() - t0) / 1000)}s for user=${args.userId}`,
+    `[brandkit] logos done in ${Math.round((Date.now() - logosT) / 1000)}s, graphics in ${Math.round((Date.now() - graphicsT) / 1000)}s`,
   );
-
-  const [primary, mark, mono, dark, cover1, cover2, cover3] = results;
-  if (
-    !primary ||
-    !mark ||
-    !mono ||
-    !dark ||
-    !cover1 ||
-    !cover2 ||
-    !cover3
-  ) {
-    throw new Error("brandkit image batch returned an unexpected shape");
-  }
-  const totalCostCents =
-    primary.costCents +
-    mark.costCents +
-    mono.costCents +
-    dark.costCents +
-    cover1.costCents +
-    cover2.costCents +
-    cover3.costCents;
 
   // 3. Persist
   const existing = await db.brandKit.findUnique({
@@ -278,14 +366,14 @@ export async function generateBrandKit(args: {
       userId: args.userId,
       palette: spec.palette as unknown as Prisma.InputJsonValue,
       typography: spec.typography as unknown as Prisma.InputJsonValue,
-      logoVariants: {
-        primary: primary.url,
-        mark: mark.url,
-        monochrome: mono.url,
-        lightOnDark: dark.url,
-      },
-      coverSamples: [cover1.url, cover2.url, cover3.url],
+      logoTemplates: logos as unknown as Prisma.InputJsonValue,
+      coverSamples: [
+        graphics.graphic1,
+        graphics.graphic2,
+        graphics.graphic3,
+      ] as unknown as Prisma.InputJsonValue,
       imageStyle: spec.imageStyle,
+      logoConcept: spec.logoConcept,
       voiceTone: (voiceTone ?? Prisma.DbNull) as Prisma.InputJsonValue,
       version: 1,
       generatedAt: new Date(),
@@ -293,14 +381,14 @@ export async function generateBrandKit(args: {
     update: {
       palette: spec.palette as unknown as Prisma.InputJsonValue,
       typography: spec.typography as unknown as Prisma.InputJsonValue,
-      logoVariants: {
-        primary: primary.url,
-        mark: mark.url,
-        monochrome: mono.url,
-        lightOnDark: dark.url,
-      },
-      coverSamples: [cover1.url, cover2.url, cover3.url],
+      logoTemplates: logos as unknown as Prisma.InputJsonValue,
+      coverSamples: [
+        graphics.graphic1,
+        graphics.graphic2,
+        graphics.graphic3,
+      ] as unknown as Prisma.InputJsonValue,
       imageStyle: spec.imageStyle,
+      logoConcept: spec.logoConcept,
       voiceTone: (voiceTone ?? Prisma.DbNull) as Prisma.InputJsonValue,
       version: (existing?.version ?? 0) + 1,
       generatedAt: new Date(),
@@ -312,18 +400,25 @@ export async function generateBrandKit(args: {
       userId: args.userId,
       agent: Agent.STRATEGIST,
       eventType: "brandkit_generated",
-      payload: {
-        version: kit.version,
-        imageCostCents: totalCostCents,
-      },
+      payload: { version: kit.version },
     },
   });
 
-  return { kitId: kit.id, version: kit.version, totalCostCents };
+  console.log(
+    `[brandkit] complete in ${Math.round((Date.now() - t0) / 1000)}s for user=${args.userId}`,
+  );
+
+  return {
+    kitId: kit.id,
+    version: kit.version,
+    totalCostCents: BRANDKIT_GENERATION_COST_CENTS,
+  };
 }
 
-// How many generations the user has left in the trailing 30-day window.
-// Returns 0 when capped — callers should refuse the regenerate mutation.
+// =============================================================
+// Edit / read mutations
+// =============================================================
+
 export async function brandKitGenerationsRemaining(
   userId: string,
   plan: Plan | "TRIAL",
@@ -344,8 +439,6 @@ export async function brandKitGenerationsRemaining(
   };
 }
 
-// Inline edit of just the imageStyle prompt — lets a power user bias
-// future image generations without burning a regeneration.
 export async function updateBrandKitImageStyle(args: {
   userId: string;
   imageStyle: string;
@@ -353,6 +446,50 @@ export async function updateBrandKitImageStyle(args: {
   await db.brandKit.update({
     where: { userId: args.userId },
     data: { imageStyle: args.imageStyle },
+  });
+}
+
+// Inline palette edit — does NOT regenerate logos. SVGs use {{token}}
+// placeholders so the new palette renders live.
+export async function updateBrandKitPalette(args: {
+  userId: string;
+  palette: Partial<Palette>;
+}): Promise<void> {
+  const existing = await db.brandKit.findUnique({
+    where: { userId: args.userId },
+    select: { palette: true },
+  });
+  if (!existing) throw new Error("no brandkit to update");
+  const merged = {
+    ...(existing.palette as unknown as Palette),
+    ...args.palette,
+  };
+  await db.brandKit.update({
+    where: { userId: args.userId },
+    data: { palette: merged as unknown as Prisma.InputJsonValue },
+  });
+}
+
+export async function updateBrandKitTypography(args: {
+  userId: string;
+  typography: Partial<{
+    headingFont: string;
+    bodyFont: string;
+    weights: string[];
+  }>;
+}): Promise<void> {
+  const existing = await db.brandKit.findUnique({
+    where: { userId: args.userId },
+    select: { typography: true },
+  });
+  if (!existing) throw new Error("no brandkit to update");
+  const merged = {
+    ...(existing.typography as unknown as Record<string, unknown>),
+    ...args.typography,
+  };
+  await db.brandKit.update({
+    where: { userId: args.userId },
+    data: { typography: merged as unknown as Prisma.InputJsonValue },
   });
 }
 

@@ -21,7 +21,21 @@ type Logos = {
   mark: string;
   monochrome: string;
   lightOnDark: string;
+  wordmark: string;
 };
+
+function applyPalette(svg: string, palette: Palette): string {
+  return svg
+    .replace(/\{\{primary\}\}/g, palette.primary)
+    .replace(/\{\{secondary\}\}/g, palette.secondary)
+    .replace(/\{\{accent\}\}/g, palette.accent)
+    .replace(/\{\{ink\}\}/g, palette.ink)
+    .replace(/\{\{surface\}\}/g, palette.surface)
+    .replace(/\{\{bg\}\}/g, palette.bg);
+}
+function svgDataUri(svg: string): string {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
 
 export function BrandKitOnboardingForm() {
   const router = useRouter();
@@ -50,7 +64,7 @@ export function BrandKitOnboardingForm() {
 
   const kit = query.data?.kit ?? null;
   const palette = kit ? (kit.palette as unknown as Palette) : null;
-  const logos = kit ? (kit.logoVariants as unknown as Logos) : null;
+  const logos = kit ? (kit.logoTemplates as unknown as Logos) : null;
 
   return (
     <OnboardingShell step={7} wide>
@@ -100,24 +114,32 @@ export function BrandKitOnboardingForm() {
             </div>
           ) : null}
 
-          {logos ? (
+          {logos && palette ? (
             <div className="grid grid-cols-4 gap-sm mb-md">
               {(["primary", "mark", "monochrome", "lightOnDark"] as const).map(
-                (k) => (
-                  <div
-                    key={k}
-                    className={`aspect-square rounded-md border-hairline border-border overflow-hidden flex items-center justify-center ${
-                      k === "lightOnDark" ? "bg-ink" : "bg-white"
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={logos[k]}
-                      alt=""
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                ),
+                (k) => {
+                  const rendered = logos[k]
+                    ? applyPalette(logos[k], palette)
+                    : "";
+                  return (
+                    <div
+                      key={k}
+                      className={`aspect-square rounded-md border-hairline border-border overflow-hidden flex items-center justify-center p-sm`}
+                      style={{
+                        background: k === "lightOnDark" ? palette.ink : palette.bg,
+                      }}
+                    >
+                      {rendered ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={svgDataUri(rendered)}
+                          alt=""
+                          className="w-full h-full object-contain"
+                        />
+                      ) : null}
+                    </div>
+                  );
+                },
               )}
             </div>
           ) : null}

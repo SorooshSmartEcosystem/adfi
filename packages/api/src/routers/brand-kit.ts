@@ -5,6 +5,8 @@ import {
   generateBrandKit,
   brandKitGenerationsRemaining,
   updateBrandKitImageStyle,
+  updateBrandKitPalette,
+  updateBrandKitTypography,
   getBrandKit,
   BRANDKIT_GENERATION_COST_CENTS,
   MONTHLY_BRANDKIT_CAP,
@@ -12,10 +14,11 @@ import {
 import { effectivePlan } from "../services/abuse-guard";
 import { notifyAdminOfError } from "../services/admin-notify";
 
+const HEX = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "must be a 6-digit hex like #1A2B3C");
+
 export const brandKitRouter = router({
-  // Read the user's current kit. Returns null if they haven't generated
-  // one yet — onboarding step + /specialist/brandkit page both use this
-  // to decide whether to show the "generate" CTA or the panel.
   getMine: authedProc.input(z.void()).query(async ({ ctx }) => {
     const [kit, plan] = await Promise.all([
       getBrandKit(ctx.user.id),
@@ -31,9 +34,6 @@ export const brandKitRouter = router({
     };
   }),
 
-  // Run the full generation pipeline. Charges against the plan cap.
-  // Optional `refinementHint` biases the spec toward a direction the user
-  // describes ("more bold", "softer palette", "for skincare not finance").
   generate: authedProc
     .input(
       z.object({
@@ -58,9 +58,6 @@ export const brandKitRouter = router({
         });
         return result;
       } catch (err) {
-        // Send the raw detail to admins; show the user a clean message.
-        // This is especially important here because Replicate's 429 body
-        // includes account-credit context the user shouldn't see.
         await notifyAdminOfError({
           source: "brandKit.generate",
           error: err,
@@ -74,9 +71,6 @@ export const brandKitRouter = router({
       }
     }),
 
-  // Inline tweak to just the imageStyle prompt. Doesn't charge against the
-  // generation cap (no LLM / no Replicate call) — only Echo's next image
-  // run will consume tokens.
   updateImageStyle: authedProc
     .input(
       z.object({
@@ -93,6 +87,51 @@ export const brandKitRouter = router({
       await updateBrandKitImageStyle({
         userId: ctx.user.id,
         imageStyle: input.imageStyle,
+      });
+      return { ok: true as const };
+    }),
+
+  // Inline palette edit. Doesn't regenerate logos — SVGs use {{token}}
+  // placeholders so a single hex change re-renders the entire kit.
+  updatePalette: authedProc
+    .input(
+      z.object({
+        primary: HEX.optional(),
+        secondary: HEX.optional(),
+        accent: HEX.optional(),
+        ink: HEX.optional(),
+        surface: HEX.optional(),
+        bg: HEX.optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await getBrandKit(ctx.user.id);
+      if (!existing) {
+        throw OrbError.VALIDATION("generate a brandkit first");
+      }
+      await updateBrandKitPalette({
+        userId: ctx.user.id,
+        palette: input,
+      });
+      return { ok: true as const };
+    }),
+
+  updateTypography: authedProc
+    .input(
+      z.object({
+        headingFont: z.string().min(1).max(100).optional(),
+        bodyFont: z.string().min(1).max(100).optional(),
+        weights: z.array(z.string().max(20)).max(6).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await getBrandKit(ctx.user.id);
+      if (!existing) {
+        throw OrbError.VALIDATION("generate a brandkit first");
+      }
+      await updateBrandKitTypography({
+        userId: ctx.user.id,
+        typography: input,
       });
       return { ok: true as const };
     }),

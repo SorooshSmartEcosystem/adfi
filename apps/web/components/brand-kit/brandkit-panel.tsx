@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { Card } from "../shared/card";
 
@@ -12,36 +12,78 @@ type Palette = {
   bg: string;
   rationale?: string;
 };
-
 type Typography = {
   headingFont: string;
   bodyFont: string;
   weights: string[];
   rationale?: string;
 };
-
-type LogoVariants = {
+type LogoTemplates = {
   primary: string;
   mark: string;
   monochrome: string;
   lightOnDark: string;
+  wordmark: string;
 };
 
-const PALETTE_LABELS: { key: keyof Palette; label: string }[] = [
-  { key: "primary", label: "primary" },
-  { key: "secondary", label: "secondary" },
-  { key: "accent", label: "accent" },
-  { key: "ink", label: "ink" },
-  { key: "surface", label: "surface" },
-  { key: "bg", label: "background" },
+const PALETTE_KEYS: { key: keyof Palette; label: string; role: string }[] = [
+  { key: "primary", label: "primary", role: "ctas, key ui" },
+  { key: "secondary", label: "secondary", role: "supporting buttons, links" },
+  { key: "accent", label: "accent", role: "status dots, callouts" },
+  { key: "ink", label: "ink", role: "all text" },
+  { key: "surface", label: "surface", role: "card fills" },
+  { key: "bg", label: "background", role: "page bg" },
 ];
 
-const LOGO_LABELS: { key: keyof LogoVariants; label: string }[] = [
-  { key: "primary", label: "primary" },
-  { key: "mark", label: "icon mark" },
-  { key: "monochrome", label: "monochrome" },
-  { key: "lightOnDark", label: "light on dark" },
+const LOGO_DEFS: { key: keyof LogoTemplates; label: string; desc: string; aspect: string; dark?: boolean }[] = [
+  { key: "primary", label: "primary mark", desc: "the hero version", aspect: "1/1" },
+  { key: "mark", label: "icon only", desc: "no text · favicon-ready", aspect: "1/1" },
+  { key: "monochrome", label: "monochrome", desc: "single color · for embossing", aspect: "1/1" },
+  { key: "lightOnDark", label: "on dark", desc: "for dark surfaces", aspect: "1/1", dark: true },
+  { key: "wordmark", label: "horizontal lockup", desc: "icon + name", aspect: "2/1" },
 ];
+
+// Replace {{primary}} / {{accent}} / etc. with the user's current palette.
+// Same logic as the server, kept here so live edits update immediately.
+function applyPalette(svg: string, palette: Palette): string {
+  return svg
+    .replace(/\{\{primary\}\}/g, palette.primary)
+    .replace(/\{\{secondary\}\}/g, palette.secondary)
+    .replace(/\{\{accent\}\}/g, palette.accent)
+    .replace(/\{\{ink\}\}/g, palette.ink)
+    .replace(/\{\{surface\}\}/g, palette.surface)
+    .replace(/\{\{bg\}\}/g, palette.bg);
+}
+
+function svgDataUri(svg: string): string {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function downloadSvg(filename: string, svg: string) {
+  const blob = new Blob([svg], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadJson(filename: string, json: unknown) {
+  const blob = new Blob([JSON.stringify(json, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 export function BrandKitPanel() {
   const utils = trpc.useUtils();
@@ -49,13 +91,19 @@ export function BrandKitPanel() {
   const generate = trpc.brandKit.generate.useMutation({
     onSuccess: () => utils.brandKit.getMine.invalidate(),
   });
-  const updatePrompt = trpc.brandKit.updateImageStyle.useMutation({
+  const updatePalette = trpc.brandKit.updatePalette.useMutation({
+    onSuccess: () => utils.brandKit.getMine.invalidate(),
+  });
+  const updateTypography = trpc.brandKit.updateTypography.useMutation({
+    onSuccess: () => utils.brandKit.getMine.invalidate(),
+  });
+  const updateImageStyle = trpc.brandKit.updateImageStyle.useMutation({
     onSuccess: () => utils.brandKit.getMine.invalidate(),
   });
 
   const [hint, setHint] = useState("");
-  const [editingPrompt, setEditingPrompt] = useState(false);
-  const [promptDraft, setPromptDraft] = useState("");
+  const [editingStyle, setEditingStyle] = useState(false);
+  const [styleDraft, setStyleDraft] = useState("");
 
   if (query.isLoading) {
     return <p className="text-sm text-ink3">one second</p>;
@@ -65,24 +113,29 @@ export function BrandKitPanel() {
   const { kit, plan, quota, generationCostCents, monthlyCap } = query.data;
   const remainingLine =
     quota.remaining > 0
-      ? `${quota.remaining}/${monthlyCap} generations left this month on the ${plan.toLowerCase()} plan · ~$${(generationCostCents / 100).toFixed(2)} per regenerate`
-      : `you've used all ${monthlyCap} generations this month — upgrade or wait for the rolling window to refresh`;
+      ? `${quota.remaining}/${monthlyCap} regenerations left this month · ${plan.toLowerCase()} plan · ~$${(generationCostCents / 100).toFixed(2)} per regenerate`
+      : `you've used all ${monthlyCap} regenerations this month — wait for the window to refresh or upgrade`;
 
-  if (!kit) {
+  // Empty state — kit exists but no logo templates yet (legacy raster row).
+  const hasLogos =
+    kit && kit.logoTemplates && Object.keys(kit.logoTemplates).length > 0;
+
+  if (!kit || !hasLogos) {
     return (
       <Card>
         <div className="text-md font-medium mb-sm">no brand kit yet</div>
         <p className="text-sm text-ink3 leading-relaxed mb-md">
-          generate a palette, typography pairing, four logo variants, and three
-          cover sample images — all in your voice. echo will use this look on
-          every image it draws afterward.
+          generate a palette, typography pairing, five hand-tuned svg logo
+          variants, and three brand cover graphics — all crafted to your
+          voice. every asset is editable. echo will use this look on every
+          image it draws afterward.
         </p>
         <div className="text-xs text-ink4 mb-md">{remainingLine}</div>
         <input
           type="text"
           value={hint}
           onChange={(e) => setHint(e.target.value)}
-          placeholder="optional hint — e.g. 'softer palette', 'editorial newsroom feel'"
+          placeholder="optional hint — e.g. 'editorial newsroom feel', 'soft beige + gold'"
           disabled={generate.isPending}
           className="w-full px-md py-[10px] bg-bg border-hairline border-border rounded-full text-sm focus:outline-none focus:border-ink mb-md"
         />
@@ -107,275 +160,673 @@ export function BrandKitPanel() {
 
   const palette = kit.palette as unknown as Palette;
   const typography = kit.typography as unknown as Typography;
-  const logoVariants = kit.logoVariants as unknown as LogoVariants;
-  const coverSamples = (kit.coverSamples as unknown as string[]) ?? [];
+  const logos = kit.logoTemplates as unknown as LogoTemplates;
+  const graphics = (kit.coverSamples as unknown as string[]) ?? [];
 
   return (
-    <div className="flex flex-col gap-lg">
-      <Card>
-        <div className="flex items-baseline justify-between flex-wrap gap-sm mb-md">
-          <div>
-            <div className="text-md font-medium">version {kit.version}</div>
-            <div className="text-xs text-ink4">
-              generated{" "}
-              {new Date(kit.generatedAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </div>
-          </div>
-          <div className="text-xs text-ink4 max-w-[320px] text-right">
-            {remainingLine}
+    <BrandBook
+      kit={{
+        version: kit.version,
+        generatedAt: kit.generatedAt,
+        palette,
+        typography,
+        logos,
+        graphics,
+        imageStyle: kit.imageStyle,
+        logoConcept: kit.logoConcept,
+      }}
+      remainingLine={remainingLine}
+      hint={hint}
+      onHintChange={setHint}
+      generate={generate}
+      onUpdatePalette={(patch) => updatePalette.mutate(patch)}
+      onUpdateTypography={(patch) => updateTypography.mutate(patch)}
+      editingStyle={editingStyle}
+      styleDraft={styleDraft}
+      onEditStyleStart={() => {
+        setStyleDraft(kit.imageStyle);
+        setEditingStyle(true);
+      }}
+      onEditStyleCancel={() => setEditingStyle(false)}
+      onEditStyleChange={setStyleDraft}
+      onEditStyleSave={() => {
+        if (styleDraft.trim().length < 20) return;
+        updateImageStyle.mutate(
+          { imageStyle: styleDraft.trim() },
+          { onSuccess: () => setEditingStyle(false) },
+        );
+      }}
+      saveStylePending={updateImageStyle.isPending}
+      saveStyleError={updateImageStyle.error?.message ?? null}
+    />
+  );
+}
+
+// =============================================================
+// Brand book — the visual layout matching the reference design.
+// =============================================================
+
+type BookProps = {
+  kit: {
+    version: number;
+    generatedAt: Date | string;
+    palette: Palette;
+    typography: Typography;
+    logos: LogoTemplates;
+    graphics: string[];
+    imageStyle: string;
+    logoConcept: string;
+  };
+  remainingLine: string;
+  hint: string;
+  onHintChange: (v: string) => void;
+  generate: ReturnType<typeof trpc.brandKit.generate.useMutation>;
+  onUpdatePalette: (patch: Partial<Palette>) => void;
+  onUpdateTypography: (patch: Partial<Typography>) => void;
+  editingStyle: boolean;
+  styleDraft: string;
+  onEditStyleStart: () => void;
+  onEditStyleCancel: () => void;
+  onEditStyleChange: (v: string) => void;
+  onEditStyleSave: () => void;
+  saveStylePending: boolean;
+  saveStyleError: string | null;
+};
+
+function BrandBook(p: BookProps) {
+  const { kit } = p;
+  const palette = kit.palette;
+  return (
+    <div className="flex flex-col gap-2xl">
+      <ControlsBar {...p} />
+      <LogoSection logos={kit.logos} palette={palette} concept={kit.logoConcept} />
+      <ColorSection
+        palette={palette}
+        onUpdate={p.onUpdatePalette}
+      />
+      <TypographySection
+        typography={kit.typography}
+        onUpdate={p.onUpdateTypography}
+      />
+      <GraphicsSection graphics={kit.graphics} palette={palette} />
+      <ImageStyleSection
+        imageStyle={kit.imageStyle}
+        editing={p.editingStyle}
+        draft={p.styleDraft}
+        onStart={p.onEditStyleStart}
+        onCancel={p.onEditStyleCancel}
+        onChange={p.onEditStyleChange}
+        onSave={p.onEditStyleSave}
+        pending={p.saveStylePending}
+        error={p.saveStyleError}
+      />
+      <AssetsSection logos={kit.logos} palette={palette} typography={kit.typography} />
+    </div>
+  );
+}
+
+function SectionHeader({
+  num,
+  title,
+  sub,
+}: {
+  num: string;
+  title: string;
+  sub: string;
+}) {
+  return (
+    <div className="mb-lg">
+      <div className="font-mono text-[11px] text-ink4 tracking-[0.1em] mb-xs">
+        {num}
+      </div>
+      <h2 className="text-2xl font-medium tracking-tight mb-xs">{title}</h2>
+      <p className="text-sm text-ink3 max-w-[560px] leading-relaxed">{sub}</p>
+    </div>
+  );
+}
+
+function ControlsBar(p: BookProps) {
+  return (
+    <Card>
+      <div className="flex items-baseline justify-between flex-wrap gap-sm mb-md">
+        <div>
+          <div className="text-md font-medium">version {p.kit.version}</div>
+          <div className="text-xs text-ink4">
+            generated{" "}
+            {new Date(p.kit.generatedAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
           </div>
         </div>
+        <div className="text-xs text-ink4 max-w-[320px] text-right">
+          {p.remainingLine}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-sm">
+        <input
+          type="text"
+          value={p.hint}
+          onChange={(e) => p.onHintChange(e.target.value)}
+          placeholder="hint for regenerate (e.g. 'bolder accent', 'less corporate')"
+          disabled={p.generate.isPending}
+          className="flex-1 min-w-[240px] px-md py-[8px] bg-bg border-hairline border-border rounded-full text-sm focus:outline-none focus:border-ink"
+        />
+        <button
+          type="button"
+          onClick={() =>
+            p.generate.mutate(
+              p.hint.trim() ? { refinementHint: p.hint.trim() } : {},
+            )
+          }
+          disabled={p.generate.isPending}
+          className="bg-ink text-white text-xs font-medium px-md py-[8px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
+        >
+          {p.generate.isPending ? "drawing..." : "regenerate →"}
+        </button>
+      </div>
+      {p.generate.error ? (
+        <p className="text-sm text-urgent mt-sm">{p.generate.error.message}</p>
+      ) : null}
+    </Card>
+  );
+}
 
-        <div className="flex flex-wrap gap-sm mt-md">
+function LogoSection({
+  logos,
+  palette,
+  concept,
+}: {
+  logos: LogoTemplates;
+  palette: Palette;
+  concept: string;
+}) {
+  return (
+    <div>
+      <SectionHeader
+        num="01 · LOGO"
+        title="the mark."
+        sub={concept || "your logo system, generated as svg so it scales infinitely and updates live when you change colors."}
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        {LOGO_DEFS.map((def) => (
+          <LogoCard
+            key={def.key}
+            label={def.label}
+            desc={def.desc}
+            svg={logos[def.key]}
+            palette={palette}
+            aspect={def.aspect}
+            dark={def.dark}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LogoCard({
+  label,
+  desc,
+  svg,
+  palette,
+  aspect,
+  dark,
+}: {
+  label: string;
+  desc: string;
+  svg: string;
+  palette: Palette;
+  aspect: string;
+  dark?: boolean;
+}) {
+  const rendered = applyPalette(svg, palette);
+  return (
+    <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
+      <div
+        className="flex items-center justify-center p-xl"
+        style={{
+          aspectRatio: aspect,
+          background: dark ? palette.ink : palette.bg,
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={svgDataUri(rendered)}
+          alt={label}
+          className="max-w-[60%] max-h-[80%] object-contain"
+        />
+      </div>
+      <div className="px-lg py-md flex items-center justify-between gap-sm">
+        <div className="min-w-0">
+          <div className="text-sm font-medium">{label}</div>
+          <div className="text-xs text-ink4 truncate">{desc}</div>
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            downloadSvg(`logo-${label.replace(/\s+/g, "-")}.svg`, rendered)
+          }
+          className="font-mono text-[11px] text-ink3 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors shrink-0"
+        >
+          ↓ svg
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ColorSection({
+  palette,
+  onUpdate,
+}: {
+  palette: Palette;
+  onUpdate: (patch: Partial<Palette>) => void;
+}) {
+  return (
+    <div>
+      <SectionHeader
+        num="02 · COLORS"
+        title="the palette."
+        sub={
+          palette.rationale ||
+          "edit any swatch — every logo and graphic re-renders live with the new color."
+        }
+      />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-md">
+        {PALETTE_KEYS.map(({ key, label, role }) => (
+          <Swatch
+            key={key}
+            label={label}
+            role={role}
+            hex={palette[key] as string}
+            onChange={(next) => onUpdate({ [key]: next } as Partial<Palette>)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Swatch({
+  label,
+  role,
+  hex,
+  onChange,
+}: {
+  label: string;
+  role: string;
+  hex: string;
+  onChange: (next: string) => void;
+}) {
+  const [draft, setDraft] = useState(hex);
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="bg-white border-hairline border-border rounded-md overflow-hidden">
+      <label className="block cursor-pointer">
+        <input
+          type="color"
+          value={hex}
+          onChange={(e) => {
+            const next = e.target.value;
+            setDraft(next);
+            onChange(next);
+          }}
+          className="sr-only"
+        />
+        <div className="h-[80px]" style={{ background: hex }} />
+      </label>
+      <div className="px-md py-sm">
+        <div className="text-xs font-medium">{label}</div>
+        <div className="text-[10px] text-ink4 mb-xs">{role}</div>
+        <div className="flex items-center gap-xs">
           <input
             type="text"
-            value={hint}
-            onChange={(e) => setHint(e.target.value)}
-            placeholder="optional hint — e.g. 'bolder accent', 'less corporate'"
-            disabled={generate.isPending}
-            className="flex-1 min-w-[240px] px-md py-[8px] bg-bg border-hairline border-border rounded-full text-sm focus:outline-none focus:border-ink"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => {
+              if (/^#[0-9a-fA-F]{6}$/.test(draft) && draft !== hex) {
+                onChange(draft);
+              } else {
+                setDraft(hex);
+              }
+            }}
+            className="flex-1 min-w-0 font-mono text-[11px] bg-transparent border-none p-0 focus:outline-none text-ink2"
           />
           <button
             type="button"
-            onClick={() =>
-              generate.mutate(
-                hint.trim() ? { refinementHint: hint.trim() } : {},
-              )
-            }
-            disabled={generate.isPending || quota.remaining === 0}
-            className="bg-ink text-white text-xs font-medium px-md py-[8px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(hex);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1200);
+              } catch {
+                // clipboard blocked
+              }
+            }}
+            className="text-[10px] text-ink4 hover:text-ink"
           >
-            {generate.isPending ? "drawing..." : "regenerate →"}
+            {copied ? "✓" : "copy"}
           </button>
         </div>
-        {generate.error ? (
-          <p className="text-sm text-urgent mt-sm">{generate.error.message}</p>
-        ) : null}
-      </Card>
+      </div>
+    </div>
+  );
+}
 
-      <Card>
-        <div className="text-xs text-ink4 mb-md">palette</div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-md">
-          {PALETTE_LABELS.map(({ key, label }) => {
-            const hex = palette[key];
-            return <Swatch key={key} label={label} hex={hex as string} />;
-          })}
-        </div>
-        {palette.rationale ? (
-          <p className="text-sm text-ink3 leading-relaxed mt-md">
-            {palette.rationale}
-          </p>
-        ) : null}
-      </Card>
+const FONT_OPTIONS = [
+  "Inter",
+  "Manrope",
+  "DM Sans",
+  "Plus Jakarta Sans",
+  "Cormorant Garamond",
+  "Fraunces",
+  "Playfair Display",
+  "Lora",
+  "IBM Plex Sans",
+  "IBM Plex Serif",
+  "Space Grotesk",
+  "Geist",
+  "Geist Mono",
+  "Söhne",
+  "system-ui",
+];
 
-      <Card>
-        <div className="text-xs text-ink4 mb-md">typography</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
-          <div>
-            <div className="text-[11px] text-ink4 mb-xs">heading</div>
-            <div
-              className="text-2xl font-medium"
-              style={{ fontFamily: typography.headingFont }}
-            >
-              {typography.headingFont}
-            </div>
-          </div>
-          <div>
-            <div className="text-[11px] text-ink4 mb-xs">body</div>
-            <div
-              className="text-md leading-relaxed"
-              style={{ fontFamily: typography.bodyFont }}
-            >
-              {typography.bodyFont} — every body copy paragraph adfi writes
-              renders in this face when published to channels we control.
-            </div>
-          </div>
-        </div>
-        <div className="text-xs text-ink4 mt-md">
-          weights: {typography.weights.join(" / ")}
-        </div>
-        {typography.rationale ? (
-          <p className="text-sm text-ink3 leading-relaxed mt-md">
-            {typography.rationale}
-          </p>
-        ) : null}
-      </Card>
+function TypographySection({
+  typography,
+  onUpdate,
+}: {
+  typography: Typography;
+  onUpdate: (patch: Partial<Typography>) => void;
+}) {
+  return (
+    <div>
+      <SectionHeader
+        num="03 · TYPOGRAPHY"
+        title="the type system."
+        sub={
+          typography.rationale ||
+          "two faces. heading + body. pick from the dropdown — google fonts and system stacks."
+        }
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+        <FontPicker
+          label="heading"
+          value={typography.headingFont}
+          onChange={(v) => onUpdate({ headingFont: v })}
+          sample="i posted 3 things this week."
+          size="36px"
+          weight={500}
+        />
+        <FontPicker
+          label="body"
+          value={typography.bodyFont}
+          onChange={(v) => onUpdate({ bodyFont: v })}
+          sample="8,400 people saw them. three customers messaged you — i handled them."
+          size="16px"
+          weight={400}
+        />
+      </div>
+      <div className="text-xs text-ink4 mt-md">
+        weights: {typography.weights.join(" / ")}
+      </div>
+    </div>
+  );
+}
 
-      <Card>
-        <div className="text-xs text-ink4 mb-md">logo variants</div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
-          {LOGO_LABELS.map(({ key, label }) => (
-            <LogoTile
-              key={key}
-              label={label}
-              src={logoVariants[key]}
-              dark={key === "lightOnDark"}
-            />
+function FontPicker({
+  label,
+  value,
+  onChange,
+  sample,
+  size,
+  weight,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  sample: string;
+  size: string;
+  weight: number;
+}) {
+  return (
+    <div className="bg-white border-hairline border-border rounded-[16px] p-lg">
+      <div className="flex items-center justify-between mb-md">
+        <div className="text-[11px] text-ink4 tracking-[0.1em]">
+          {label.toUpperCase()}
+        </div>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="text-xs bg-transparent border-hairline border-border rounded-full px-sm py-[4px] focus:outline-none focus:border-ink"
+        >
+          {[...new Set([value, ...FONT_OPTIONS])].map((f) => (
+            <option key={f} value={f}>
+              {f}
+            </option>
           ))}
-        </div>
-      </Card>
+        </select>
+      </div>
+      <div
+        className="leading-tight"
+        style={{
+          fontFamily: `${value}, system-ui, sans-serif`,
+          fontSize: size,
+          fontWeight: weight,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {sample}
+      </div>
+      <div className="font-mono text-[11px] text-ink4 mt-md">{value}</div>
+    </div>
+  );
+}
 
-      <Card>
-        <div className="text-xs text-ink4 mb-md">cover samples</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
-          {coverSamples.map((url, i) => (
-            <CoverTile key={i} src={url} index={i} />
-          ))}
-        </div>
-      </Card>
-
-      <Card>
-        <div className="flex items-baseline justify-between mb-sm">
-          <div className="text-xs text-ink4">image style prompt</div>
-          {!editingPrompt ? (
-            <button
-              type="button"
-              onClick={() => {
-                setPromptDraft(kit.imageStyle);
-                setEditingPrompt(true);
-              }}
-              className="text-xs text-ink2 hover:text-ink"
+function GraphicsSection({
+  graphics,
+  palette,
+}: {
+  graphics: string[];
+  palette: Palette;
+}) {
+  if (graphics.length === 0) return null;
+  return (
+    <div>
+      <SectionHeader
+        num="04 · GRAPHICS"
+        title="brand cover graphics."
+        sub="three abstract svg compositions for social headers, presentation slides, and email covers. all use your palette tokens."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+        {graphics.map((svg, i) => {
+          const rendered = applyPalette(svg, palette);
+          return (
+            <div
+              key={i}
+              className="bg-white border-hairline border-border rounded-[16px] overflow-hidden"
             >
-              edit
-            </button>
-          ) : null}
-        </div>
-        {editingPrompt ? (
+              <div
+                className="aspect-[1200/630] flex items-center justify-center"
+                style={{ background: palette.bg }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={svgDataUri(rendered)}
+                  alt={`graphic ${i + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="px-lg py-md flex items-center justify-between">
+                <div className="text-xs text-ink4">graphic {i + 1}</div>
+                <button
+                  type="button"
+                  onClick={() => downloadSvg(`graphic-${i + 1}.svg`, rendered)}
+                  className="font-mono text-[11px] text-ink3 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors"
+                >
+                  ↓ svg
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ImageStyleSection({
+  imageStyle,
+  editing,
+  draft,
+  onStart,
+  onCancel,
+  onChange,
+  onSave,
+  pending,
+  error,
+}: {
+  imageStyle: string;
+  editing: boolean;
+  draft: string;
+  onStart: () => void;
+  onCancel: () => void;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  pending: boolean;
+  error: string | null;
+}) {
+  return (
+    <div>
+      <SectionHeader
+        num="05 · IMAGE STYLE"
+        title="how echo draws photos."
+        sub="this prompt prefix is prepended to every photo echo generates for blog/social. tweak it to bias the look without burning a regeneration."
+      />
+      <Card>
+        {editing ? (
           <>
             <textarea
-              value={promptDraft}
-              onChange={(e) => setPromptDraft(e.target.value)}
+              value={draft}
+              onChange={(e) => onChange(e.target.value)}
               rows={4}
               className="w-full px-md py-sm bg-bg border-hairline border-border rounded-md text-sm focus:outline-none focus:border-ink leading-relaxed"
             />
             <div className="flex items-center gap-sm mt-md">
               <button
                 type="button"
-                onClick={() => {
-                  if (promptDraft.trim().length < 20) return;
-                  updatePrompt.mutate(
-                    { imageStyle: promptDraft.trim() },
-                    { onSuccess: () => setEditingPrompt(false) },
-                  );
-                }}
-                disabled={
-                  updatePrompt.isPending || promptDraft.trim().length < 20
-                }
+                onClick={onSave}
+                disabled={pending || draft.trim().length < 20}
                 className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40"
               >
-                {updatePrompt.isPending ? "saving..." : "save"}
+                {pending ? "saving..." : "save"}
               </button>
               <button
                 type="button"
-                onClick={() => setEditingPrompt(false)}
+                onClick={onCancel}
                 className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors"
               >
                 cancel
               </button>
             </div>
-            {updatePrompt.error ? (
-              <p className="text-sm text-urgent mt-sm">
-                {updatePrompt.error.message}
-              </p>
+            {error ? (
+              <p className="text-sm text-urgent mt-sm">{error}</p>
             ) : null}
           </>
         ) : (
-          <p className="text-sm text-ink2 leading-relaxed">{kit.imageStyle}</p>
+          <div className="flex items-start justify-between gap-md">
+            <p className="text-sm text-ink2 leading-relaxed flex-1">
+              {imageStyle}
+            </p>
+            <button
+              type="button"
+              onClick={onStart}
+              className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors shrink-0"
+            >
+              edit
+            </button>
+          </div>
         )}
       </Card>
     </div>
   );
 }
 
-function Swatch({ label, hex }: { label: string; hex: string }) {
-  const [copied, setCopied] = useState(false);
+function AssetsSection({
+  logos,
+  palette,
+  typography,
+}: {
+  logos: LogoTemplates;
+  palette: Palette;
+  typography: Typography;
+}) {
+  const renderedLogos = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(logos).map(([k, v]) => [k, applyPalette(v, palette)]),
+      ) as LogoTemplates,
+    [logos, palette],
+  );
+
+  const tokens = {
+    name: "brand kit tokens",
+    version: "1.0.0",
+    palette,
+    typography,
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        num="06 · ASSETS"
+        title="downloads."
+        sub="every logo as svg + a tokens.json with all palette + typography values for handing off to a designer."
+      />
+      <div className="bg-white border-hairline border-border rounded-[16px] divide-y divide-border2">
+        {LOGO_DEFS.map((def) => (
+          <AssetRow
+            key={def.key}
+            name={`logo-${def.key}.svg`}
+            meta={`SVG · ${def.label.toUpperCase()}`}
+            onClick={() =>
+              downloadSvg(`logo-${def.key}.svg`, renderedLogos[def.key])
+            }
+          />
+        ))}
+        <AssetRow
+          name="tokens.json"
+          meta="DESIGN TOKENS · COLORS + TYPOGRAPHY"
+          onClick={() => downloadJson("tokens.json", tokens)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AssetRow({
+  name,
+  meta,
+  onClick,
+}: {
+  name: string;
+  meta: string;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(hex);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        } catch {
-          // clipboard blocked — fail silently, hex is visible inline
-        }
-      }}
-      className="text-left group"
+      onClick={onClick}
+      className="w-full text-left px-lg py-md flex items-center justify-between gap-md hover:bg-surface transition-colors"
     >
-      <div
-        className="w-full h-[80px] rounded-md border-hairline border-border mb-xs"
-        style={{ background: hex }}
-        aria-label={label}
-      />
-      <div className="text-[11px] text-ink4">{label}</div>
-      <div className="text-xs font-mono text-ink2 group-hover:text-ink">
-        {copied ? "copied" : hex}
+      <div className="min-w-0">
+        <div className="text-sm font-medium truncate">{name}</div>
+        <div className="font-mono text-[11px] text-ink4 truncate">{meta}</div>
       </div>
+      <span className="font-mono text-[11px] text-ink3 shrink-0">
+        download →
+      </span>
     </button>
-  );
-}
-
-function LogoTile({
-  label,
-  src,
-  dark,
-}: {
-  label: string;
-  src: string;
-  dark?: boolean;
-}) {
-  return (
-    <div className="text-center">
-      <div
-        className={`aspect-square rounded-md border-hairline border-border mb-xs flex items-center justify-center overflow-hidden ${
-          dark ? "bg-ink" : "bg-white"
-        }`}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt=""
-          className="w-full h-full object-contain"
-        />
-      </div>
-      <div className="text-[11px] text-ink4 mb-xs">{label}</div>
-      <a
-        href={src}
-        download={`logo-${label.replace(/\s+/g, "-")}.webp`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[11px] text-ink2 hover:text-ink underline"
-      >
-        download
-      </a>
-    </div>
-  );
-}
-
-function CoverTile({ src, index }: { src: string; index: number }) {
-  return (
-    <div>
-      <div className="aspect-[16/9] rounded-md border-hairline border-border mb-xs overflow-hidden bg-surface">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="w-full h-full object-cover" />
-      </div>
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="text-ink4">sample {index + 1}</span>
-        <a
-          href={src}
-          download={`cover-${index + 1}.webp`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-ink2 hover:text-ink underline"
-        >
-          download
-        </a>
-      </div>
-    </div>
   );
 }

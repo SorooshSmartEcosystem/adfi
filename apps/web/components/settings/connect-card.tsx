@@ -303,7 +303,10 @@ function TelegramRefreshButton() {
       </button>
       {refresh.data?.ok ? (
         <span className="text-[11px] text-aliveDark truncate max-w-[260px]">
-          ✓ pointed at {refresh.data.registeredUrl ?? refresh.data.webhookUrl}
+          ✓ pointed at{" "}
+          {maskWebhookSecret(
+            refresh.data.registeredUrl ?? refresh.data.webhookUrl,
+          )}
         </span>
       ) : null}
       {refresh.error ? (
@@ -315,8 +318,12 @@ function TelegramRefreshButton() {
 }
 
 function TelegramDiagnostics() {
+  const utils = trpc.useUtils();
   const q = trpc.connections.diagnoseTelegram.useQuery(undefined, {
     refetchOnWindowFocus: false,
+  });
+  const dismiss = trpc.insights.acknowledgeFinding.useMutation({
+    onSuccess: () => utils.connections.diagnoseTelegram.invalidate(),
   });
   if (q.isLoading) {
     return <div className="basis-full text-[11px] text-ink4 mt-sm">one second</div>;
@@ -335,7 +342,9 @@ function TelegramDiagnostics() {
         {d.webhook ? (
           <>
             <div className="font-mono text-[11px] break-all">
-              {d.webhook.registeredUrl || "(none registered)"}
+              {d.webhook.registeredUrl
+                ? maskWebhookSecret(d.webhook.registeredUrl)
+                : "(none registered)"}
             </div>
             <div className="text-[11px] text-ink4 mt-xs">
               pending updates: {d.webhook.pendingUpdateCount}
@@ -390,20 +399,28 @@ function TelegramDiagnostics() {
       </DiagSection>
 
       {d.recentFindings.length > 0 ? (
-        <DiagSection label="recent findings (newest first)">
+        <DiagSection label="open findings (newest first)">
           <div className="flex flex-col gap-sm">
-            {d.recentFindings.map((f, i) => {
+            {d.recentFindings.map((f) => {
               const payload = (f.payload ?? {}) as { error?: string };
               return (
                 <div
-                  key={i}
+                  key={f.id}
                   className="text-[11px] text-ink2 break-words"
                 >
-                  <div className="flex items-baseline gap-sm">
+                  <div className="flex items-baseline gap-sm flex-wrap">
                     <span className="text-ink4 shrink-0">
                       {formatRelative(f.createdAt)}
                     </span>
-                    <span>{f.summary}</span>
+                    <span className="flex-1 min-w-0">{f.summary}</span>
+                    <button
+                      type="button"
+                      onClick={() => dismiss.mutate({ id: f.id })}
+                      disabled={dismiss.isPending}
+                      className="text-[11px] text-ink4 hover:text-ink shrink-0"
+                    >
+                      dismiss
+                    </button>
                   </div>
                   {payload.error ? (
                     <div className="text-urgent font-mono mt-[2px] whitespace-pre-wrap break-all">
@@ -415,9 +432,9 @@ function TelegramDiagnostics() {
             })}
           </div>
           <div className="text-[11px] text-ink4 mt-md leading-relaxed">
-            tip: findings stay until acknowledged. if the most recent one
-            predates your latest deploy, the fix is already live — send a
-            fresh dm to test.
+            tip: dismissing a finding marks it resolved. if the timestamp
+            above predates your latest deploy, the underlying bug is
+            already fixed — dismiss it and send a fresh dm to verify.
           </div>
         </DiagSection>
       ) : null}
@@ -437,6 +454,24 @@ function DiagSection({
       <div className="text-[11px] text-ink4 mb-xs">{label}</div>
       {children}
     </div>
+  );
+}
+
+// Replace the webhook secret in a registered telegram URL with a redacted
+// preview. The URL contains `<botId>.<webhookSecret>` and the secret is the
+// long random string we set in env — we never want to render it in the DOM
+// (screenshots, screen-shares, browser dev tools history, etc. would
+// otherwise leak it).
+function maskWebhookSecret(url: string): string {
+  return url.replace(
+    /(\/telegram\/\d+)\.([A-Za-z0-9_-]+)/,
+    (_match, path: string, secret: string) => {
+      const masked =
+        secret.length > 12
+          ? `${secret.slice(0, 4)}…${secret.slice(-4)}`
+          : "•••";
+      return `${path}.${masked}`;
+    },
   );
 }
 

@@ -317,10 +317,15 @@ export const connectionsRouter = router({
             },
           }),
           ctx.db.finding.findMany({
-            where: { userId: ctx.user.id, agent: "SIGNAL" },
+            where: {
+              userId: ctx.user.id,
+              agent: "SIGNAL",
+              acknowledged: false,
+            },
             orderBy: { createdAt: "desc" },
             take: 5,
             select: {
+              id: true,
               summary: true,
               payload: true,
               createdAt: true,

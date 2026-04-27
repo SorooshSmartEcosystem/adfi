@@ -348,6 +348,52 @@ export const contentRouter = router({
       }
     }),
 
+  // Mark a draft as posted on a manual-publish platform (Twitter for v1).
+// Twitter's API tier costs money we won't pay for v1; the user copies the
+// content + posts via twitter.com/intent/tweet, then taps "mark as posted"
+// so the draft moves out of the queue and shows up in /content?tab=performance.
+  markAsPosted: authedProc
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        permalink: z.string().url().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const draft = await ctx.db.contentDraft.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+      });
+      if (!draft) throw OrbError.NOT_FOUND("draft");
+      if (
+        draft.platform !== Platform.TWITTER &&
+        draft.platform !== Platform.WEBSITE_ARTICLE &&
+        draft.platform !== Platform.TELEGRAM
+      ) {
+        throw OrbError.VALIDATION(
+          "this platform publishes through adfi — use the publish flow",
+        );
+      }
+      const now = new Date();
+      await ctx.db.contentDraft.update({
+        where: { id: draft.id },
+        data: {
+          status: DraftStatus.PUBLISHED,
+          approvedAt: draft.approvedAt ?? now,
+        },
+      });
+      await ctx.db.contentPost.create({
+        data: {
+          userId: ctx.user.id,
+          draftId: draft.id,
+          platform: draft.platform,
+          externalId: input.permalink ?? `manual-${draft.id}`,
+          permalink: input.permalink ?? null,
+          publishedAt: now,
+        },
+      });
+      return { ok: true as const };
+    }),
+
   testSendNewsletter: authedProc
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

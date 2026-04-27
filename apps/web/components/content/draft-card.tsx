@@ -70,6 +70,9 @@ export function DraftCard({ draft }: { draft: Draft }) {
   const publish = trpc.content.publishDraft.useMutation({
     onSuccess: () => utils.content.listDrafts.invalidate(),
   });
+  const markPosted = trpc.content.markAsPosted.useMutation({
+    onSuccess: () => utils.content.listDrafts.invalidate(),
+  });
   const regenImages = trpc.content.regenerateImages.useMutation({
     onSuccess: () => utils.content.listDrafts.invalidate(),
   });
@@ -179,7 +182,20 @@ export function DraftCard({ draft }: { draft: Draft }) {
       )}
       <div className="mb-md" />
 
-      {draft.status === "APPROVED" && draft.platform === "EMAIL" ? (
+      {draft.status === "APPROVED" &&
+      (draft.platform === "TWITTER" ||
+        draft.platform === "WEBSITE_ARTICLE" ||
+        draft.platform === "TELEGRAM") ? (
+        <ManualPublishActions
+          platform={draft.platform}
+          content={visibleContent}
+          onMarkPosted={(permalink) =>
+            markPosted.mutate({ id: draft.id, permalink })
+          }
+          posting={markPosted.isPending}
+          error={markPosted.error?.message ?? null}
+        />
+      ) : draft.status === "APPROVED" && draft.platform === "EMAIL" ? (
         <div className="flex items-center gap-sm flex-wrap pt-md border-t-hairline border-border2">
           <button
             type="button"
@@ -331,5 +347,109 @@ export function DraftCard({ draft }: { draft: Draft }) {
         </p>
       )}
     </Card>
+  );
+}
+
+function flattenForCopy(content: unknown): string {
+  if (!content || typeof content !== "object") return "";
+  const c = content as Record<string, unknown>;
+  const parts: string[] = [];
+  if (typeof c.hook === "string" && c.hook.trim()) parts.push(c.hook.trim());
+  if (typeof c.body === "string" && c.body.trim()) parts.push(c.body.trim());
+  if (typeof c.cta === "string" && c.cta.trim()) parts.push(c.cta.trim());
+  if (Array.isArray(c.hashtags) && c.hashtags.length > 0) {
+    const tags = c.hashtags
+      .filter((t): t is string => typeof t === "string")
+      .map((t) => (t.startsWith("#") ? t : `#${t}`))
+      .join(" ");
+    if (tags) parts.push(tags);
+  }
+  return parts.join("\n\n");
+}
+
+function ManualPublishActions({
+  platform,
+  content,
+  onMarkPosted,
+  posting,
+  error,
+}: {
+  platform: string;
+  content: unknown;
+  onMarkPosted: (permalink?: string) => void;
+  posting: boolean;
+  error: string | null;
+}) {
+  const [permalink, setPermalink] = useState("");
+  const [copied, setCopied] = useState(false);
+  const text = flattenForCopy(content);
+
+  const composeUrl =
+    platform === "TWITTER"
+      ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
+      : null;
+
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard API may be blocked in certain contexts; fall back to
+      // selecting the text on a hidden textarea would be heavier than the
+      // user just selecting + copying themselves. Fail silently.
+    }
+  };
+
+  const platformLabel =
+    platform === "TWITTER"
+      ? "twitter"
+      : platform === "WEBSITE_ARTICLE"
+        ? "your blog"
+        : "telegram";
+
+  return (
+    <div className="pt-md border-t-hairline border-border2 flex flex-col gap-sm">
+      <div className="text-xs text-ink3">
+        approved · post this to {platformLabel} when you&apos;re ready
+      </div>
+      <div className="flex items-center gap-sm flex-wrap">
+        <button
+          type="button"
+          onClick={onCopy}
+          className="text-xs bg-ink text-white font-medium px-md py-[7px] rounded-full hover:opacity-85 transition-opacity"
+        >
+          {copied ? "✓ copied" : "copy text"}
+        </button>
+        {composeUrl ? (
+          <a
+            href={composeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors"
+          >
+            open compose →
+          </a>
+        ) : null}
+      </div>
+      <div className="flex items-center gap-sm flex-wrap">
+        <input
+          type="url"
+          value={permalink}
+          onChange={(e) => setPermalink(e.target.value)}
+          placeholder="paste the live post url (optional)"
+          className="flex-1 min-w-[200px] px-md py-[7px] bg-bg border-hairline border-border rounded-full text-xs focus:outline-none focus:border-ink"
+        />
+        <button
+          type="button"
+          onClick={() => onMarkPosted(permalink.trim() || undefined)}
+          disabled={posting}
+          className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+        >
+          {posting ? "marking..." : "mark as posted"}
+        </button>
+      </div>
+      {error ? <span className="text-[11px] text-urgent">{error}</span> : null}
+    </div>
   );
 }

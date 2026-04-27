@@ -223,7 +223,15 @@ Recent performance (what's resonating):
 ${performanceText}
 
 Format requested: ${args.format}
-Platform: ${args.platform}
+Platform: ${args.platform}${
+    args.platform === "TWITTER"
+      ? "\nPlatform constraint: Twitter — keep the full post (hook + body + cta combined into a single short paragraph) under 280 characters total. No carousels, no thread numbering, no #hashtag stuffing — at most one well-chosen tag if it earns its place. Set `cta` to null and roll any call-to-action into the body."
+      : args.platform === "WEBSITE_ARTICLE"
+        ? "\nPlatform constraint: Website blog post — write a fuller, long-form piece (700–1200 words). Treat `body` as the article body in markdown. `hook` is the headline, `cta` is the closing line that nudges next action."
+        : args.platform === "TELEGRAM"
+          ? "\nPlatform constraint: Telegram channel post — write a tight, scannable update (max ~600 chars). Plain text, occasional emoji ok. Set `cta` to null unless the post explicitly needs one."
+          : ""
+  }
 ${args.hint ? `\nOwner hint for this post: ${args.hint}` : ""}
 ${
   args.primaryAttempt
@@ -298,6 +306,13 @@ async function pickFormatForPlatform(
 ): Promise<ContentFormat> {
   if (override) return override;
   if (platform === Platform.EMAIL) return ContentFormat.EMAIL_NEWSLETTER;
+  if (
+    platform === Platform.TWITTER ||
+    platform === Platform.TELEGRAM ||
+    platform === Platform.WEBSITE_ARTICLE
+  ) {
+    return ContentFormat.SINGLE_POST;
+  }
 
   // Look at the last 8 drafts on this platform; pick whichever IG format
   // hasn't appeared most recently. Default to SINGLE_POST if no history.
@@ -621,9 +636,13 @@ function aspectRatioForPlatform(platform: Platform): AspectRatio {
     case Platform.LINKEDIN:
     case Platform.FACEBOOK:
     case Platform.EMAIL:
+    case Platform.TWITTER:
+    case Platform.WEBSITE_ARTICLE:
       return "16:9";
     case Platform.PINTEREST:
       return "2:3";
+    case Platform.TELEGRAM:
+      return "1:1";
     default:
       return "1:1";
   }

@@ -24,13 +24,29 @@ export default function OpenGraphImage() {
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div
             style={{
-              width: 28,
-              height: 28,
+              position: "relative",
+              width: 36,
+              height: 36,
               borderRadius: 999,
               background:
-                "radial-gradient(circle at 35% 30%, #4a4a4a 0%, #1a1a1a 60%, #000 100%)",
+                "radial-gradient(circle at 30% 25%, #5a5a5a 0%, #2a2a2a 35%, #0a0a0a 75%, #000 100%)",
+              display: "flex",
             }}
-          />
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 7,
+                left: 9,
+                width: 10,
+                height: 7,
+                borderRadius: 999,
+                background:
+                  "radial-gradient(ellipse, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.05) 55%, transparent 75%)",
+                transform: "rotate(-25deg)",
+              }}
+            />
+          </div>
           <div style={{ fontSize: 28, fontWeight: 500, letterSpacing: -0.5 }}>
             adfi
           </div>

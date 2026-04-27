@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Orb } from "../../components/shared/orb";
 
 export default function LegalLayout({
   children,
@@ -10,13 +11,7 @@ export default function LegalLayout({
       <header className="border-b-hairline border-border">
         <div className="max-w-2xl mx-auto px-lg py-md flex items-center justify-between">
           <Link href="/" className="flex items-center gap-sm">
-            <span
-              className="w-[14px] h-[14px] rounded-full"
-              style={{
-                background:
-                  "radial-gradient(circle at 35% 30%, #4a4a4a 0%, #1a1a1a 60%, #000 100%)",
-              }}
-            />
+            <Orb size="xs" animated={false} ring={false} />
             <span className="font-medium tracking-tight">adfi</span>
           </Link>
           <Link

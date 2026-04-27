@@ -94,6 +94,39 @@ export const LANDING_CSS = `\
     transition: transform 0.15s;
   }
   .nav-cta:active { transform: scale(0.97); }
+  .nav-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px 4px 4px;
+    border: 0.5px solid #E5E3DB;
+    border-radius: 100px;
+    font-size: 13px;
+    color: #111;
+    text-decoration: none;
+    transition: border-color 0.15s;
+    max-width: 180px;
+  }
+  .nav-user:hover { border-color: #111; }
+  .nav-user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #F5F4EE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 500;
+    color: #666;
+    flex-shrink: 0;
+  }
+  .nav-user-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   /* Hero — side-by-side on desktop, stacked on mobile */
   .hero {

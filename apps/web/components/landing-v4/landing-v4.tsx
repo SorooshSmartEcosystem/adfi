@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { LANDING_BODY } from "./landing-body";
 import { LANDING_SCRIPT } from "./landing-script";
 import { LANDING_CSS } from "./landing-css";
+
+export type LandingUser = {
+  name: string;
+  logoUrl: string | null;
+};
 
 // Client component. Renders the v4 prototype verbatim — body via
 // dangerouslySetInnerHTML, prototype CSS via inline <style>. Scripts
@@ -18,7 +23,27 @@ import { LANDING_CSS } from "./landing-css";
 //
 // CSS stays inline so the prototype's body/html rules only apply while
 // the landing is mounted (Next App Router CSS imports are app-wide).
-export function LandingV4() {
+export function LandingV4({ user }: { user?: LandingUser | null }) {
+  const body = useMemo(() => {
+    if (!user) return LANDING_BODY;
+    const initials =
+      user.name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((p) => p.charAt(0).toUpperCase())
+        .join("") || "—";
+    const safeName = escapeHtml(user.name);
+    const avatar = user.logoUrl
+      ? `<img src="${escapeHtml(user.logoUrl)}" alt="" class="nav-user-avatar" />`
+      : `<span class="nav-user-avatar nav-user-initials">${escapeHtml(initials)}</span>`;
+    const pill = `<a href="/dashboard" class="nav-user">${avatar}<span class="nav-user-name">${safeName}</span></a>`;
+    return LANDING_BODY.replace(
+      '<a href="/signup" class="nav-cta">get the app</a>',
+      `<a href="/signup" class="nav-cta">get the app</a>${pill}`,
+    );
+  }, [user]);
+
   useEffect(() => {
     const script = document.createElement("script");
     script.text = LANDING_SCRIPT;
@@ -33,7 +58,16 @@ export function LandingV4() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: LANDING_CSS }} />
-      <div dangerouslySetInnerHTML={{ __html: LANDING_BODY }} />
+      <div dangerouslySetInnerHTML={{ __html: body }} />
     </>
   );
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

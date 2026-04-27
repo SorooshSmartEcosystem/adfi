@@ -33,15 +33,17 @@ function appSecret(): string {
   return v;
 }
 
+// V1 OAuth scope set — drops pages_manage_posts + instagram_content_publish
+// + ads_management. those get added back after App Review approves them; the
+// initial connect flow has to work end-to-end before review can start. all
+// scopes here are 'Ready for testing' under their respective use cases.
 export const META_OAUTH_SCOPES = [
   "pages_show_list",
   "pages_manage_metadata",
   "pages_messaging",
-  "pages_manage_posts",
   "pages_read_engagement",
   "instagram_basic",
   "instagram_manage_messages",
-  "instagram_content_publish",
   "business_management",
 ] as const;
 

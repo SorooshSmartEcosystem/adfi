@@ -28,11 +28,14 @@ import {
   recordAnthropicUsage,
 } from "./anthropic";
 
-// Plan ceilings on brand-kit generations per 30 days.
+// Plan ceilings on brand-kit generations per 30 days. Tuned for
+// 'reasonable iteration during initial setup' rather than 'one
+// shot' — most users need 2-4 generations before they're happy
+// with the direction, and gating that behind a paywall hurts onboarding.
 export const MONTHLY_BRANDKIT_CAP: Record<Plan | "TRIAL", number> = {
-  TRIAL: 1,
-  SOLO: 3,
-  TEAM: 10,
+  TRIAL: 5,
+  SOLO: 10,
+  TEAM: 30,
   STUDIO: 999,
 };
 

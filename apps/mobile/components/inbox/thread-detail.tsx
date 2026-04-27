@@ -35,20 +35,22 @@ export function ThreadDetail({ threadId }: { threadId: string }) {
     );
   }
 
-  const messages = query.data ?? [];
+  const messages = query.data?.messages ?? [];
+  const contact = query.data?.contact;
   if (messages.length === 0) {
     return <Text style={styles.empty}>this thread is empty.</Text>;
   }
 
   const first = messages[0]!;
+  const headerName = contact?.displayName ?? first.fromAddress;
 
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
+        <Text style={styles.from}>{headerName}</Text>
         <Text style={styles.channel}>
           {first.channel} · {timeLabel(first.createdAt)}
         </Text>
-        <Text style={styles.from}>{first.fromAddress}</Text>
       </View>
 
       <View style={styles.messages}>

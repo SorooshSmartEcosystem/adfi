@@ -16,6 +16,8 @@ import {
   recordAnthropicUsage,
 } from "../services/anthropic";
 import { sendSms } from "../services/twilio";
+import { getMessengerProfile } from "../services/meta";
+import { decryptToken } from "../services/crypto";
 import { SIGNAL_SYSTEM_PROMPT } from "./prompts/signal";
 
 const SignalOutputSchema = z.object({
@@ -257,6 +259,70 @@ export async function processInboundMessenger(args: {
     args.channel === "INSTAGRAM_DM"
       ? MessageChannel.INSTAGRAM_DM
       : MessageChannel.MESSENGER;
+
+  // Cache the sender's display name + avatar (best-effort). Skip the meta
+  // lookup if we already have a fresh profile for this contact (24h TTL).
+  void (async () => {
+    try {
+      const existing = await db.contact.findUnique({
+        where: {
+          userId_channel_externalId: {
+            userId: user.id,
+            channel,
+            externalId: args.senderPsid,
+          },
+        },
+      });
+      const stale =
+        !existing ||
+        !existing.displayName ||
+        !existing.avatarUrl ||
+        Date.now() - existing.updatedAt.getTime() > 24 * 60 * 60 * 1000;
+      if (!stale) {
+        await db.contact.update({
+          where: { id: existing!.id },
+          data: { lastSeenAt: new Date() },
+        });
+        return;
+      }
+      const token = (() => {
+        try {
+          return decryptToken(account.encryptedToken);
+        } catch {
+          return null;
+        }
+      })();
+      if (!token) return;
+      const profile = await getMessengerProfile({
+        userId: args.senderPsid,
+        pageAccessToken: token,
+        channel: args.channel,
+      });
+      await db.contact.upsert({
+        where: {
+          userId_channel_externalId: {
+            userId: user.id,
+            channel,
+            externalId: args.senderPsid,
+          },
+        },
+        create: {
+          userId: user.id,
+          channel,
+          externalId: args.senderPsid,
+          displayName: profile?.name ?? null,
+          avatarUrl: profile?.avatarUrl ?? null,
+        },
+        update: {
+          displayName: profile?.name ?? existing?.displayName ?? null,
+          avatarUrl: profile?.avatarUrl ?? existing?.avatarUrl ?? null,
+          lastSeenAt: new Date(),
+        },
+      });
+    } catch (err) {
+      console.warn("contact upsert failed:", err);
+    }
+  })();
 
   const existingThread = await db.message.findFirst({
     where: {

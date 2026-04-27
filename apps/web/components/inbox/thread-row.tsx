@@ -24,11 +24,18 @@ type Item = {
   id: string;
   channel: string;
   fromAddress: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
   preview: string;
   at: Date;
   handled: boolean;
   booked?: boolean;
 };
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p.charAt(0).toUpperCase()).join("") || "?";
+}
 
 // V3 simplified: drop CALL/SMS/DM mono pills + NEEDS YOU/BOOKED badges. The
 // row carries state via a left-edge attn strip when unhandled, and the
@@ -55,14 +62,35 @@ export function ThreadRow({
       {needsYou ? (
         <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-attentionBorder" />
       ) : null}
-      <div className="flex items-center justify-between gap-md mb-[2px]">
-        <div className="text-sm font-medium truncate">{item.fromAddress}</div>
-        <div className="text-xs text-ink4 shrink-0">{timeLabel(item.at)}</div>
-      </div>
-      <div className="text-xs text-ink3 truncate mb-[4px]">{item.preview}</div>
-      <div className="text-[11px] text-ink4">
-        {channelLabel(item.channel)}
-        {item.booked ? " · booked" : ""}
+      <div className="flex items-start gap-md">
+        {item.avatarUrl ? (
+          <img
+            src={item.avatarUrl}
+            alt=""
+            className="w-8 h-8 rounded-full bg-surface shrink-0 mt-[2px] object-cover"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-[11px] font-medium shrink-0 mt-[2px]">
+            {initialsOf(item.displayName ?? item.fromAddress)}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-md mb-[2px]">
+            <div className="text-sm font-medium truncate">
+              {item.displayName ?? item.fromAddress}
+            </div>
+            <div className="text-xs text-ink4 shrink-0">
+              {timeLabel(item.at)}
+            </div>
+          </div>
+          <div className="text-xs text-ink3 truncate mb-[4px]">
+            {item.preview}
+          </div>
+          <div className="text-[11px] text-ink4">
+            {channelLabel(item.channel)}
+            {item.booked ? " · booked" : ""}
+          </div>
+        </div>
       </div>
     </button>
   );

@@ -151,6 +151,49 @@ export async function subscribePageWebhook(args: {
   }
 }
 
+// Fetches the display name + profile picture for a Messenger PSID or
+// Instagram-scoped user id. Best-effort: returns null if the lookup fails
+// (token expired, user blocked the page, etc.) so the caller can fall
+// back to the raw id.
+export async function getMessengerProfile(args: {
+  userId: string;
+  pageAccessToken: string;
+  channel: "MESSENGER" | "INSTAGRAM_DM";
+}): Promise<{ name: string | null; avatarUrl: string | null } | null> {
+  const fields =
+    args.channel === "INSTAGRAM_DM"
+      ? "name,profile_pic"
+      : "first_name,last_name,profile_pic";
+  const url = new URL(`${GRAPH}/${args.userId}`);
+  url.searchParams.set("fields", fields);
+  url.searchParams.set("access_token", args.pageAccessToken);
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn(
+        `meta profile fetch ${res.status} for ${args.userId}: ${(await res.text()).slice(0, 200)}`,
+      );
+      return null;
+    }
+    const data = (await res.json()) as {
+      name?: string;
+      first_name?: string;
+      last_name?: string;
+      profile_pic?: string;
+    };
+    const fullName =
+      data.name ??
+      [data.first_name, data.last_name].filter(Boolean).join(" ");
+    return {
+      name: fullName && fullName.length > 0 ? fullName : null,
+      avatarUrl: data.profile_pic ?? null,
+    };
+  } catch (err) {
+    console.warn("meta profile fetch threw:", err);
+    return null;
+  }
+}
+
 export async function sendMessengerReply(args: {
   pageAccessToken: string;
   recipientPsid: string;

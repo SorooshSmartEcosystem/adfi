@@ -82,6 +82,7 @@ export {
   listPages,
   subscribePageWebhook,
   sendMessengerReply,
+  getMessengerProfile,
   verifyWebhookSignature,
   type MetaPage,
 } from "./services/meta";

@@ -12,6 +12,8 @@ export type InboxItem =
       id: string;
       channel: "SMS" | "INSTAGRAM_DM" | "MESSENGER" | "EMAIL";
       fromAddress: string;
+      displayName: string | null;
+      avatarUrl: string | null;
       preview: string;
       at: Date;
       handled: boolean;
@@ -21,6 +23,8 @@ export type InboxItem =
       id: string;
       channel: "CALL";
       fromAddress: string;
+      displayName: string | null;
+      avatarUrl: string | null;
       preview: string;
       at: Date;
       handled: boolean;
@@ -37,7 +41,7 @@ export const messagingRouter = router({
       }),
     )
     .query(async ({ ctx, input }): Promise<InboxItem[]> => {
-      const [msgs, calls, appts] = await Promise.all([
+      const [msgs, calls, appts, contacts] = await Promise.all([
         input.filter === "calls"
           ? Promise.resolve([])
           : ctx.db.message.findMany({
@@ -56,9 +60,26 @@ export const messagingRouter = router({
           where: { userId: ctx.user.id, callId: { not: null } },
           select: { callId: true },
         }),
+        ctx.db.contact.findMany({
+          where: { userId: ctx.user.id },
+          select: {
+            channel: true,
+            externalId: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        }),
       ]);
 
       const bookedCallIds = new Set(appts.map((a) => a.callId).filter(Boolean));
+      const contactKey = (channel: string, externalId: string) =>
+        `${channel}:${externalId}`;
+      const contactMap = new Map(
+        contacts.map((c) => [
+          contactKey(c.channel, c.externalId),
+          { displayName: c.displayName, avatarUrl: c.avatarUrl },
+        ]),
+      );
 
       const threadMap = new Map<string, (typeof msgs)[number]>();
       for (const m of msgs) {
@@ -72,23 +93,31 @@ export const messagingRouter = router({
           if (input.filter === "dms") return m.channel === "INSTAGRAM_DM";
           return true;
         })
-        .map((m) => ({
-          kind: "thread" as const,
-          id: m.threadId,
-          channel: m.channel,
-          fromAddress: m.fromAddress,
-          preview: m.body.slice(0, 160),
-          at: m.createdAt,
-          handled: Boolean(m.handledBy),
-        }));
+        .map((m) => {
+          const c = contactMap.get(contactKey(m.channel, m.fromAddress));
+          return {
+            kind: "thread" as const,
+            id: m.threadId,
+            channel: m.channel,
+            fromAddress: m.fromAddress,
+            displayName: c?.displayName ?? null,
+            avatarUrl: c?.avatarUrl ?? null,
+            preview: m.body.slice(0, 160),
+            at: m.createdAt,
+            handled: Boolean(m.handledBy),
+          };
+        });
 
       const callItems: InboxItem[] = calls.map((c) => {
         const intent = (c.extractedIntent ?? {}) as { summary?: string };
+        const contact = contactMap.get(contactKey("SMS", c.fromNumber));
         return {
           kind: "call" as const,
           id: c.id,
           channel: "CALL" as const,
           fromAddress: c.fromNumber,
+          displayName: contact?.displayName ?? null,
+          avatarUrl: contact?.avatarUrl ?? null,
           preview: intent.summary ?? "caller left no details",
           at: c.startedAt,
           handled:
@@ -139,7 +168,24 @@ export const messagingRouter = router({
         orderBy: { createdAt: "asc" },
       });
       if (messages.length === 0) throw OrbError.NOT_FOUND("thread");
-      return messages;
+      const first = messages[0]!;
+      const contact = await ctx.db.contact.findUnique({
+        where: {
+          userId_channel_externalId: {
+            userId: ctx.user.id,
+            channel: first.channel,
+            externalId: first.fromAddress,
+          },
+        },
+        select: { displayName: true, avatarUrl: true },
+      });
+      return {
+        messages,
+        contact: {
+          displayName: contact?.displayName ?? null,
+          avatarUrl: contact?.avatarUrl ?? null,
+        },
+      };
     }),
 
   // Writes an outbound message to the DB. Actual delivery via Twilio/Meta

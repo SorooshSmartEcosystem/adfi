@@ -44,24 +44,41 @@ export function MessageThread({ threadId }: { threadId: string }) {
     return <div className="p-xl text-sm text-ink3">one second</div>;
   }
 
-  if (!query.data || query.data.length === 0) {
+  if (!query.data || query.data.messages.length === 0) {
     return (
       <div className="p-xl text-sm text-ink3">this thread is empty.</div>
     );
   }
 
-  const messages = query.data;
+  const messages = query.data.messages;
+  const contact = query.data.contact;
   const first = messages[0]!;
+  const headerName = contact.displayName ?? first.fromAddress;
+  const initials = (() => {
+    const parts = headerName.trim().split(/\s+/).slice(0, 2);
+    return parts.map((p) => p.charAt(0).toUpperCase()).join("") || "?";
+  })();
 
   return (
     <>
       <div className="flex items-start justify-between gap-md mb-lg">
-        <div className="min-w-0">
-          <div className="text-base font-medium truncate">
-            {first.fromAddress}
-          </div>
-          <div className="text-xs text-ink4 mt-[2px]">
-            {channelLabel(first.channel)} · {timeLabel(first.createdAt)}
+        <div className="flex items-center gap-md min-w-0">
+          {contact.avatarUrl ? (
+            <img
+              src={contact.avatarUrl}
+              alt=""
+              className="w-10 h-10 rounded-full bg-surface object-cover shrink-0"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-sm font-medium shrink-0">
+              {initials}
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="text-base font-medium truncate">{headerName}</div>
+            <div className="text-xs text-ink4 mt-[2px]">
+              {channelLabel(first.channel)} · {timeLabel(first.createdAt)}
+            </div>
           </div>
         </div>
         <button

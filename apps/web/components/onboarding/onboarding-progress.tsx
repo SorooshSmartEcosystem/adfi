@@ -1,4 +1,4 @@
-const TOTAL = 6;
+const TOTAL = 7;
 
 export function OnboardingProgress({ step }: { step: number }) {
   const safe = Math.min(Math.max(step, 1), TOTAL);

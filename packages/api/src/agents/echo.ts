@@ -446,6 +446,15 @@ export async function backfillImagesForDraft(
   const content = draft.content as Record<string, unknown> | null;
   if (!content || typeof content !== "object") return;
 
+  // Pull the user's BrandKit so every image inherits the same look. If
+  // they haven't generated one yet, prompts pass through unchanged.
+  const kit = await db.brandKit.findUnique({
+    where: { userId },
+    select: { imageStyle: true },
+  });
+  const stylize = (raw: string): string =>
+    kit?.imageStyle ? `${kit.imageStyle} ${raw}` : raw;
+
   let next: Record<string, unknown> = content;
   let totalCostCents = 0;
   let imagesGenerated = 0;
@@ -460,7 +469,7 @@ export async function backfillImagesForDraft(
       userId,
       draftId,
       slug: "hero",
-      prompt: direction,
+      prompt: stylize(direction),
       aspectRatio: aspectRatioForPlatform(platform),
     });
     if (result) {
@@ -481,7 +490,7 @@ export async function backfillImagesForDraft(
       userId,
       draftId,
       slug: "email-hero",
-      prompt: direction,
+      prompt: stylize(direction),
       aspectRatio: "16:9",
     });
     if (result) {
@@ -517,7 +526,7 @@ export async function backfillImagesForDraft(
             userId,
             draftId,
             slug: "cover",
-            prompt: cover.visualDirection!,
+            prompt: stylize(cover.visualDirection!),
             aspectRatio: "1:1",
           });
           return r ? { target: "cover" as const, url: r.url, cost: r.costCents } : null;
@@ -532,7 +541,7 @@ export async function backfillImagesForDraft(
               userId,
               draftId,
               slug: `slide-${i}`,
-              prompt: slide.visualDirection!,
+              prompt: stylize(slide.visualDirection!),
               aspectRatio: "1:1",
             });
             return r ? { target: i, url: r.url, cost: r.costCents } : null;
@@ -566,7 +575,7 @@ export async function backfillImagesForDraft(
             userId,
             draftId,
             slug: `beat-${i}`,
-            prompt: beat.bRoll,
+            prompt: stylize(beat.bRoll),
             aspectRatio: "9:16",
           }).then((r) => (r ? { i, url: r.url, cost: r.costCents } : null))
         : Promise.resolve(null),
@@ -590,7 +599,7 @@ export async function backfillImagesForDraft(
             userId,
             draftId,
             slug: `frame-${i}`,
-            prompt: frame.visualDirection,
+            prompt: stylize(frame.visualDirection),
             aspectRatio: "9:16",
           }).then((r) => (r ? { i, url: r.url, cost: r.costCents } : null))
         : Promise.resolve(null),

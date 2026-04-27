@@ -13,10 +13,12 @@ export function InstagramForm() {
   const [connected, setConnected] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
-  const completeMutation = trpc.onboarding.complete.useMutation({
-    onSuccess: () => router.push("/dashboard"),
-    onError: () => router.push("/dashboard"),
-  });
+  // Onboarding completion now happens after the brandkit step, so this
+  // page just forwards the user there.
+  const completeMutation = {
+    isPending: false,
+    mutate: () => router.push("/onboarding/brandkit"),
+  };
 
   function handleConnect() {
     // Real Meta OAuth lands later — for now flip the card to "connected" state.

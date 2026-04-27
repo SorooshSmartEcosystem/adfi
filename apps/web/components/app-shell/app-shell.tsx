@@ -11,6 +11,7 @@ function routeFromPath(pathname: string | null): AppRoute {
   if (pathname.startsWith("/inbox")) return "inbox";
   if (pathname.startsWith("/content")) return "content";
   if (pathname.startsWith("/report")) return "report";
+  if (pathname.startsWith("/brandkit")) return "brandkit";
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/specialist/strategist")) return "specialist-strategist";
   if (pathname.startsWith("/specialist/signal")) return "specialist-signal";

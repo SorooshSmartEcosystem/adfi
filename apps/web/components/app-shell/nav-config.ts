@@ -3,6 +3,7 @@ export type AppRoute =
   | "inbox"
   | "content"
   | "report"
+  | "brandkit"
   | "settings"
   | "specialist-strategist"
   | "specialist-signal"
@@ -16,6 +17,7 @@ export const NAV_PRIMARY: { id: AppRoute; label: string; href: string; badgeKey?
   { id: "dashboard", label: "dashboard", href: "/dashboard" },
   { id: "inbox", label: "inbox", href: "/inbox", badgeKey: "inbox" },
   { id: "content", label: "content", href: "/content", badgeKey: "content" },
+  { id: "brandkit", label: "brand kit", href: "/brandkit" },
   { id: "report", label: "weekly report", href: "/report" },
 ];
 
@@ -36,6 +38,7 @@ export const TOPBAR_COPY: Record<AppRoute, { title: string }> = {
   inbox: { title: "inbox" },
   content: { title: "content" },
   report: { title: "weekly report" },
+  brandkit: { title: "brand kit" },
   settings: { title: "settings" },
   "specialist-strategist": { title: "strategist" },
   "specialist-signal": { title: "signal" },

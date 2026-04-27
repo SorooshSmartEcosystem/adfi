@@ -21,6 +21,11 @@ import { getUserAvatarUrl as getTelegramAvatarUrl } from "../services/telegram";
 import { decryptToken } from "../services/crypto";
 import { SIGNAL_SYSTEM_PROMPT } from "./prompts/signal";
 
+// Anthropic's structured-output mode rejects `additionalProperties: <schema>`
+// (which is what z.record() compiles to) — it only accepts
+// `additionalProperties: false`. So we describe the suggested action as a
+// fixed shape with optional concrete fields the agent might fill in,
+// rather than an open-ended record.
 const SignalOutputSchema = z.object({
   intent: z.enum([
     "booking",
@@ -34,7 +39,12 @@ const SignalOutputSchema = z.object({
   suggestedAction: z
     .object({
       type: z.enum(["create_appointment", "flag_for_review", "none"]),
-      data: z.record(z.string(), z.unknown()).optional(),
+      // Concrete optional fields — covers the v1 use cases without relying
+      // on a free-form record. Add fields here as new action types appear.
+      summary: z.string().optional(),
+      proposedTime: z.string().optional(),
+      durationMinutes: z.number().optional(),
+      flagReason: z.string().optional(),
     })
     .optional(),
 });

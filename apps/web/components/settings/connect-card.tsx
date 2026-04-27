@@ -330,35 +330,28 @@ function TelegramDiagnostics() {
   }
   const d = q.data;
   return (
-    <div className="basis-full mt-md flex flex-col gap-md text-xs bg-surface rounded-md p-md">
-      <div>
-        <div className="text-[11px] text-ink4 mb-xs">webhook</div>
+    <div className="basis-full w-full max-w-full mt-md flex flex-col gap-md text-xs bg-surface rounded-md p-md overflow-hidden">
+      <DiagSection label="webhook">
         {d.webhook ? (
           <>
-            <div className="font-mono text-[11px] truncate">
+            <div className="font-mono text-[11px] break-all">
               {d.webhook.registeredUrl || "(none registered)"}
             </div>
             <div className="text-[11px] text-ink4 mt-xs">
               pending updates: {d.webhook.pendingUpdateCount}
-              {d.webhook.lastErrorMessage ? (
-                <>
-                  {" · "}
-                  <span className="text-urgent">
-                    last error: {d.webhook.lastErrorMessage}
-                  </span>
-                </>
-              ) : null}
             </div>
+            {d.webhook.lastErrorMessage ? (
+              <div className="text-[11px] text-urgent mt-xs break-words">
+                last error: {d.webhook.lastErrorMessage}
+              </div>
+            ) : null}
           </>
         ) : (
           <div className="text-[11px] text-ink4">no bot connected</div>
         )}
-      </div>
+      </DiagSection>
 
-      <div>
-        <div className="text-[11px] text-ink4 mb-xs">
-          last 5 telegram messages
-        </div>
+      <DiagSection label="last 5 telegram messages">
         {d.recentMessages.length === 0 ? (
           <div className="text-[11px] text-ink4">
             none yet — send your bot a dm to test
@@ -366,7 +359,10 @@ function TelegramDiagnostics() {
         ) : (
           <div className="flex flex-col gap-xs">
             {d.recentMessages.map((m, i) => (
-              <div key={i} className="text-[11px] text-ink2">
+              <div
+                key={i}
+                className="text-[11px] text-ink2 break-words"
+              >
                 <span className="text-ink4">
                   {m.direction === "INBOUND" ? "← them" : "→ me"}
                   {m.handledBy ? ` (${m.handledBy})` : ""}
@@ -377,12 +373,9 @@ function TelegramDiagnostics() {
             ))}
           </div>
         )}
-      </div>
+      </DiagSection>
 
-      <div>
-        <div className="text-[11px] text-ink4 mb-xs">
-          last 5 signal events
-        </div>
+      <DiagSection label="last 5 signal events">
         {d.recentEvents.length === 0 ? (
           <div className="text-[11px] text-ink4">none</div>
         ) : (
@@ -394,28 +387,45 @@ function TelegramDiagnostics() {
             ))}
           </div>
         )}
-      </div>
+      </DiagSection>
 
       {d.recentFindings.length > 0 ? (
-        <div>
-          <div className="text-[11px] text-ink4 mb-xs">recent findings</div>
-          <div className="flex flex-col gap-xs">
+        <DiagSection label="recent findings">
+          <div className="flex flex-col gap-sm">
             {d.recentFindings.map((f, i) => {
               const payload = (f.payload ?? {}) as { error?: string };
               return (
-                <div key={i} className="text-[11px] text-ink2">
+                <div
+                  key={i}
+                  className="text-[11px] text-ink2 break-words"
+                >
                   <div>{f.summary}</div>
                   {payload.error ? (
-                    <div className="text-urgent font-mono mt-[2px]">
-                      {String(payload.error).slice(0, 200)}
+                    <div className="text-urgent font-mono mt-[2px] whitespace-pre-wrap break-all">
+                      {String(payload.error).slice(0, 400)}
                     </div>
                   ) : null}
                 </div>
               );
             })}
           </div>
-        </div>
+        </DiagSection>
       ) : null}
+    </div>
+  );
+}
+
+function DiagSection({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] text-ink4 mb-xs">{label}</div>
+      {children}
     </div>
   );
 }

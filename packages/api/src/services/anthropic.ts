@@ -69,6 +69,15 @@ function stripUnsupportedConstraints(value: unknown): unknown {
     if (UNSUPPORTED_CONSTRAINTS.has(key)) continue;
     result[key] = stripUnsupportedConstraints(v);
   }
+  // Anthropic's structured-output mode requires every object schema to
+  // declare `additionalProperties: false`. zod-to-json-schema emits a
+  // sub-schema (object) when we use `z.record(...)` which the API rejects
+  // with "additionalProperties: object is not supported". Force false on
+  // every object node — agents that need open-ended fields should model
+  // them as concrete optional properties instead.
+  if (result["type"] === "object") {
+    result["additionalProperties"] = false;
+  }
   return result;
 }
 

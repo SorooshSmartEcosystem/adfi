@@ -12,9 +12,13 @@ import {
 } from "../services/performance";
 import { STRATEGIST_SYSTEM_PROMPT } from "./prompts/strategist";
 
+// Model-side schema (what we tell Anthropic to constrain to). Generous
+// upper bounds because Opus consistently produces 6–7 items even when we
+// ask for 5 — fighting the prompt is wasted tokens. We trim to the UI
+// caps in code below.
 const BrandVoiceSchema = z.object({
-  voiceTone: z.array(z.string()).min(3).max(5),
-  brandValues: z.array(z.string()).min(3).max(5),
+  voiceTone: z.array(z.string()).min(3).max(8),
+  brandValues: z.array(z.string()).min(3).max(8),
   audienceSegments: z
     .array(
       z.object({
@@ -23,12 +27,22 @@ const BrandVoiceSchema = z.object({
       }),
     )
     .min(2)
-    .max(3),
-  contentPillars: z.array(z.string()).min(3).max(5),
-  doNotDoList: z.array(z.string()).min(3).max(5),
+    .max(4),
+  contentPillars: z.array(z.string()).min(3).max(8),
+  doNotDoList: z.array(z.string()).min(3).max(8),
 });
 
 export type BrandVoice = z.infer<typeof BrandVoiceSchema>;
+
+// Hard caps applied after parse. Keeps the rest of the app's UI / prompt
+// budgets predictable regardless of how chatty the model felt.
+const UI_CAPS = {
+  voiceTone: 5,
+  brandValues: 5,
+  audienceSegments: 3,
+  contentPillars: 5,
+  doNotDoList: 5,
+} as const;
 
 export async function runStrategist(args: {
   businessDescription: string;
@@ -83,5 +97,12 @@ export async function runStrategist(args: {
   }
 
   const raw = JSON.parse(textBlock.text);
-  return BrandVoiceSchema.parse(raw);
+  const parsed = BrandVoiceSchema.parse(raw);
+  return {
+    voiceTone: parsed.voiceTone.slice(0, UI_CAPS.voiceTone),
+    brandValues: parsed.brandValues.slice(0, UI_CAPS.brandValues),
+    audienceSegments: parsed.audienceSegments.slice(0, UI_CAPS.audienceSegments),
+    contentPillars: parsed.contentPillars.slice(0, UI_CAPS.contentPillars),
+    doNotDoList: parsed.doNotDoList.slice(0, UI_CAPS.doNotDoList),
+  };
 }

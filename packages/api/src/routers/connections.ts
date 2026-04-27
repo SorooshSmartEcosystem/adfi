@@ -252,6 +252,93 @@ export const connectionsRouter = router({
       };
     }),
 
+  // One-shot diagnostic — bundles webhook info, the last 5 inbound
+  // telegram messages, the last 5 SIGNAL agent events, and any
+  // SIGNAL-authored Findings. Lets the user see exactly where DMs are
+  // landing without poking at the database.
+  diagnoseTelegram: authedProc
+    .input(z.void())
+    .query(async ({ ctx }) => {
+      const bot = await ctx.db.connectedAccount.findFirst({
+        where: {
+          userId: ctx.user.id,
+          provider: Provider.TELEGRAM,
+          disconnectedAt: null,
+        },
+        select: { externalId: true, scope: true, encryptedToken: true },
+      });
+
+      let webhook: {
+        registeredUrl: string;
+        pendingUpdateCount: number;
+        lastErrorMessage: string | null;
+        lastErrorDate: number | null;
+      } | null = null;
+      if (bot) {
+        const token = decryptToken(bot.encryptedToken);
+        const info = await getTelegramWebhookInfo(token).catch(() => null);
+        if (info) {
+          webhook = {
+            registeredUrl: info.url,
+            pendingUpdateCount: info.pendingUpdateCount,
+            lastErrorMessage: info.lastErrorMessage,
+            lastErrorDate: info.lastErrorDate,
+          };
+        }
+      }
+
+      const [recentMessages, recentEvents, recentFindings] =
+        await Promise.all([
+          ctx.db.message.findMany({
+            where: {
+              userId: ctx.user.id,
+              channel: "TELEGRAM",
+            },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: {
+              direction: true,
+              body: true,
+              createdAt: true,
+              handledBy: true,
+            },
+          }),
+          ctx.db.agentEvent.findMany({
+            where: {
+              userId: ctx.user.id,
+              agent: "SIGNAL",
+            },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: {
+              eventType: true,
+              payload: true,
+              createdAt: true,
+            },
+          }),
+          ctx.db.finding.findMany({
+            where: { userId: ctx.user.id, agent: "SIGNAL" },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: {
+              summary: true,
+              payload: true,
+              createdAt: true,
+              acknowledged: true,
+            },
+          }),
+        ]);
+
+      return {
+        botUsername: bot?.scope ?? null,
+        botId: bot?.externalId ?? null,
+        webhook,
+        recentMessages,
+        recentEvents,
+        recentFindings,
+      };
+    }),
+
   // Connect a channel by pasting its @username. The bot must already be
   // an admin of the channel (Telegram requires this for sendMessage to
   // succeed). We resolve to a chat_id via getChat and store it as a

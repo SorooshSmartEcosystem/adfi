@@ -283,6 +283,7 @@ export function ConnectCard({
 
 function TelegramRefreshButton() {
   const refresh = trpc.connections.refreshTelegramWebhook.useMutation();
+  const [diagOpen, setDiagOpen] = useState(false);
   return (
     <>
       <button
@@ -293,6 +294,13 @@ function TelegramRefreshButton() {
       >
         {refresh.isPending ? "refreshing..." : "refresh webhook"}
       </button>
+      <button
+        type="button"
+        onClick={() => setDiagOpen((v) => !v)}
+        className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors"
+      >
+        {diagOpen ? "hide diagnostics" : "diagnose"}
+      </button>
       {refresh.data?.ok ? (
         <span className="text-[11px] text-aliveDark truncate max-w-[260px]">
           ✓ pointed at {refresh.data.registeredUrl ?? refresh.data.webhookUrl}
@@ -301,7 +309,114 @@ function TelegramRefreshButton() {
       {refresh.error ? (
         <span className="text-[11px] text-urgent">{refresh.error.message}</span>
       ) : null}
+      {diagOpen ? <TelegramDiagnostics /> : null}
     </>
+  );
+}
+
+function TelegramDiagnostics() {
+  const q = trpc.connections.diagnoseTelegram.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
+  if (q.isLoading) {
+    return <div className="basis-full text-[11px] text-ink4 mt-sm">one second</div>;
+  }
+  if (!q.data) {
+    return (
+      <div className="basis-full text-[11px] text-ink4 mt-sm">
+        couldn&apos;t load diagnostics — check vercel logs
+      </div>
+    );
+  }
+  const d = q.data;
+  return (
+    <div className="basis-full mt-md flex flex-col gap-md text-xs bg-surface rounded-md p-md">
+      <div>
+        <div className="text-[11px] text-ink4 mb-xs">webhook</div>
+        {d.webhook ? (
+          <>
+            <div className="font-mono text-[11px] truncate">
+              {d.webhook.registeredUrl || "(none registered)"}
+            </div>
+            <div className="text-[11px] text-ink4 mt-xs">
+              pending updates: {d.webhook.pendingUpdateCount}
+              {d.webhook.lastErrorMessage ? (
+                <>
+                  {" · "}
+                  <span className="text-urgent">
+                    last error: {d.webhook.lastErrorMessage}
+                  </span>
+                </>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <div className="text-[11px] text-ink4">no bot connected</div>
+        )}
+      </div>
+
+      <div>
+        <div className="text-[11px] text-ink4 mb-xs">
+          last 5 telegram messages
+        </div>
+        {d.recentMessages.length === 0 ? (
+          <div className="text-[11px] text-ink4">
+            none yet — send your bot a dm to test
+          </div>
+        ) : (
+          <div className="flex flex-col gap-xs">
+            {d.recentMessages.map((m, i) => (
+              <div key={i} className="text-[11px] text-ink2">
+                <span className="text-ink4">
+                  {m.direction === "INBOUND" ? "← them" : "→ me"}
+                  {m.handledBy ? ` (${m.handledBy})` : ""}
+                </span>{" "}
+                {m.body.slice(0, 80)}
+                {m.body.length > 80 ? "…" : ""}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="text-[11px] text-ink4 mb-xs">
+          last 5 signal events
+        </div>
+        {d.recentEvents.length === 0 ? (
+          <div className="text-[11px] text-ink4">none</div>
+        ) : (
+          <div className="flex flex-col gap-xs">
+            {d.recentEvents.map((e, i) => (
+              <div key={i} className="font-mono text-[11px] text-ink2">
+                {e.eventType}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {d.recentFindings.length > 0 ? (
+        <div>
+          <div className="text-[11px] text-ink4 mb-xs">recent findings</div>
+          <div className="flex flex-col gap-xs">
+            {d.recentFindings.map((f, i) => {
+              const payload = (f.payload ?? {}) as { error?: string };
+              return (
+                <div key={i} className="text-[11px] text-ink2">
+                  <div>{f.summary}</div>
+                  {payload.error ? (
+                    <div className="text-urgent font-mono mt-[2px]">
+                      {String(payload.error).slice(0, 200)}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

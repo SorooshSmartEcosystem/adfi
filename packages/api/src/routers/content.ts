@@ -368,6 +368,19 @@ export const contentRouter = router({
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
           console.error("Newsletter publish failed:", error);
+          // Classify so the toast tells the user something useful instead
+          // of "SendGrid is having issues — I'll retry" for what's really
+          // a missing-prerequisite or quota problem.
+          const lower = msg.toLowerCase();
+          if (
+            lower.includes("no subscribers") ||
+            lower.includes("missing subject") ||
+            lower.includes("missing sections") ||
+            lower.includes("draft is missing") ||
+            lower.includes("credit")
+          ) {
+            throw OrbError.VALIDATION(msg);
+          }
           throw OrbError.EXTERNAL_API(`SendGrid: ${msg}`);
         }
       }

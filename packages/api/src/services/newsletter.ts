@@ -197,7 +197,9 @@ export async function publishNewsletter(args: {
     select: { id: true, email: true, name: true, unsubscribeToken: true },
   });
   if (subscribers.length === 0) {
-    throw new Error("No active subscribers — add some before publishing");
+    throw new Error(
+      "no subscribers yet — add some on /settings → newsletter list before sending",
+    );
   }
 
   // 1 credit per 100 recipients, rounded up. Min 1.

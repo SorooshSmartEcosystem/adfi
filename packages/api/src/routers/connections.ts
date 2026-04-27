@@ -6,6 +6,7 @@ import { decryptToken, encryptToken } from "../services/crypto";
 import {
   getMe as getTelegramBotIdentity,
   getChat as getTelegramChat,
+  getWebhookInfo as getTelegramWebhookInfo,
   setWebhook as setTelegramWebhook,
   deleteWebhook as deleteTelegramWebhook,
   buildWebhookUrl as buildTelegramWebhookUrl,
@@ -29,13 +30,17 @@ async function revokeMetaPermissions(token: string): Promise<void> {
 }
 
 function publicBaseUrl(): string {
+  // Project canonical name is NEXT_PUBLIC_WEB_URL — keep SITE_URL/APP_URL
+  // as forward-compat aliases. VERCEL_URL is the deployment-specific URL
+  // (e.g. adfi-abc123.vercel.app) so it is *not* safe for webhooks that
+  // need to survive past the current deploy.
   const v =
+    process.env.NEXT_PUBLIC_WEB_URL ??
     process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    process.env.VERCEL_URL;
+    process.env.NEXT_PUBLIC_APP_URL;
   if (!v) {
     throw new Error(
-      "no public base url — set NEXT_PUBLIC_SITE_URL for telegram webhooks",
+      "no public base url — set NEXT_PUBLIC_WEB_URL (e.g. https://www.adfi.ca) for telegram webhooks",
     );
   }
   return v.startsWith("http") ? v : `https://${v}`;
@@ -177,6 +182,73 @@ export const connectionsRouter = router({
         ok: true as const,
         botUsername: identity.username,
         botName: identity.firstName,
+      };
+    }),
+
+  // Re-register the webhook for an existing bot. Useful when the deployment
+  // URL changed (NEXT_PUBLIC_WEB_URL was updated, rotated, or the bot was
+  // first connected on a deploy that didn't have it set). Reads the stored
+  // encrypted token and calls setWebhook with the current public base URL.
+  refreshTelegramWebhook: authedProc
+    .input(z.void())
+    .mutation(async ({ ctx }) => {
+      const bot = await ctx.db.connectedAccount.findFirst({
+        where: {
+          userId: ctx.user.id,
+          provider: Provider.TELEGRAM,
+          disconnectedAt: null,
+        },
+      });
+      if (!bot) throw OrbError.VALIDATION("no telegram bot connected");
+      const token = decryptToken(bot.encryptedToken);
+      const secret = telegramRouteSecret();
+      const webhookUrl = buildTelegramWebhookUrl({
+        publicBaseUrl: publicBaseUrl(),
+        routeSecret: secret,
+        botId: bot.externalId,
+      });
+      try {
+        await setTelegramWebhook({
+          token,
+          url: webhookUrl,
+          secretToken: secret,
+        });
+      } catch (err) {
+        throw OrbError.EXTERNAL_API(
+          `couldn't refresh telegram webhook: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+      const info = await getTelegramWebhookInfo(token).catch(() => null);
+      return {
+        ok: true as const,
+        webhookUrl,
+        registeredUrl: info?.url ?? null,
+        pendingUpdateCount: info?.pendingUpdateCount ?? 0,
+        lastErrorMessage: info?.lastErrorMessage ?? null,
+      };
+    }),
+
+  // Read-only diagnostic — what URL has Telegram actually got registered
+  // for our bot, when did it last error, etc.
+  inspectTelegramWebhook: authedProc
+    .input(z.void())
+    .query(async ({ ctx }) => {
+      const bot = await ctx.db.connectedAccount.findFirst({
+        where: {
+          userId: ctx.user.id,
+          provider: Provider.TELEGRAM,
+          disconnectedAt: null,
+        },
+      });
+      if (!bot) return null;
+      const token = decryptToken(bot.encryptedToken);
+      const info = await getTelegramWebhookInfo(token).catch(() => null);
+      if (!info) return null;
+      return {
+        registeredUrl: info.url,
+        pendingUpdateCount: info.pendingUpdateCount,
+        lastErrorMessage: info.lastErrorMessage,
+        lastErrorDate: info.lastErrorDate,
       };
     }),
 

@@ -51,6 +51,38 @@ async function call<T>(
   return data.result;
 }
 
+export type TelegramWebhookInfo = {
+  url: string;
+  hasCustomCertificate: boolean;
+  pendingUpdateCount: number;
+  lastErrorDate: number | null;
+  lastErrorMessage: string | null;
+  ipAddress: string | null;
+};
+
+// Reads the registered webhook info — useful when a bot isn't responding
+// and we need to confirm Telegram is targeting the URL we think it is.
+export async function getWebhookInfo(
+  token: string,
+): Promise<TelegramWebhookInfo> {
+  const r = await call<{
+    url: string;
+    has_custom_certificate: boolean;
+    pending_update_count: number;
+    last_error_date?: number;
+    last_error_message?: string;
+    ip_address?: string;
+  }>(token, "getWebhookInfo");
+  return {
+    url: r.url,
+    hasCustomCertificate: r.has_custom_certificate,
+    pendingUpdateCount: r.pending_update_count,
+    lastErrorDate: r.last_error_date ?? null,
+    lastErrorMessage: r.last_error_message ?? null,
+    ipAddress: r.ip_address ?? null,
+  };
+}
+
 export async function getMe(token: string): Promise<TelegramBotIdentity> {
   const r = await call<{ id: number; username: string; first_name: string }>(
     token,

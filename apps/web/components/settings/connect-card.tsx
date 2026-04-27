@@ -235,6 +235,9 @@ export function ConnectCard({
               {connected ? (
                 <div className="flex items-center gap-sm flex-wrap">
                   <span className="text-xs text-aliveDark">✓ connected</span>
+                  {provider.dbProvider === "TELEGRAM" ? (
+                    <TelegramRefreshButton />
+                  ) : null}
                   {onDisconnect ? (
                     <button
                       type="button"
@@ -275,6 +278,30 @@ export function ConnectCard({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function TelegramRefreshButton() {
+  const refresh = trpc.connections.refreshTelegramWebhook.useMutation();
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => refresh.mutate()}
+        disabled={refresh.isPending}
+        className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+      >
+        {refresh.isPending ? "refreshing..." : "refresh webhook"}
+      </button>
+      {refresh.data?.ok ? (
+        <span className="text-[11px] text-aliveDark truncate max-w-[260px]">
+          ✓ pointed at {refresh.data.registeredUrl ?? refresh.data.webhookUrl}
+        </span>
+      ) : null}
+      {refresh.error ? (
+        <span className="text-[11px] text-urgent">{refresh.error.message}</span>
+      ) : null}
+    </>
   );
 }
 

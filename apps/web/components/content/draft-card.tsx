@@ -184,8 +184,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
 
       {draft.status === "APPROVED" &&
       (draft.platform === "TWITTER" ||
-        draft.platform === "WEBSITE_ARTICLE" ||
-        draft.platform === "TELEGRAM") ? (
+        draft.platform === "WEBSITE_ARTICLE") ? (
         <ManualPublishActions
           platform={draft.platform}
           content={visibleContent}
@@ -205,12 +204,33 @@ export function DraftCard({ draft }: { draft: Draft }) {
           >
             {publish.isPending ? "sending..." : "send newsletter →"}
           </button>
-          {publish.data ? (
+          {publish.data && "sent" in publish.data ? (
             <span className="text-xs text-aliveDark">
               ✓ sent to {publish.data.sent}
               {publish.data.failed > 0
                 ? ` · ${publish.data.failed} failed`
                 : ""}
+            </span>
+          ) : null}
+          {publish.error ? (
+            <span className="text-xs text-urgent">
+              {publish.error.message}
+            </span>
+          ) : null}
+        </div>
+      ) : draft.status === "APPROVED" && draft.platform === "TELEGRAM" ? (
+        <div className="flex items-center gap-sm flex-wrap pt-md border-t-hairline border-border2">
+          <button
+            type="button"
+            onClick={() => publish.mutate({ id: draft.id })}
+            disabled={publish.isPending}
+            className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
+          >
+            {publish.isPending ? "posting..." : "post to channel →"}
+          </button>
+          {publish.data && "messageId" in publish.data ? (
+            <span className="text-xs text-aliveDark">
+              ✓ posted to telegram
             </span>
           ) : null}
           {publish.error ? (

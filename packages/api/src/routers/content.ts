@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ContentFormat, DraftStatus, Platform, Prisma } from "@orb/db";
+import { ContentFormat, DraftStatus, Platform, Prisma, Provider } from "@orb/db";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import {
@@ -11,11 +11,26 @@ import {
 import { generateWeeklyPlan, startOfWeek } from "../agents/planner";
 import { summarizePerformance } from "../services/performance";
 import { publishNewsletter, testSendNewsletter } from "../services/newsletter";
+import { sendMessage as sendTelegramMessage } from "../services/telegram";
+import { decryptToken } from "../services/crypto";
 
 const paginationInput = z.object({
   limit: z.number().min(1).max(100).default(20),
   cursor: z.string().uuid().optional(),
 });
+
+// Flatten an Echo draft body into a single Telegram message. Telegram cap is
+// 4096 chars. Mirrors the same shape the manual-publish "copy text" button
+// produces, so the channel sees the same thing the user would have copied.
+function telegramTextFromDraft(content: unknown): string {
+  if (!content || typeof content !== "object") return "";
+  const c = content as Record<string, unknown>;
+  const parts: string[] = [];
+  if (typeof c.hook === "string" && c.hook.trim()) parts.push(c.hook.trim());
+  if (typeof c.body === "string" && c.body.trim()) parts.push(c.body.trim());
+  if (typeof c.cta === "string" && c.cta.trim()) parts.push(c.cta.trim());
+  return parts.join("\n\n").slice(0, 4096);
+}
 
 export const contentRouter = router({
   listDrafts: authedProc
@@ -343,22 +358,74 @@ export const contentRouter = router({
           "Approve the draft before publishing it.",
         );
       }
-      if (draft.platform !== Platform.EMAIL) {
-        throw OrbError.VALIDATION(
-          "Only email newsletters can be published this way for now.",
-        );
+      if (draft.platform === Platform.EMAIL) {
+        try {
+          const result = await publishNewsletter({
+            draftId: draft.id,
+            userId: ctx.user.id,
+          });
+          return result;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.error("Newsletter publish failed:", error);
+          throw OrbError.EXTERNAL_API(`SendGrid: ${msg}`);
+        }
       }
-      try {
-        const result = await publishNewsletter({
-          draftId: draft.id,
-          userId: ctx.user.id,
+
+      if (draft.platform === Platform.TELEGRAM) {
+        // Pick the user's connected channel. We don't ask the user to pick one
+        // here because v1 expects one channel per user; if multiple are
+        // connected we use the most recently created.
+        const channel = await ctx.db.connectedAccount.findFirst({
+          where: {
+            userId: ctx.user.id,
+            provider: Provider.TELEGRAM_CHANNEL,
+            disconnectedAt: null,
+          },
+          orderBy: { createdAt: "desc" },
         });
-        return result;
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error("Newsletter publish failed:", error);
-        throw OrbError.EXTERNAL_API(`SendGrid: ${msg}`);
+        if (!channel) {
+          throw OrbError.VALIDATION(
+            "no telegram channel connected — add one on /settings",
+          );
+        }
+        const text = telegramTextFromDraft(draft.content);
+        if (!text) {
+          throw OrbError.VALIDATION("draft has no postable text");
+        }
+        try {
+          const sent = await sendTelegramMessage({
+            token: decryptToken(channel.encryptedToken),
+            chatId: channel.externalId,
+            text,
+          });
+          await ctx.db.contentDraft.update({
+            where: { id: draft.id },
+            data: { status: DraftStatus.PUBLISHED },
+          });
+          await ctx.db.contentPost.create({
+            data: {
+              userId: ctx.user.id,
+              draftId: draft.id,
+              platform: Platform.TELEGRAM,
+              externalId: String(sent.messageId),
+              permalink: channel.scope?.startsWith("@")
+                ? `https://t.me/${channel.scope.slice(1)}/${sent.messageId}`
+                : null,
+              publishedAt: new Date(),
+            },
+          });
+          return { ok: true as const, messageId: sent.messageId };
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.error("Telegram publish failed:", error);
+          throw OrbError.EXTERNAL_API(`Telegram: ${msg}`);
+        }
       }
+
+      throw OrbError.VALIDATION(
+        "this platform doesn't auto-publish yet — use 'mark as posted' once you've shared it",
+      );
     }),
 
   // Mark a draft as posted on a manual-publish platform (Twitter for v1).
@@ -379,8 +446,7 @@ export const contentRouter = router({
       if (!draft) throw OrbError.NOT_FOUND("draft");
       if (
         draft.platform !== Platform.TWITTER &&
-        draft.platform !== Platform.WEBSITE_ARTICLE &&
-        draft.platform !== Platform.TELEGRAM
+        draft.platform !== Platform.WEBSITE_ARTICLE
       ) {
         throw OrbError.VALIDATION(
           "this platform publishes through adfi — use the publish flow",

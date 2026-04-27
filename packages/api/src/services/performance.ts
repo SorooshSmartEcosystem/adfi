@@ -75,10 +75,19 @@ function bucketize(posts: PostSummary[]): Bucket {
 export async function summarizePerformance(
   userId: string,
   windowDays = 90,
+  platform?: string,
 ): Promise<PerformanceSummary> {
   const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
   const posts = await db.contentPost.findMany({
-    where: { userId, publishedAt: { gte: since } },
+    where: {
+      userId,
+      publishedAt: { gte: since },
+      ...(platform &&
+        platform !== "ALL" && {
+          // Cast — Platform is an enum; the caller validates.
+          platform: platform as never,
+        }),
+    },
     orderBy: { publishedAt: "desc" },
     select: {
       publishedAt: true,

@@ -22,6 +22,7 @@ export const contentRouter = router({
     .input(
       paginationInput.extend({
         status: z.nativeEnum(DraftStatus).optional(),
+        platform: z.nativeEnum(Platform).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -29,6 +30,7 @@ export const contentRouter = router({
         where: {
           userId: ctx.user.id,
           ...(input.status && { status: input.status }),
+          ...(input.platform && { platform: input.platform }),
         },
         orderBy: { createdAt: "desc" },
         take: input.limit + 1,
@@ -313,9 +315,20 @@ export const contentRouter = router({
     }),
 
   getPerformanceSummary: authedProc
-    .input(z.object({ windowDays: z.number().min(7).max(365).default(90) }).optional())
+    .input(
+      z
+        .object({
+          windowDays: z.number().min(7).max(365).default(90),
+          platform: z.nativeEnum(Platform).optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
-      return summarizePerformance(ctx.user.id, input?.windowDays ?? 90);
+      return summarizePerformance(
+        ctx.user.id,
+        input?.windowDays ?? 90,
+        input?.platform,
+      );
     }),
 
   publishDraft: authedProc

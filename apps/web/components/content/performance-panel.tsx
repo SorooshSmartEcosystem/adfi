@@ -1,7 +1,9 @@
 "use client";
+import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { Card } from "../shared/card";
 import { HorizontalBar, StatBar } from "../shared/stat-bar";
+import { PlatformFilter, type PlatformValue } from "./platform-filter";
 
 const FORMAT_LABEL: Record<string, string> = {
   SINGLE_POST: "single post",
@@ -28,16 +30,35 @@ function fmtReach(n: number): string {
 }
 
 export function PerformancePanel() {
-  const query = trpc.content.getPerformanceSummary.useQuery();
+  const [filter, setFilter] = useState<PlatformValue>("ALL");
+  const query = trpc.content.getPerformanceSummary.useQuery({
+    windowDays: 90,
+    ...(filter !== "ALL" && {
+      platform: filter as Exclude<PlatformValue, "ALL">,
+    }),
+  });
+
+  const summary = query.data;
+  const filterChrome = (
+    <PlatformFilter
+      value={filter}
+      onChange={setFilter}
+      label="filter performance"
+    />
+  );
 
   if (query.isLoading) {
     return (
-      <p className="font-mono text-sm text-ink3">one second</p>
+      <>
+        {filterChrome}
+        <p className="font-mono text-sm text-ink3">one second</p>
+      </>
     );
   }
-  const summary = query.data;
   if (!summary || summary.totalPosts === 0) {
     return (
+      <>
+      {filterChrome}
       <Card>
         <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
           NO PUBLISHED POSTS YET
@@ -58,6 +79,7 @@ export function PerformancePanel() {
           go to drafts →
         </a>
       </Card>
+      </>
     );
   }
 
@@ -71,6 +93,7 @@ export function PerformancePanel() {
 
   return (
     <>
+      {filterChrome}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
         <Card>
           <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">

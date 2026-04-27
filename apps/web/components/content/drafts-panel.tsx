@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { DraftCard } from "./draft-card";
+import { PlatformFilter, type PlatformValue } from "./platform-filter";
 
 type Format =
   | "AUTO"
@@ -20,18 +21,42 @@ const FORMAT_OPTIONS: { id: Format; label: string }[] = [
   { id: "STORY_SEQUENCE", label: "stories" },
 ];
 
+const GEN_PLATFORM_OPTIONS: {
+  id: Exclude<PlatformValue, "ALL">;
+  label: string;
+}[] = [
+  { id: "INSTAGRAM", label: "instagram" },
+  { id: "TWITTER", label: "twitter" },
+  { id: "LINKEDIN", label: "linkedin" },
+  { id: "FACEBOOK", label: "facebook" },
+  { id: "TELEGRAM", label: "telegram" },
+  { id: "WEBSITE_ARTICLE", label: "website article" },
+  { id: "EMAIL", label: "email" },
+];
+
 export function DraftsPanel() {
   const [hint, setHint] = useState("");
   const [format, setFormat] = useState<Format>("AUTO");
+  const [genPlatform, setGenPlatform] = useState<
+    Exclude<PlatformValue, "ALL">
+  >("INSTAGRAM");
+  const [filter, setFilter] = useState<PlatformValue>("ALL");
   const utils = trpc.useUtils();
+
+  const platformArg =
+    filter === "ALL"
+      ? undefined
+      : (filter as Exclude<PlatformValue, "ALL">);
 
   const awaiting = trpc.content.listDrafts.useQuery({
     status: "AWAITING_REVIEW",
     limit: 30,
+    platform: platformArg,
   });
   const approved = trpc.content.listDrafts.useQuery({
     status: "APPROVED",
     limit: 20,
+    platform: platformArg,
   });
 
   const generate = trpc.content.generate.useMutation({
@@ -69,6 +94,23 @@ export function DraftsPanel() {
           ))}
         </div>
 
+        <div className="flex flex-wrap gap-xs mb-md">
+          {GEN_PLATFORM_OPTIONS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setGenPlatform(p.id)}
+              className={`text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+                genPlatform === p.id
+                  ? "bg-ink text-white border-ink"
+                  : "text-ink2 border-border hover:border-ink hover:text-ink"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-sm">
           <input
             type="text"
@@ -84,8 +126,8 @@ export function DraftsPanel() {
               const payload: {
                 hint?: string;
                 format?: Exclude<Format, "AUTO">;
-                platform?: "INSTAGRAM" | "EMAIL";
-              } = {};
+                platform?: Exclude<PlatformValue, "ALL">;
+              } = { platform: genPlatform };
               if (hint.trim()) payload.hint = hint;
               if (format !== "AUTO") {
                 payload.format = format;
@@ -106,6 +148,12 @@ export function DraftsPanel() {
         ) : null}
       </div>
 
+      <PlatformFilter
+        value={filter}
+        onChange={setFilter}
+        label="filter drafts"
+      />
+
       <section className="mb-xl">
         <div className="text-xs text-ink4 mb-md">
           needs your eyes · {awaitingItems.length}
@@ -115,7 +163,9 @@ export function DraftsPanel() {
         ) : awaitingItems.length === 0 ? (
           <div className="bg-surface rounded-md p-lg">
             <p className="text-md leading-relaxed mb-sm">
-              inbox zero — nothing waiting for review.
+              {filter === "ALL"
+                ? "inbox zero — nothing waiting for review."
+                : `nothing waiting on ${filter.toLowerCase().replace(/_/g, " ")}.`}
             </p>
             <p className="text-sm text-ink3 leading-relaxed">
               echo drafts on the weekly cadence, or you can pick a format chip

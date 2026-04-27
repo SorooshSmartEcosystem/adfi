@@ -19,6 +19,7 @@ import { sendSms } from "../services/twilio";
 import { getMessengerProfile } from "../services/meta";
 import { getUserAvatarUrl as getTelegramAvatarUrl } from "../services/telegram";
 import { decryptToken } from "../services/crypto";
+import { guardInbound, effectivePlan } from "../services/abuse-guard";
 import { SIGNAL_SYSTEM_PROMPT } from "./prompts/signal";
 
 // Anthropic's structured-output mode rejects `additionalProperties: <schema>`
@@ -144,6 +145,42 @@ export async function processInboundSms(args: {
   }
 
   const user = phoneRecord.user;
+
+  // Abuse guard — see processInboundTelegram comment.
+  const smsPlan = await effectivePlan(user.id);
+  const smsGuard = await guardInbound({
+    userId: user.id,
+    channel: MessageChannel.SMS,
+    fromAddress: args.from,
+    body: args.body,
+    plan: smsPlan,
+  });
+  if (!smsGuard.allow) {
+    if (smsGuard.reason === "trivial_body" || smsGuard.reason === "duplicate") {
+      return { handled: false, reason: smsGuard.reason };
+    }
+    const existingT = await db.message.findFirst({
+      where: {
+        userId: user.id,
+        fromAddress: args.from,
+        channel: MessageChannel.SMS,
+      },
+      orderBy: { createdAt: "desc" },
+      select: { threadId: true },
+    });
+    const tid = existingT?.threadId ?? randomUUID();
+    await db.message.create({
+      data: {
+        userId: user.id,
+        threadId: tid,
+        channel: MessageChannel.SMS,
+        fromAddress: args.from,
+        direction: Direction.INBOUND,
+        body: args.body,
+      },
+    });
+    return { handled: false, reason: smsGuard.reason };
+  }
 
   // Reuse or create a thread for (user, from) pairs.
   const existingThread = await db.message.findFirst({
@@ -338,6 +375,68 @@ export async function processInboundMessenger(args: {
     }
   })();
 
+  // Abuse guard — see processInboundTelegram for the rationale; same shape.
+  const messengerPlan = await effectivePlan(user.id);
+  const messengerGuard = await guardInbound({
+    userId: user.id,
+    channel,
+    fromAddress: args.senderPsid,
+    body: args.body,
+    plan: messengerPlan,
+  });
+  if (!messengerGuard.allow) {
+    if (
+      messengerGuard.reason === "trivial_body" ||
+      messengerGuard.reason === "duplicate"
+    ) {
+      return { handled: false, reason: messengerGuard.reason };
+    }
+    const existingT = await db.message.findFirst({
+      where: { userId: user.id, fromAddress: args.senderPsid, channel },
+      orderBy: { createdAt: "desc" },
+      select: { threadId: true },
+    });
+    const tid = existingT?.threadId ?? randomUUID();
+    await db.message.create({
+      data: {
+        userId: user.id,
+        threadId: tid,
+        channel,
+        fromAddress: args.senderPsid,
+        direction: Direction.INBOUND,
+        body: args.body,
+      },
+    });
+    if (messengerGuard.reason === "daily_signal_cap") {
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const alreadyWarned = await db.finding.findFirst({
+        where: {
+          userId: user.id,
+          agent: Agent.SIGNAL,
+          summary: { contains: "daily signal budget" },
+          createdAt: { gte: dayAgo },
+          acknowledged: false,
+        },
+        select: { id: true },
+      });
+      if (!alreadyWarned) {
+        await db.finding.create({
+          data: {
+            userId: user.id,
+            agent: Agent.SIGNAL,
+            severity: FindingSeverity.NEEDS_ATTENTION,
+            summary: `you hit your daily signal budget (${messengerPlan.toLowerCase()}) — replies paused for 24h`,
+            payload: {
+              channel: args.channel,
+              detail: messengerGuard.detail ?? null,
+            },
+          },
+        });
+      }
+    }
+    return { handled: false, reason: messengerGuard.reason };
+  }
+
   const existingThread = await db.message.findFirst({
     where: {
       userId: user.id,
@@ -524,6 +623,74 @@ export async function processInboundTelegram(args: {
       console.warn("telegram contact upsert failed:", err);
     }
   })();
+
+  // Abuse guard — drop spam, dedup retries, enforce per-sender + per-account
+  // budgets. Runs before persisting so trivial / duplicate messages don't
+  // even create rows in the message table.
+  const plan = await effectivePlan(user.id);
+  const guard = await guardInbound({
+    userId: user.id,
+    channel,
+    fromAddress: args.fromId,
+    body: args.body,
+    plan,
+  });
+
+  if (!guard.allow) {
+    if (guard.reason === "trivial_body" || guard.reason === "duplicate") {
+      // Pure noise — don't persist, don't reply, return 200 so Telegram
+      // doesn't keep retrying.
+      return { handled: false, reason: guard.reason };
+    }
+    // Rate-limited or daily-cap: still persist the message so the user
+    // can see what came in via /inbox, just skip the LLM call.
+    const existingThread = await db.message.findFirst({
+      where: { userId: user.id, fromAddress: args.fromId, channel },
+      orderBy: { createdAt: "desc" },
+      select: { threadId: true },
+    });
+    const threadId = existingThread?.threadId ?? randomUUID();
+    await db.message.create({
+      data: {
+        userId: user.id,
+        threadId,
+        channel,
+        fromAddress: args.fromId,
+        direction: Direction.INBOUND,
+        body: args.body,
+      },
+    });
+    if (guard.reason === "daily_signal_cap") {
+      // Surface the cap once a day so the user can decide to upgrade. Dedup
+      // by checking for an unacknowledged finding today.
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const alreadyWarned = await db.finding.findFirst({
+        where: {
+          userId: user.id,
+          agent: Agent.SIGNAL,
+          summary: { contains: "daily signal budget" },
+          createdAt: { gte: dayAgo },
+          acknowledged: false,
+        },
+        select: { id: true },
+      });
+      if (!alreadyWarned) {
+        await db.finding.create({
+          data: {
+            userId: user.id,
+            agent: Agent.SIGNAL,
+            severity: FindingSeverity.NEEDS_ATTENTION,
+            summary: `you hit your daily signal budget (${plan.toLowerCase()}) — replies paused for 24h`,
+            payload: {
+              channel: "TELEGRAM",
+              detail: guard.detail ?? null,
+            },
+          },
+        });
+      }
+    }
+    return { handled: false, reason: guard.reason };
+  }
 
   const existingThread = await db.message.findFirst({
     where: { userId: user.id, fromAddress: args.fromId, channel },

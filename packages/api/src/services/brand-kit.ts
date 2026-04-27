@@ -425,13 +425,31 @@ export async function brandKitGenerationsRemaining(
 ): Promise<{ used: number; cap: number; remaining: number }> {
   const cap = MONTHLY_BRANDKIT_CAP[plan];
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const used = await db.agentEvent.count({
-    where: {
-      userId,
-      eventType: "brandkit_generated",
-      createdAt: { gte: since },
-    },
-  });
+  const [usedRaw, kit] = await Promise.all([
+    db.agentEvent.count({
+      where: {
+        userId,
+        eventType: "brandkit_generated",
+        createdAt: { gte: since },
+      },
+    }),
+    db.brandKit.findUnique({
+      where: { userId },
+      select: { logoTemplates: true },
+    }),
+  ]);
+
+  // Migration amnesty: if the user's current kit has no svg logo
+  // templates, their past generations were the old raster format that
+  // got wiped by the schema migration. Don't penalize them for those —
+  // they need a fresh generation to produce something usable on the
+  // new format. We grant up to (used) free generations so a TRIAL user
+  // can definitely regenerate at least once.
+  const hasValidKit =
+    !!kit?.logoTemplates &&
+    Object.keys(kit.logoTemplates as Record<string, unknown>).length > 0;
+  const used = hasValidKit ? usedRaw : 0;
+
   return {
     used,
     cap,

@@ -36,9 +36,11 @@ export const MONTHLY_BRANDKIT_CAP: Record<Plan | "TRIAL", number> = {
   STUDIO: 999,
 };
 
-// Approximate per-generation cost (cents). Three Sonnet calls — spec,
-// logos batch, graphics batch. Used in the UI quota line.
-export const BRANDKIT_GENERATION_COST_CENTS = 6;
+// Approximate per-generation cost (cents). Spec uses Sonnet; logos +
+// graphics use Opus 4.7 with adaptive thinking for design-discipline
+// reasons (a senior-designer model produces noticeably more restrained
+// SVG geometry than a generalist mid-tier model). Used in UI quota line.
+export const BRANDKIT_GENERATION_COST_CENTS = 30;
 
 // =============================================================
 // Spec generation
@@ -70,22 +72,46 @@ const BrandSpecSchema = z.object({
 
 export type BrandSpec = z.infer<typeof BrandSpecSchema>;
 
-const SPEC_SYSTEM_PROMPT = `You are the visual director for a solopreneur's marketing system. You design tight, intentional brand specs — never generic, never trend-chasing.
+const SPEC_SYSTEM_PROMPT = `You are the visual director for a solopreneur's brand identity (think Collins, Pentagram, Order). You produce tight, deliberate specs — never generic, never trend-chasing, never 'modern minimalist startup look #347'.
 
-For palette: choose 6 hex colors that feel coherent and confident. Avoid pure-black/pure-white unless the brand's voice calls for it. Palette roles:
-- primary: the dominant brand color (used on CTAs, key UI)
-- secondary: supporting color (used on secondary buttons, links)
-- accent: a single sparing accent (status dots, gold trim, callouts)
-- ink: text color (very dark, not pure black)
-- surface: card / elevated surface fill (warm off-white if light brand, very dark if dark brand)
-- bg: page background (always slightly cooler/lighter than surface)
-Include a one-sentence rationale.
+PALETTE (6 hex colors, plus a rationale):
+- Pick a defined direction — 'warm neutral with a single gold accent', 'cool ink with a vivid coral CTA', 'paper white with deep forest green' — and execute it.
+- Avoid pure #000 and #FFF unless the brand demands it. Use #111 or #1A1815 for ink. Use #FAFAF7 or #F2ECE0 for paper.
+- Roles:
+  · primary: the dominant brand color used on CTAs and key UI accents
+  · secondary: supporting color for secondary buttons / hover states
+  · accent: a single sparing accent for status dots, gold trim, callouts (use sparingly!)
+  · ink: text color (very dark — not pure black; #1A1815, #111, or similar)
+  · surface: card / elevated surface fill (warm off-white in light brands, deep ink in dark brands)
+  · bg: page background — always slightly different from surface (cooler or lighter)
+- Rationale should be one sentence connecting the palette to the brand voice / business.
 
-For typography: pick web-safe pairings. Heading font + body font + 2-3 weights. Always include a Google Fonts pairing or a system stack. Examples: 'Cormorant Garamond' + 'Inter', 'Fraunces' + 'IBM Plex Sans', system + system. Include rationale.
+TYPOGRAPHY (web-safe pairing + 2-3 weights + rationale):
+Pick from this curated set, NOT a random Google font:
+- 'Cormorant Garamond' (display) + 'Inter' (body) — editorial, considered, Aesop-adjacent
+- 'Fraunces' (display) + 'Inter' (body) — modern serif, warm
+- 'Playfair Display' (display) + 'IBM Plex Sans' (body) — classical, premium
+- 'Inter' alone — clean, technical, default for SaaS / b2b
+- 'DM Serif Display' + 'DM Sans' — geometric serif pairing
+- 'Manrope' alone — soft sans, friendly
+- 'IBM Plex Serif' + 'IBM Plex Sans' — institutional, editorial
+- 'Söhne' or 'system-ui' alone — for stripped-down brands
 
-For imageStyle: a 1-2 sentence prompt fragment we will prepend to every photo generation downstream (used by Echo for blog/social images). Specific photography terms — 'warm natural light', 'editorial documentary feel', 'desaturated color grading', etc.
+IMAGE STYLE (1-2 sentence prompt fragment):
+Specific photography terms — 'warm natural light filtered through linen', 'editorial documentary feel, desaturated color grading', 'overhead flat-lay, soft shadows'. Avoid 'beautiful' or 'professional' — those are noise.
 
-For logoConcept: a short visual description for an icon-style mark — concrete enough to render as SVG. Example: 'minimalist house silhouette with cabinetry grid lines' or 'concentric arcs forming a stylized eye'. Keep it geometric and renderable; avoid 'a logo that captures the essence of...'.`;
+LOGO CONCEPT (one short visual description, concrete enough to render as SVG):
+Pick ONE direction. Avoid abstract phrasing like 'capturing the essence of...'.
+
+Examples of strong concepts:
+- 'a black sphere with a soft highlight, alive, breathing'
+- 'a stylized house silhouette with vertical grid lines suggesting cabinetry interior, single accent dot at the apex'
+- 'an O-shaped monogram with a thin vertical accent line through the center'
+- 'three concentric arcs forming a stylized broadcast signal, single dot at the base'
+- 'an A-shaped geometric monogram constructed from two diagonal lines and a horizontal crossbar in accent color'
+- 'a minimalist eye composed of two arcs forming a lens, single accent pupil'
+
+The concept must be specific, geometric, and renderable in 1–6 SVG primitives.`;
 
 export async function generateBrandKitSpec(args: {
   businessName: string;
@@ -161,24 +187,73 @@ const BrandGraphicsSchema = z.object({
   graphic3: z.string(),
 });
 
-const LOGO_SYSTEM_PROMPT = `You are a senior brand designer producing publishable SVG logo marks. Your output renders directly to <img src=data:...> in the user's brand book — there is no human cleanup pass.
+const LOGO_SYSTEM_PROMPT = `You are a senior brand designer at a top studio (Pentagram / Collins / Order). You design logo marks that read as INTENTIONAL — every shape earns its place. Your output ships directly into the user's brand book without human cleanup.
 
-Output 5 SVG variants of the same logo concept. Every SVG MUST:
-- Use viewBox="0 0 240 240" for square variants and viewBox="0 0 480 240" for the wordmark.
-- Be self-contained (no external <link> or <script>). All gradients/patterns inline in <defs>.
-- Use color tokens for fills/strokes — write them literally as the strings {{primary}}, {{secondary}}, {{accent}}, {{ink}}, {{surface}}, {{bg}}. The system replaces these with the user's palette at render time. Never inline literal hex codes.
-- Keep geometry simple — straight lines, arcs, polygons, simple paths. No raster <image>, no embedded fonts, no <foreignObject>.
-- The wordmark variant MUST include <text> with the business name in lowercase, font-family="Inter, system-ui, sans-serif" (the actual font swaps in via CSS), font-weight="500", and reasonable letter-spacing.
-- Aim for the visual density of a Wirecutter / Frank Body / Aesop logo — restrained, intentional, every line earns its place.
+DESIGN DISCIPLINE — read this before drawing anything:
 
-Variants:
-- primary: full mark on surface color background (rect filling the viewBox is fine), the mark in {{ink}} or {{primary}}.
-- mark: just the icon, no background rect, no text. Optimized for clarity at 32px.
-- monochrome: pure {{ink}} on transparent. Single color, no fills with {{accent}}.
-- lightOnDark: a {{ink}}-filled rect background, mark in {{surface}} or {{bg}} (light on dark).
-- wordmark: horizontal lockup — icon on the left, business name in {{ink}} on the right. 480×240 viewBox.
+1. ONE IDEA. Pick a single visual concept (a sphere, a house silhouette, a monogram letterform, a circular seal, an arc). Execute it precisely. Do NOT add decorative elements.
+2. GEOMETRIC PRIMITIVES ONLY. Circles, rectangles, lines, polygons, simple paths with straight segments and arcs. No filigree, no swooshes, no fake-organic blobs.
+3. FEW ELEMENTS. The 'mark' variant should be 1–6 SVG primitives total. Anything over 8 is too busy.
+4. RESTRAINT. No gradients in the mark itself unless the concept REQUIRES dimension (a sphere needs radial gradient; a flat geometric mark does not). No drop shadows, no glows, no 3D bevels (except the sphere case).
+5. NEGATIVE SPACE IS A FEATURE. Logos that breathe at 16px stay legible at 1200px.
 
-Keep each SVG under 1500 chars where possible.`;
+REFERENCE QUALITY BAR — these are the standards your output is judged against:
+
+A) Black sphere mark (concept: 'one entity, alive, calm'):
+<svg viewBox="0 0 240 240"><defs>
+  <radialGradient id="o" cx="30%" cy="25%" r="80%">
+    <stop offset="0%" stop-color="#5a5a5a"/>
+    <stop offset="35%" stop-color="#2a2a2a"/>
+    <stop offset="100%" stop-color="#000"/>
+  </radialGradient>
+  <radialGradient id="h" cx="35%" cy="30%" r="20%">
+    <stop offset="0%" stop-color="#fff" stop-opacity="0.4"/>
+    <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<circle cx="120" cy="120" r="115" fill="url(#o)"/>
+<ellipse cx="80" cy="72" rx="22" ry="14" fill="url(#h)" transform="rotate(-25 80 72)"/></svg>
+
+B) House with cabinetry grid (concept: 'home, organized'):
+<svg viewBox="0 0 240 240">
+<path d="M30 130 L120 40 L210 130 L210 200 L30 200 Z" fill="none" stroke="{{ink}}" stroke-width="3" stroke-linejoin="round"/>
+<line x1="74" y1="130" x2="74" y2="200" stroke="{{accent}}" stroke-width="2"/>
+<line x1="120" y1="106" x2="120" y2="200" stroke="{{accent}}" stroke-width="2"/>
+<line x1="166" y1="130" x2="166" y2="200" stroke="{{accent}}" stroke-width="2"/>
+<line x1="30" y1="166" x2="210" y2="166" stroke="{{accent}}" stroke-width="2"/>
+<circle cx="120" cy="40" r="5" fill="{{accent}}"/></svg>
+
+C) Monogram 'O' (concept: 'circular, optical, optimized'):
+<svg viewBox="0 0 240 240">
+<circle cx="120" cy="120" r="80" fill="none" stroke="{{ink}}" stroke-width="14"/>
+<line x1="120" y1="60" x2="120" y2="180" stroke="{{accent}}" stroke-width="3"/></svg>
+
+D) Stacked arcs (concept: 'frequency, signal, broadcast'):
+<svg viewBox="0 0 240 240">
+<path d="M40 160 A80 80 0 0 1 200 160" fill="none" stroke="{{ink}}" stroke-width="4"/>
+<path d="M64 160 A56 56 0 0 1 176 160" fill="none" stroke="{{ink}}" stroke-width="4"/>
+<path d="M88 160 A32 32 0 0 1 152 160" fill="none" stroke="{{ink}}" stroke-width="4"/>
+<circle cx="120" cy="160" r="6" fill="{{accent}}"/></svg>
+
+NOTE the level of restraint in those references — that is the bar. Do not exceed it.
+
+OUTPUT RULES:
+- 5 SVG variants of the SAME logo concept.
+- Square variants use viewBox="0 0 240 240". Wordmark uses viewBox="0 0 480 240".
+- Self-contained (no external links/scripts). All <defs> inline.
+- Color tokens — write {{primary}}, {{secondary}}, {{accent}}, {{ink}}, {{surface}}, {{bg}} LITERALLY in fill/stroke attributes. Never inline literal hex codes; the system replaces tokens at render time.
+- No <image>, no <foreignObject>, no embedded fonts.
+- Wordmark variant MUST include <text x="..." y="..." font-family="Inter, system-ui, sans-serif" font-weight="500" letter-spacing="-2" fill="{{ink}}"> with the business name in lowercase.
+- Each SVG under 2000 chars. Every line should pull its weight.
+
+VARIANTS:
+- primary: the hero version. Background rect filling the viewBox in {{bg}} or {{surface}}, mark in {{ink}} (and optionally {{accent}}).
+- mark: just the icon — no background rect, no text. Must be legible at 32px on screen. Use {{ink}} primarily, sparingly {{accent}}.
+- monochrome: pure {{ink}} on transparent. NO use of {{accent}} — for embossing / single-color print.
+- lightOnDark: {{ink}}-filled background rect, mark in {{surface}} or {{bg}} (light on dark inversion).
+- wordmark: horizontal lockup — mark on the left (in the leftmost ~25% of the viewBox), business name to the right of it. 480×240.
+
+If you find yourself adding 'sparkle' lines, sunbursts, or ribbons — stop. Delete them. The reference bar is no-decoration.`;
 
 export async function generateLogoTemplates(args: {
   businessName: string;
@@ -189,9 +264,14 @@ export async function generateLogoTemplates(args: {
 Logo concept: ${args.logoConcept}
 
 Generate the 5 SVG variants.`;
+  // Opus 4.7 with adaptive thinking — these are creative/aesthetic outputs
+  // where the higher-tier model produces noticeably more disciplined SVG
+  // geometry. Adaptive thinking lets the model deliberate on the design
+  // direction before drawing.
   const response = await anthropic().messages.create({
-    model: MODELS.SONNET,
-    max_tokens: 8000,
+    model: MODELS.OPUS,
+    max_tokens: 12000,
+    thinking: { type: "adaptive" },
     system: [
       { type: "text", text: LOGO_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
     ],
@@ -218,21 +298,64 @@ Generate the 5 SVG variants.`;
   return LogoTemplatesSchema.parse(JSON.parse(block.text));
 }
 
-const GRAPHICS_SYSTEM_PROMPT = `You are a senior brand designer producing decorative SVG cover graphics — abstract geometric compositions used as social-media headers, presentation slides, and business-card backs. Hand-tuned vectors only; never raster.
+const GRAPHICS_SYSTEM_PROMPT = `You are a senior editorial designer (think Pentagram book covers, MoMA exhibition posters, Aesop catalogue spreads). You compose hand-tuned SVG covers — geometric, restrained, intentional — for social headers, presentation slides, and business-card backs.
 
-Output 3 distinct compositions in the same brand world. Every SVG MUST:
-- Use viewBox="0 0 1200 630" (Twitter / OG image proportions).
-- Use color tokens {{primary}} / {{secondary}} / {{accent}} / {{ink}} / {{surface}} / {{bg}} for all fills/strokes — never literal hex codes.
-- Use simple geometric primitives — circles, rectangles, lines, paths, arcs, polygons. Optional simple patterns via <pattern>. No <image> tags, no <foreignObject>, no embedded fonts.
-- Compose intentionally: one bold focal element + supporting marks, or a rhythmic grid, or stacked arcs. Never a generic 'gradient mesh background'.
-- Keep each under 4000 chars.
+DESIGN DISCIPLINE:
+1. EDITORIAL, NOT DECORATIVE. Every shape carries weight. No 'gradient mesh background' clip art.
+2. GEOMETRIC PRIMITIVES. Circles, rectangles, lines, polygons, paths, arcs. Optional <pattern> for measured rhythm.
+3. RESTRAINED PALETTE. Use 2–3 colors max from the brand palette. Don't deploy every token.
+4. TYPOGRAPHIC IF IT SERVES. Optional large lowercase text element (<text>) using the brand name or a single editorial phrase, but only if it earns the canvas. font-family="Inter, system-ui, sans-serif".
+5. NEGATIVE SPACE. Generous margins. The composition lives in the breathing room.
 
-Variants — three different aesthetics so the user has range:
-- graphic1: tight focal composition (one strong shape with surrounding accents).
-- graphic2: rhythmic / grid-based pattern that could repeat (think editorial spread).
-- graphic3: atmospheric / spatial (overlapping forms suggesting depth, like a stage set).
+REFERENCE QUALITY BAR — three distinct aesthetics, all at this level of restraint:
 
-Treat the whole canvas — fill the {{bg}} or {{surface}} background; don't leave white-on-white.`;
+A) Focal composition (one bold element + restraint):
+<svg viewBox="0 0 1200 630">
+<rect width="1200" height="630" fill="{{bg}}"/>
+<circle cx="600" cy="315" r="220" fill="{{ink}}"/>
+<circle cx="600" cy="315" r="6" fill="{{accent}}"/>
+<text x="600" y="540" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="500" letter-spacing="6" fill="{{ink}}">YOUR BRAND</text>
+</svg>
+
+B) Rhythmic grid (measured repetition):
+<svg viewBox="0 0 1200 630">
+<rect width="1200" height="630" fill="{{surface}}"/>
+<g stroke="{{ink}}" stroke-width="1.5" fill="none">
+<line x1="100" y1="100" x2="100" y2="530"/>
+<line x1="240" y1="100" x2="240" y2="530"/>
+<line x1="380" y1="100" x2="380" y2="530"/>
+<line x1="520" y1="100" x2="520" y2="530"/>
+<line x1="660" y1="100" x2="660" y2="530"/>
+<line x1="800" y1="100" x2="800" y2="530"/>
+<line x1="940" y1="100" x2="940" y2="530"/>
+<line x1="1080" y1="100" x2="1080" y2="530"/>
+</g>
+<circle cx="800" cy="315" r="80" fill="{{accent}}"/>
+</svg>
+
+C) Atmospheric / spatial (overlapping forms suggesting depth):
+<svg viewBox="0 0 1200 630">
+<rect width="1200" height="630" fill="{{ink}}"/>
+<path d="M-50 500 Q 600 200 1250 500" fill="none" stroke="{{accent}}" stroke-width="2"/>
+<path d="M-50 550 Q 600 280 1250 550" fill="none" stroke="{{surface}}" stroke-width="2" stroke-opacity="0.4"/>
+<path d="M-50 600 Q 600 360 1250 600" fill="none" stroke="{{surface}}" stroke-width="2" stroke-opacity="0.2"/>
+<circle cx="950" cy="180" r="120" fill="{{surface}}" fill-opacity="0.06"/>
+</svg>
+
+OUTPUT RULES:
+- 3 SVG compositions. Each viewBox="0 0 1200 630" (OG image / Twitter card proportions).
+- Self-contained, no external links.
+- Color tokens written literally: {{primary}}, {{secondary}}, {{accent}}, {{ink}}, {{surface}}, {{bg}}.
+- No <image> tags, no <foreignObject>, no embedded fonts.
+- Always fill the entire canvas with a {{bg}} or {{surface}} or {{ink}} rect — never leave it white.
+- Each SVG under 5000 chars.
+
+VARIANTS (three distinct aesthetic directions):
+- graphic1: focal composition — one bold shape with restrained supporting marks.
+- graphic2: rhythmic / grid-based — measured repetition, editorial spread feeling.
+- graphic3: atmospheric — overlapping curves or arcs suggesting depth and motion.
+
+If you reach for a fancy gradient or a 'starfield' or a 'glassmorphism' panel — stop. Delete it. Return to primitives.`;
 
 export async function generateBrandGraphics(args: {
   businessName: string;
@@ -245,8 +368,9 @@ ${args.imageStyle}
 
 Generate the 3 SVG cover graphics.`;
   const response = await anthropic().messages.create({
-    model: MODELS.SONNET,
-    max_tokens: 12000,
+    model: MODELS.OPUS,
+    max_tokens: 16000,
+    thinking: { type: "adaptive" },
     system: [
       {
         type: "text",

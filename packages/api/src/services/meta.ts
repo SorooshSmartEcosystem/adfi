@@ -34,20 +34,27 @@ function appSecret(): string {
 }
 
 // V1 OAuth scope set, aligned with Meta's "Instagram API with Facebook
-// Login" use case (post-2024). IG scopes use the new `instagram_business_*`
-// naming. We do NOT request `pages_messaging` or `pages_manage_metadata` —
-// those belong to the deprecated standalone Messenger Platform use case
-// which isn't exposed for new apps; IG DMs work through
-// `instagram_business_manage_messages` and Page webhooks subscribe with
-// the page access token directly (no app-level scope needed).
-// `instagram_business_content_publish` + `ads_management` get added back
-// after App Review approves them.
+// Login" use case. Meta is mid-transition: the App dashboard's
+// "Permissions and Features" page lists the new `instagram_business_*`
+// names, but the OAuth Login Dialog only validates the LEGACY
+// `instagram_*` names. Submitting the new names returns:
+//   "Invalid Scopes: instagram_business_basic, ..."
+// Toggle the new-name permissions ON in the dashboard, but request the
+// legacy names here. (When Meta finishes the migration we flip back.)
+//
+// We do NOT request `pages_messaging` or `pages_manage_metadata` — those
+// belong to the deprecated standalone Messenger Platform use case which
+// isn't exposed for new apps; IG DMs work through
+// `instagram_manage_messages` and Page webhooks subscribe with the page
+// access token directly (no app-level scope needed).
+// `instagram_content_publish` + `ads_management` get added back after
+// App Review approves them.
 export const META_OAUTH_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
-  "instagram_business_basic",
-  "instagram_business_manage_messages",
-  "instagram_business_manage_comments",
+  "instagram_basic",
+  "instagram_manage_messages",
+  "instagram_manage_comments",
   "business_management",
 ] as const;
 

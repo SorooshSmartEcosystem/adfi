@@ -10,24 +10,21 @@ export const router = t.router;
 export const middleware = t.middleware;
 export const publicProc = t.procedure;
 
-// Resolves the user's active business once per request and attaches the
-// id to ctx. The hot path is one tiny query (just currentBusinessId);
-// only when that field is null do we run the self-heal flow that
-// creates a default Business — so 99% of requests pay one indexed
-// PK lookup, not the wider profile fetch.
+// `currentBusinessId` is already resolved once-per-request inside
+// createContext (see context.ts). This middleware just verifies the
+// caller is authed and runs the self-heal write when an authed user
+// lands here without a Business — rare path, runs at most once per
+// user lifetime. Steady-state hot path: zero extra DB queries beyond
+// what createContext already paid for.
 const isAuthed = middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Please sign in" });
   }
-  const row = await ctx.db.user.findUnique({
-    where: { id: ctx.user.id },
-    select: { currentBusinessId: true },
-  });
-  let currentBusinessId = row?.currentBusinessId ?? null;
+  let currentBusinessId = ctx.currentBusinessId;
   if (!currentBusinessId) {
-    // Self-heal: every authed user must have at least one Business.
-    // Only runs the wider profile fetch when we actually need to
-    // bootstrap — keeps the steady-state hot path fast.
+    // Self-heal: bootstrap a default Business from legacy User profile
+    // fields so every authed user has at least one. Only fires once
+    // per user lifetime; subsequent requests skip this entire branch.
     const profile = await ctx.db.user.findUnique({
       where: { id: ctx.user.id },
       select: {

@@ -17,6 +17,12 @@ export type Context = {
   session: Session | null;
   user: User | null;
   headers: Headers;
+  // Resolved once per request batch (not per-procedure), so a page that
+  // batches 5 tRPC queries pays one currentBusinessId lookup instead of
+  // five. Null when there's no authed user. The authedProc middleware
+  // self-heals if this is null but the user IS authed (legacy account
+  // missing a Business).
+  currentBusinessId: string | null;
 };
 
 type CreateContextOpts = {
@@ -37,12 +43,14 @@ export async function createContext(
     // Plain anon client — only used by the public auth router, which mobile
     // doesn't hit (mobile calls supabase-js directly for sign-in).
     const supabase = createClient(url, key);
+    const currentBusinessId = await resolveCurrentBusinessId(user?.id ?? null);
     return {
       db,
       supabase,
       session: null,
       user,
       headers: opts.headers,
+      currentBusinessId,
     };
   }
 
@@ -54,6 +62,7 @@ export async function createContext(
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const currentBusinessId = await resolveCurrentBusinessId(user?.id ?? null);
 
   return {
     db,
@@ -61,5 +70,21 @@ export async function createContext(
     session: null,
     user: user ?? null,
     headers: opts.headers,
+    currentBusinessId,
   };
+}
+
+// One indexed PK lookup, run once per HTTP request batch. Procedures
+// downstream read ctx.currentBusinessId for free. Returns null for
+// unauthenticated requests; the authedProc middleware bootstraps a
+// Business if a real authed user lands here without one.
+async function resolveCurrentBusinessId(
+  userId: string | null,
+): Promise<string | null> {
+  if (!userId) return null;
+  const row = await db.user.findUnique({
+    where: { id: userId },
+    select: { currentBusinessId: true },
+  });
+  return row?.currentBusinessId ?? null;
 }

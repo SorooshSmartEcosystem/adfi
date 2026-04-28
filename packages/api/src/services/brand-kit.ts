@@ -161,7 +161,10 @@ ${args.refinementHint ? `Owner refinement hint for this generation: ${args.refin
 
   const block = response.content.find((b) => b.type === "text");
   if (!block || block.type !== "text") {
-    throw new Error("brandkit spec returned no text content");
+    const blockTypes = response.content.map((b) => b.type).join(",");
+    throw new Error(
+      `brandkit spec returned no text content (stop_reason=${response.stop_reason}, blocks=[${blockTypes}])`,
+    );
   }
   return BrandSpecSchema.parse(JSON.parse(block.text));
 }
@@ -271,9 +274,11 @@ Generate the 5 SVG variants.`;
   // where the higher-tier model produces noticeably more disciplined SVG
   // geometry. Adaptive thinking lets the model deliberate on the design
   // direction before drawing.
+  // 5 hand-tuned SVGs + adaptive thinking. Earlier runs at 12k truncated
+  // mid-output (stop_reason=max_tokens) when thinking ate half the budget.
   const response = await anthropic().messages.create({
     model: MODELS.OPUS,
-    max_tokens: 12000,
+    max_tokens: 24000,
     thinking: { type: "adaptive" },
     system: [
       { type: "text", text: LOGO_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
@@ -296,7 +301,10 @@ Generate the 5 SVG variants.`;
   }
   const block = response.content.find((b) => b.type === "text");
   if (!block || block.type !== "text") {
-    throw new Error("logo generation returned no text content");
+    const blockTypes = response.content.map((b) => b.type).join(",");
+    throw new Error(
+      `logo generation returned no text content (stop_reason=${response.stop_reason}, blocks=[${blockTypes}])`,
+    );
   }
   return LogoTemplatesSchema.parse(JSON.parse(block.text));
 }
@@ -399,7 +407,10 @@ Generate the 3 SVG cover graphics.`;
   }
   const block = response.content.find((b) => b.type === "text");
   if (!block || block.type !== "text") {
-    throw new Error("graphics generation returned no text content");
+    const blockTypes = response.content.map((b) => b.type).join(",");
+    throw new Error(
+      `graphics generation returned no text content (stop_reason=${response.stop_reason}, blocks=[${blockTypes}])`,
+    );
   }
   return BrandGraphicsSchema.parse(JSON.parse(block.text));
 }

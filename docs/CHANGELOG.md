@@ -33,6 +33,7 @@ Format note: write changes from the user's perspective in plain English. "Users 
 - Favicon, apple-touch-icon, and a PWA manifest so the dashboard installs from Chrome/Safari.
 
 ### Fixed
+- Brand-kit generation no longer fails mid-run with a generic "the design service is having issues" message. The logo step ran out of token budget when adaptive thinking deliberated for too long; doubled the cap (12k → 24k) so the 5 hand-tuned SVGs always fit. Failure messages now include `stop_reason` and content-block types so the next regression is diagnosable from one error line.
 - Bare-domain website URLs ("www.example.com") now save without forcing the user to type "https://".
 - The dashboard self-heals if a Supabase auth user exists without an application User row.
 - /content drafts list refetches after run-now, so newly-drafted content appears immediately.

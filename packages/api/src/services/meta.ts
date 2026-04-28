@@ -33,17 +33,19 @@ function appSecret(): string {
   return v;
 }
 
-// V1 OAuth scope set — drops pages_manage_posts + instagram_content_publish
-// + ads_management. those get added back after App Review approves them; the
-// initial connect flow has to work end-to-end before review can start. all
-// scopes here are 'Ready for testing' under their respective use cases.
+// V1 OAuth scope set. Uses the post-2024 Instagram scope naming
+// (`instagram_business_*` replaced `instagram_*` for the IG-via-FB API).
+// Pages scopes kept as-is — those weren't renamed. instagram_content_publish
+// + ads_management are added back after App Review approves them; the
+// initial connect flow has to work end-to-end before review can start.
 export const META_OAUTH_SCOPES = [
   "pages_show_list",
   "pages_manage_metadata",
   "pages_messaging",
   "pages_read_engagement",
-  "instagram_basic",
-  "instagram_manage_messages",
+  "instagram_business_basic",
+  "instagram_business_manage_messages",
+  "instagram_business_manage_comments",
   "business_management",
 ] as const;
 

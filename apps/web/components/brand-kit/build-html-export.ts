@@ -93,7 +93,7 @@ export function buildBrandKitHtml(args: {
     aspect = "1/1",
   ) => `
     <div class="logo-card">
-      <div class="logo-canvas" style="background:${dark ? palette.ink : palette.bg};aspect-ratio:${aspect};">
+      <div class="logo-canvas" style="background:${dark ? palette.ink : palette.surface};aspect-ratio:${aspect};">
         <div class="logo-frame">${svg}</div>
       </div>
       <div class="logo-meta">
@@ -139,7 +139,7 @@ export function buildBrandKitHtml(args: {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: ${bodyFontStack};
-    background: ${palette.bg};
+    background: #FAFAF7;
     color: ${palette.ink};
     line-height: 1.5;
     font-size: 14px;
@@ -269,7 +269,7 @@ export function buildBrandKitHtml(args: {
       ${renderedGraphics
         .map(
           (g, i) =>
-            `<div class="graphic-card"><div class="graphic-frame" style="background:${palette.bg};">${g}</div><div style="padding:12px 20px;font-size:12px;color:#888;">graphic ${i + 1}</div></div>`,
+            `<div class="graphic-card"><div class="graphic-frame" style="background:${palette.surface};">${g}</div><div style="padding:12px 20px;font-size:12px;color:#888;">graphic ${i + 1}</div></div>`,
         )
         .join("")}
     </div>

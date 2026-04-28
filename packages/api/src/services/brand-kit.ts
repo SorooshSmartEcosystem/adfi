@@ -87,6 +87,8 @@ PALETTE (6 hex colors, plus a rationale):
   · ink: text color (very dark — not pure black; #1A1815, #111, or similar)
   · surface: card / elevated surface fill (warm off-white in light brands, deep ink in dark brands)
   · bg: page background — always slightly different from surface (cooler or lighter)
+- HARD CONTRAST RULE: ink vs bg and ink vs surface must each have a luminance gap > 0.6 (WCAG AA at large text). Don't ship a kit where ink is dark gray on light gray and the mark blends in.
+- HARD ROLE RULE: primary, secondary, and accent must each be visually distinct from bg AND from surface — these are the colors that paint logos and graphics; if any of them blends with the canvas, the kit looks broken.
 - Rationale should be one sentence connecting the palette to the brand voice / business.
 
 TYPOGRAPHY (web-safe pairing + 2-3 weights + rationale):
@@ -259,6 +261,11 @@ VARIANTS:
 - lightOnDark: {{ink}}-filled background rect, mark in {{surface}} or {{bg}} (light on dark inversion).
 - wordmark: horizontal lockup — mark on the left (in the leftmost ~25% of the viewBox), business name to the right of it. 480×240.
 
+CONTRAST DISCIPLINE — non-negotiable:
+- The mark inside primary/lightOnDark must contrast STRONGLY with its background rect. If background is {{bg}} (light), the mark is {{ink}} (dark) — never {{surface}} on {{bg}}.
+- {{accent}} is for one small detail (a dot, a single short line, ≤10% of the visible mark area). Never as the primary stroke color.
+- Stroke widths on the mark: minimum 3 at viewBox 240×240. Hairlines at 1 disappear at favicon size.
+
 If you find yourself adding 'sparkle' lines, sunbursts, or ribbons — stop. Delete them. The reference bar is no-decoration.`;
 
 export async function generateLogoTemplates(args: {
@@ -360,6 +367,13 @@ OUTPUT RULES:
 - No <image> tags, no <foreignObject>, no embedded fonts.
 - Always fill the entire canvas with a {{bg}} or {{surface}} or {{ink}} rect — never leave it white.
 - Each SVG under 5000 chars.
+
+CONTRAST DISCIPLINE — non-negotiable:
+- Foreground shapes MUST be on the opposite tone from the canvas fill.
+- If canvas is light ({{bg}} or {{surface}}): foreground shapes must use {{ink}} or {{primary}}. Never use {{surface}} on {{bg}} (or vice versa) for major shapes — they're sibling light tones and the result is invisible.
+- If canvas is dark ({{ink}}): foreground shapes must use {{surface}}, {{bg}}, or {{accent}}. Never use {{ink}} on {{ink}}.
+- {{accent}} is for small punctuation (a dot, a single line, a 6–12% area) — never carries the composition by itself.
+- Stroke widths: minimum 2 on text-card-sized canvases. A 0.5 hairline is invisible at thumbnail size.
 
 VARIANTS (three distinct aesthetic directions):
 - graphic1: focal composition — one bold shape with restrained supporting marks.

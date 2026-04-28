@@ -680,10 +680,13 @@ function LogoCard({
   return (
     <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
       <div
-        className="flex items-center justify-center p-xl"
+        className="flex items-center justify-center p-xl relative"
         style={{
           aspectRatio: aspect,
-          background: dark ? palette.ink : palette.bg,
+          background: dark ? palette.ink : palette.surface,
+          boxShadow: dark
+            ? "inset 0 0 0 0.5px rgba(255,255,255,0.08)"
+            : "inset 0 0 0 0.5px rgba(0,0,0,0.06)",
         }}
       >
         <InlineSvg
@@ -942,7 +945,10 @@ function GraphicsSection({
             >
               <div
                 className="aspect-[1200/630] flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
-                style={{ background: palette.bg }}
+                style={{
+                  background: palette.surface,
+                  boxShadow: "inset 0 0 0 0.5px rgba(0,0,0,0.06)",
+                }}
                 dangerouslySetInnerHTML={{ __html: cleanSvg(rendered) }}
               />
               <div className="px-lg py-md flex items-center justify-between">

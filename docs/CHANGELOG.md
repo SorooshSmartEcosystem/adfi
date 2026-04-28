@@ -33,6 +33,7 @@ Format note: write changes from the user's perspective in plain English. "Users 
 - Favicon, apple-touch-icon, and a PWA manifest so the dashboard installs from Chrome/Safari.
 
 ### Fixed
+- Brand-kit logos and cover graphics no longer disappear into the page when the palette generates a near-white background. Logo + graphic canvases now sit on `palette.surface` (a distinct light tone) instead of `palette.bg` and carry an inset hairline frame so even a transparent SVG always reads as a framed asset. The standalone HTML brand book uses a fixed neutral page background (#FAFAF7) so cards always stand out, regardless of the palette the user picked. Generation prompts (palette, logo, graphics) now enforce explicit contrast — sibling light tones (surface on bg) are forbidden as fg/bg pairs, accent is reserved for ≤10% punctuation, and minimum stroke widths are pinned so marks stay legible at favicon size.
 - Brand-kit generation no longer fails mid-run with a generic "the design service is having issues" message. The logo step ran out of token budget when adaptive thinking deliberated for too long; doubled the cap (12k → 24k) so the 5 hand-tuned SVGs always fit. Failure messages now include `stop_reason` and content-block types so the next regression is diagnosable from one error line.
 - Bare-domain website URLs ("www.example.com") now save without forcing the user to type "https://".
 - The dashboard self-heals if a Supabase auth user exists without an application User row.

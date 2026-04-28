@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { WowClient } from "./wow-client";
 
 export const metadata: Metadata = {
@@ -11,5 +12,9 @@ export const metadata: Metadata = {
 // that converts visitors into accounts. The actual preview generation runs
 // through onboarding.previewDemo (publicProc).
 export default function OnboardingWowPage() {
-  return <WowClient />;
+  return (
+    <Suspense fallback={null}>
+      <WowClient />
+    </Suspense>
+  );
 }

@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADFI · Pulse</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    background: #FAFAF7;
+    color: #111;
+    font-weight: 400;
+    line-height: 1.5;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, textarea { font-family: inherit; }
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: "SF Mono", "JetBrains Mono", monospace; }
+
+  :root {
+    --bg: #FAFAF7;
+    --ink: #111;
+    --ink2: #444;
+    --ink3: #666;
+    --ink4: #888;
+    --ink5: #aaa;
+    --surface: #F2EFE5;
+    --surface2: #F8F5EA;
+    --border: #E5E3DB;
+    --border2: #EEEBE0;
+    --alive: #7CE896;
+    --alive-dark: #3a9d5c;
+    --attn-bg: #FFF9ED;
+    --attn-border: #F0D98C;
+    --attn-text: #8a6a1e;
+    --urgent: #C84A3E;
+  }
+
+  /* ===== App layout ===== */
+  .app { display: flex; min-height: 100vh; }
+
+  /* Sidebar (compact rebuild matching your screenshot) */
+  .sidebar {
+    width: 240px;
+    border-right: 0.5px solid var(--border);
+    background: var(--bg);
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sb-acc {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 8px 16px;
+    border-bottom: 0.5px solid var(--border2);
+    margin-bottom: 12px;
+  }
+  .sb-acc-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: #2a1a14;
+    color: #ffb287;
+    font-family: "SF Mono", monospace;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sb-acc-name { font-size: 13px; font-weight: 500; }
+  .sb-acc-tier {
+    font-size: 11px; color: var(--ink4); margin-top: 1px;
+  }
+  .sb-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--ink2);
+    cursor: pointer; width: 100%; text-align: left;
+    border: none; background: none;
+    transition: background 0.12s;
+  }
+  .sb-link:hover { background: var(--surface); }
+  .sb-link.active {
+    background: var(--ink); color: white;
+  }
+  .sb-link-badge {
+    margin-left: auto;
+    font-family: "SF Mono", monospace;
+    font-size: 10px;
+    color: var(--ink4);
+  }
+  .sb-link.active .sb-link-badge { color: rgba(255,255,255,0.6); }
+  .sb-section-label {
+    font-size: 11px; color: var(--ink4);
+    padding: 14px 10px 6px;
+    letter-spacing: 0;
+  }
+  .sb-spacer { flex: 1; min-height: 12px; }
+  .sb-foot {
+    border-top: 0.5px solid var(--border2);
+    padding-top: 10px;
+  }
+  .sb-user {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .sb-user:hover { background: var(--surface); }
+  .sb-user-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .sb-user-name { font-size: 12px; font-weight: 500; }
+  .sb-user-tier { font-size: 11px; color: var(--ink4); }
+
+  /* Main */
+  .main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .topbar {
+    height: 56px;
+    border-bottom: 0.5px solid var(--border);
+    background: rgba(250,250,247,0.92);
+    backdrop-filter: saturate(180%) blur(14px);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    position: sticky; top: 0; z-index: 30;
+  }
+  .topbar-title { font-size: 14px; font-weight: 500; }
+  .topbar-actions {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .topbar-link {
+    font-size: 13px; color: var(--ink3);
+    display: inline-flex; align-items: center; gap: 4px;
+    transition: color 0.15s;
+  }
+  .topbar-link:hover { color: var(--ink); }
+  .topbar-btn {
+    padding: 7px 14px; border-radius: 100px;
+    font-size: 12px; color: var(--ink3);
+    border: 0.5px solid var(--border);
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .topbar-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  .content {
+    flex: 1;
+    padding: 56px 56px 80px;
+    max-width: 1080px;
+    width: 100%;
+  }
+  @media (max-width: 900px) {
+    .content { padding: 36px 24px 60px; }
+    .sidebar { display: none; }
+  }
+
+  /* ===================================
+     PAGE HEADER
+  =================================== */
+  .page-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+
+  /* Small breathing orb signature */
+  .sig-orb-wrap {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+  .sig-orb-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 0.5px solid rgba(17, 17, 17, 0.18);
+    animation: sig-ring-pulse 3.2s ease-out infinite;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .sig-orb-ring:nth-child(2) { animation-delay: 1.1s; }
+  @keyframes sig-ring-pulse {
+    0%   { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+  .sig-orb {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%,
+      #5a5a5a 0%, #2a2a2a 35%, #0a0a0a 75%, #000 100%);
+    box-shadow:
+      inset -2px -3px 6px rgba(0,0,0,0.5),
+      inset 2px 2px 4px rgba(255,255,255,0.06);
+    animation: sig-breathe 3.2s ease-in-out infinite;
+    z-index: 2;
+  }
+  .sig-orb::before {
+    content: '';
+    position: absolute;
+    top: 18%; left: 22%;
+    width: 26%; height: 18%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.4) 0%, transparent 70%);
+    border-radius: 50%;
+    transform: rotate(-25deg);
+  }
+  @keyframes sig-breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+
+  .page-title {
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1;
+  }
+
+  .tier-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+    margin-left: 6px;
+  }
+  .tier-pill.team {
+    background: rgba(124, 232, 150, 0.18);
+    color: var(--alive-dark);
+  }
+  .tier-pill.starter {
+    background: rgba(124, 232, 150, 0.18);
+    color: var(--alive-dark);
+  }
+  .tier-pill.studio {
+    background: var(--attn-bg);
+    color: var(--attn-text);
+  }
+
+  .page-desc {
+    font-size: 16px;
+    color: var(--ink3);
+    margin-bottom: 32px;
+    margin-left: 46px;
+  }
+
+  /* ===================================
+     CONTROL ROW
+  =================================== */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+  }
+  .ctrl-primary {
+    background: var(--ink);
+    color: white;
+    padding: 12px 22px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ctrl-primary:hover { background: #000; }
+  .ctrl-primary:active { transform: scale(0.97); }
+  .ctrl-secondary {
+    background: white;
+    color: var(--ink);
+    padding: 12px 20px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 0.5px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .ctrl-secondary:hover { border-color: var(--ink); }
+
+  .ctrl-status {
+    margin-left: auto;
+    font-family: "SF Mono", monospace;
+    font-size: 11px;
+    color: var(--alive-dark);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ctrl-status::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--alive);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ===================================
+     CURRENTLY CARD — live micro-status
+  =================================== */
+  .currently {
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .curr-label {
+    font-size: 13px;
+    color: var(--ink4);
+    margin-bottom: 8px;
+  }
+
+  .curr-status {
+    font-size: 16px;
+    color: var(--ink);
+    line-height: 1.4;
+    margin-bottom: 18px;
+    min-height: 22px;
+    transition: opacity 0.4s ease;
+  }
+
+  .curr-progress {
+    height: 2px;
+    background: var(--border2);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .curr-progress::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -30%;
+    width: 30%; height: 100%;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      var(--ink) 50%,
+      transparent 100%);
+    animation: progress-shimmer 3s ease-in-out infinite;
+  }
+  @keyframes progress-shimmer {
+    0%   { left: -30%; }
+    100% { left: 100%; }
+  }
+
+  /* ===================================
+     FINDINGS LIST
+  =================================== */
+  .findings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    margin-top: 8px;
+  }
+  .findings-title {
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .findings-count {
+    font-family: "SF Mono", monospace;
+    font-size: 11px;
+    color: var(--ink4);
+  }
+
+  .findings {
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .finding {
+    padding: 16px 22px;
+    border-bottom: 0.5px solid var(--border2);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.12s;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .finding:last-child { border-bottom: none; }
+  .finding:hover { background: var(--surface2); }
+
+  .finding-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 8px;
+  }
+  .finding-dot.attn { background: var(--attn-border); }
+  .finding-dot.info { background: var(--ink5); }
+  .finding-dot.alive { background: var(--alive); }
+
+  .finding-body { flex: 1; min-width: 0; }
+  .finding-title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+  .finding-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--ink4);
+  }
+  .finding-time {
+    font-family: "SF Mono", monospace;
+  }
+  .finding-tag {
+    font-family: "SF Mono", monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 100px;
+    letter-spacing: 0.05em;
+  }
+  .finding-tag.attn {
+    background: var(--attn-bg);
+    color: var(--attn-text);
+  }
+  .finding-tag.info {
+    background: var(--surface);
+    color: var(--ink3);
+  }
+
+  /* Quick actions revealed on hover (desktop) */
+  .finding-actions {
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+  .finding:hover .finding-actions { opacity: 1; }
+  @media (max-width: 700px) {
+    .finding-actions { opacity: 1; }
+  }
+  .finding-action {
+    background: transparent;
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--ink3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .finding-action:hover { border-color: var(--ink); color: var(--ink); }
+  .finding-action.primary {
+    background: var(--ink);
+    color: white;
+    border-color: var(--ink);
+  }
+  .finding-action.primary:hover { background: #000; }
+
+  /* Empty state */
+  .findings-empty {
+    padding: 28px 24px;
+    text-align: center;
+    color: var(--ink4);
+    font-size: 14px;
+  }
+
+  /* ===================================
+     PREVIEW BAR
+  =================================== */
+  .preview-bar {
+    background: white;
+    border-bottom: 0.5px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .preview-bar-title {
+    font-family: "SF Mono", monospace;
+    font-size: 11px;
+    color: var(--ink4);
+    letter-spacing: 0.1em;
+  }
+  .preview-bar-meta {
+    font-size: 12px;
+    color: var(--ink3);
+  }
+</style>
+</head>
+<body>
+
+<div class="preview-bar">
+  <span class="preview-bar-title">SPECIALIST PAGE REDESIGN · PULSE (MODEL)</span>
+  <span class="preview-bar-meta">live currently card · breathing orb signature · improved findings cards</span>
+</div>
+
+<div class="app">
+
+  <!-- Sidebar (matches your screenshots) -->
+  <aside class="sidebar">
+    <div class="sb-acc">
+      <div class="sb-acc-mark">S</div>
+      <div>
+        <div class="sb-acc-name">SorooshX</div>
+        <div class="sb-acc-tier">trial plan</div>
+      </div>
+    </div>
+
+    <button class="sb-link"><span>dashboard</span></button>
+    <button class="sb-link">
+      <span>inbox</span>
+      <span class="sb-link-badge">36</span>
+    </button>
+    <button class="sb-link"><span>content</span></button>
+    <button class="sb-link"><span>campaigns</span></button>
+    <button class="sb-link"><span>brand kit</span></button>
+    <button class="sb-link"><span>weekly report</span></button>
+
+    <div class="sb-section-label">specialists</div>
+    <button class="sb-link"><span>strategist</span></button>
+    <button class="sb-link"><span>signal</span></button>
+    <button class="sb-link"><span>echo</span></button>
+    <button class="sb-link"><span>scout</span></button>
+    <button class="sb-link active"><span>pulse</span></button>
+    <button class="sb-link"><span>ads</span></button>
+
+    <div class="sb-spacer"></div>
+
+    <div class="sb-foot">
+      <button class="sb-link"><span>settings</span></button>
+      <div class="sb-user">
+        <div class="sb-user-avatar">C</div>
+        <div>
+          <div class="sb-user-name">ceo</div>
+          <div class="sb-user-tier">trial plan</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">pulse</div>
+      <div class="topbar-actions">
+        <a href="#" class="topbar-link">adfi.ca ↗</a>
+        <button class="topbar-btn">log out</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Page header with breathing orb signature -->
+      <div class="page-head">
+        <div class="sig-orb-wrap">
+          <div class="sig-orb-ring"></div>
+          <div class="sig-orb-ring"></div>
+          <div class="sig-orb"></div>
+        </div>
+        <h1 class="page-title">pulse <span class="tier-pill team">team</span></h1>
+      </div>
+      <p class="page-desc">market signals · news · trends</p>
+
+      <!-- Control row with run / pause / live status -->
+      <div class="controls">
+        <button class="ctrl-primary">run now →</button>
+        <button class="ctrl-secondary">pause</button>
+        <span class="ctrl-status">last run 1:31am · ok</span>
+      </div>
+
+      <!-- Currently card with live micro-status + animated progress -->
+      <div class="currently">
+        <div class="curr-label">currently</div>
+        <div class="curr-status" id="currStatus">watching signals relevant to your business</div>
+        <div class="curr-progress"></div>
+      </div>
+
+      <!-- Findings -->
+      <div class="findings-head">
+        <h2 class="findings-title">recent findings</h2>
+        <span class="findings-count">5 SURFACED</span>
+      </div>
+
+      <div class="findings">
+        <div class="finding">
+          <span class="finding-dot attn"></span>
+          <div class="finding-body">
+            <div class="finding-title">May opens in days — monthly close on BTC and macro assets is a natural content trigger</div>
+            <div class="finding-meta">
+              <span class="finding-time">tue · 5:31 AM</span>
+              <span class="finding-tag attn">needs_attention</span>
+            </div>
+          </div>
+          <div class="finding-actions">
+            <button class="finding-action">dismiss</button>
+            <button class="finding-action primary">open →</button>
+          </div>
+        </div>
+
+        <div class="finding">
+          <span class="finding-dot attn"></span>
+          <div class="finding-body">
+            <div class="finding-title">Coinbase listing speculation heating up — traders are hunting early entries right now</div>
+            <div class="finding-meta">
+              <span class="finding-time">tue · 5:31 AM</span>
+              <span class="finding-tag attn">needs_attention</span>
+            </div>
+          </div>
+          <div class="finding-actions">
+            <button class="finding-action">dismiss</button>
+            <button class="finding-action primary">open →</button>
+          </div>
+        </div>
+
+        <div class="finding">
+          <span class="finding-dot info"></span>
+          <div class="finding-body">
+            <div class="finding-title">Forbes SocialFi earn guide is still circulating — readers are asking 'where do I actually trade?'</div>
+            <div class="finding-meta">
+              <span class="finding-time">tue · 5:31 AM</span>
+              <span class="finding-tag info">info</span>
+            </div>
+          </div>
+          <div class="finding-actions">
+            <button class="finding-action">dismiss</button>
+            <button class="finding-action primary">open →</button>
+          </div>
+        </div>
+
+        <div class="finding">
+          <span class="finding-dot attn"></span>
+          <div class="finding-body">
+            <div class="finding-title">SocialFi earn-for-contribution roundup is live — your platform fits the frame</div>
+            <div class="finding-meta">
+              <span class="finding-time">tue · 5:31 AM</span>
+              <span class="finding-tag attn">needs_attention</span>
+            </div>
+          </div>
+          <div class="finding-actions">
+            <button class="finding-action">dismiss</button>
+            <button class="finding-action primary">open →</button>
+          </div>
+        </div>
+
+        <div class="finding">
+          <span class="finding-dot attn"></span>
+          <div class="finding-body">
+            <div class="finding-title">Q2 is the window to lock in your active trader base before summer volume drops</div>
+            <div class="finding-meta">
+              <span class="finding-time">sun · 9:52 AM</span>
+              <span class="finding-tag attn">needs_attention</span>
+            </div>
+          </div>
+          <div class="finding-actions">
+            <button class="finding-action">dismiss</button>
+            <button class="finding-action primary">open →</button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Live micro-status text rotating in the "currently" card
+  const STATUSES = [
+    'watching signals relevant to your business',
+    'scanning trending topics across tiktok and x',
+    'checking news mentions in your industry',
+    'looking for press opportunities you could pitch',
+    'matching trends to your audience',
+    'summarizing what i found',
+  ];
+
+  const currStatus = document.getElementById('currStatus');
+  let idx = 0;
+
+  function rotateStatus() {
+    currStatus.style.opacity = '0';
+    setTimeout(() => {
+      idx = (idx + 1) % STATUSES.length;
+      currStatus.textContent = STATUSES[idx];
+      currStatus.style.opacity = '1';
+    }, 400);
+  }
+
+  // Rotate every 4 seconds
+  setInterval(rotateStatus, 4000);
+</script>
+</body>
+</html>

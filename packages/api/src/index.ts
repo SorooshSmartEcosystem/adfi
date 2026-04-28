@@ -37,6 +37,14 @@ export {
 // Service helpers (used by webhook + cron route handlers in apps/web)
 export { recordAnthropicUsage } from "./services/anthropic";
 export {
+  PLAN_LIMITS,
+  CREDIT_COSTS,
+  periodFor,
+  nextResetAt,
+  type PlanKey,
+  type UsageInfo,
+} from "./services/quota";
+export {
   summarizePerformance,
   performanceForPrompt,
   type PerformanceSummary,

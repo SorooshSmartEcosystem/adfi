@@ -49,14 +49,64 @@ export const billingRouter = router({
     });
   }),
 
-  // Starts a Stripe Checkout session with a 7-day trial. The session's
-  // success_url lands the user on /onboarding/phone so onboarding continues;
-  // the webhook persists the Subscription row.
+  // Starts a Stripe Checkout session with a 7-day trial. Used for the
+  // FIRST subscription on a user account — the onboarding flow.
+  //
+  // Refuses to create a new checkout if the user already has an
+  // ACTIVE/TRIALING/PAST_DUE subscription — that path was double-charging
+  // users who tried to upgrade from settings (the old code blindly
+  // created a 2nd subscription). Existing-sub upgrades go through
+  // `changePlan` instead, which uses Stripe's subscription update flow
+  // (proration, no second invoice).
   createCheckout: authedProc
-    .input(z.object({ plan: z.nativeEnum(Plan) }))
+    .input(
+      z.object({
+        plan: z.nativeEnum(Plan),
+        // 'onboarding' (new signup) | 'settings' (existing user
+        // returning to billing) | 'campaigns' (came from /campaigns
+        // upsell) | etc. Drives where Stripe sends the user after
+        // success/cancel.
+        from: z.enum(["onboarding", "settings", "campaigns"]).default("onboarding"),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
+      const existingActive = await ctx.db.subscription.findFirst({
+        where: {
+          userId: ctx.user.id,
+          status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (existingActive) {
+        // The user already has a paid subscription — they should be
+        // calling changePlan (which uses Stripe's subscription update
+        // for proration) or the customer portal, NOT createCheckout
+        // (which spawns a second sub on the same customer).
+        throw OrbError.VALIDATION(
+          existingActive.plan === input.plan
+            ? `you're already on the ${input.plan.toLowerCase()} plan`
+            : "you already have an active subscription — use change plan instead of starting a new one",
+        );
+      }
+
       const customerId = await getOrCreateCustomerId(ctx);
       const base = appUrl();
+
+      // Where Stripe sends the user back after checkout. Onboarding
+      // goes to /onboarding/phone (next step in signup); upgrades from
+      // anywhere else return to where they came from.
+      const successPath =
+        input.from === "settings"
+          ? "/settings#billing"
+          : input.from === "campaigns"
+            ? "/campaigns"
+            : "/onboarding/phone";
+      const cancelPath =
+        input.from === "settings"
+          ? "/settings#billing"
+          : input.from === "campaigns"
+            ? "/campaigns"
+            : "/onboarding/plan";
 
       try {
         const session = await stripe().checkout.sessions.create({
@@ -68,8 +118,8 @@ export const billingRouter = router({
             metadata: { userId: ctx.user.id, plan: input.plan },
           },
           payment_method_collection: "always",
-          success_url: `${base}/onboarding/phone?billing=ok`,
-          cancel_url: `${base}/onboarding/plan?billing=canceled`,
+          success_url: `${base}${successPath}?billing=ok`,
+          cancel_url: `${base}${cancelPath}?billing=canceled`,
           metadata: { userId: ctx.user.id, plan: input.plan },
         });
         if (!session.url) throw new Error("Stripe did not return a URL");
@@ -109,6 +159,15 @@ export const billingRouter = router({
       });
       if (!existing) throw OrbError.NOT_FOUND("subscription");
 
+      // Same-plan guard: refuse so we don't bill the user a proration
+      // fee on a no-op change. The UI hides the button for the
+      // current plan but server-side enforcement is the safety net.
+      if (existing.plan === input.plan) {
+        throw OrbError.VALIDATION(
+          `you're already on the ${input.plan.toLowerCase()} plan`,
+        );
+      }
+
       try {
         const sub = await stripe().subscriptions.retrieve(
           existing.stripeSubscriptionId,
@@ -120,6 +179,35 @@ export const billingRouter = router({
           items: [{ id: item.id, price: priceIdForPlan(input.plan) }],
           proration_behavior: "create_prorations",
         });
+
+        // Update the local Subscription row right away so the UI shows
+        // the new plan without waiting for the webhook. The webhook
+        // (subscription.updated) will set the same fields when it
+        // arrives — idempotent.
+        await ctx.db.subscription.update({
+          where: { id: existing.id },
+          data: { plan: input.plan },
+        });
+
+        // Sync the current period's credit ceiling so the user sees
+        // their new plan's credits immediately. UserUsage.creditsLimit
+        // is a snapshot of the plan at first-touch of the period; on
+        // upgrade we bump it to the new plan's limit. We never lower
+        // creditsLimit on a downgrade mid-period — keep what they
+        // already paid for. Per-plan caps are imported from quota.ts.
+        const { PLAN_LIMITS, periodFor } = await import("../services/quota");
+        const newLimit = PLAN_LIMITS[input.plan];
+        const period = periodFor();
+        const usage = await ctx.db.userUsage.findUnique({
+          where: { userId_period: { userId: ctx.user.id, period } },
+        });
+        if (usage && newLimit > usage.creditsLimit) {
+          await ctx.db.userUsage.update({
+            where: { id: usage.id },
+            data: { creditsLimit: newLimit, plan: input.plan },
+          });
+        }
+
         return { ok: true as const };
       } catch (error) {
         console.error("Stripe changePlan failed:", error);

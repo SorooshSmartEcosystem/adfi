@@ -74,6 +74,34 @@ async function upsertSubscription(sub: StripeSubscription) {
       cancelAtPeriodEnd: sub.cancel_at_period_end,
     },
   });
+
+  // Sync the current period's credit ceiling so usage reflects the new
+  // plan immediately. We never lower creditsLimit on a downgrade
+  // mid-period — the user already paid for the higher cap. PLAN_LIMITS
+  // + periodFor are imported lazily to keep the webhook bundle small.
+  const status = mapStatus(sub.status);
+  if (status === "ACTIVE" || status === "TRIALING") {
+    try {
+      const { PLAN_LIMITS, periodFor } = await import("@orb/api");
+      const newLimit = PLAN_LIMITS[plan];
+      const period = periodFor();
+      const usage = await db.userUsage.findUnique({
+        where: { userId_period: { userId, period } },
+      });
+      if (usage && newLimit > usage.creditsLimit) {
+        await db.userUsage.update({
+          where: { id: usage.id },
+          data: { creditsLimit: newLimit, plan },
+        });
+      } else if (!usage) {
+        await db.userUsage.create({
+          data: { userId, period, creditsLimit: newLimit, plan },
+        });
+      }
+    } catch (err) {
+      console.warn("stripe webhook: credit sync failed:", err);
+    }
+  }
 }
 
 export async function POST(request: Request) {

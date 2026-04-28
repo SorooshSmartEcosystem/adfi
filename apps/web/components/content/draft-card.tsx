@@ -41,10 +41,66 @@ const STATUS_TONE: Record<
   FAILED: { label: "failed", color: "text-urgent", dot: "urgent" },
 };
 
-export function DraftCard({ draft }: { draft: Draft }) {
+// Pulls a thumbnail URL out of any draft format. Single posts have
+// heroImage.url; carousels use coverSlide.imageUrl; reels use the first
+// beat's imageUrl; stories use the first frame; newsletters reuse the
+// SINGLE_POST shape. Returns null if the image hasn't been generated yet.
+function thumbnailFromContent(format: string, content: unknown): string | null {
+  if (!content || typeof content !== "object") return null;
+  const c = content as Record<string, unknown>;
+  if (format === "SINGLE_POST" || format === "EMAIL_NEWSLETTER") {
+    const hero = c.heroImage as { url?: string | null } | undefined;
+    return hero?.url ?? null;
+  }
+  if (format === "CAROUSEL") {
+    const cover = c.coverSlide as { imageUrl?: string | null } | undefined;
+    return cover?.imageUrl ?? null;
+  }
+  if (format === "REEL_SCRIPT") {
+    const beats = c.beats as { imageUrl?: string | null }[] | undefined;
+    return beats?.[0]?.imageUrl ?? null;
+  }
+  if (format === "STORY_SEQUENCE") {
+    const frames = c.frames as { imageUrl?: string | null }[] | undefined;
+    return frames?.[0]?.imageUrl ?? null;
+  }
+  return null;
+}
+
+// Single-line preview text — the hook for posts, the subject for
+// newsletters, the cover title for carousels, the first beat's
+// on-screen text for reels.
+function previewLineFromContent(format: string, content: unknown): string {
+  if (!content || typeof content !== "object") return "(empty draft)";
+  const c = content as Record<string, unknown>;
+  if (format === "SINGLE_POST" || format === "REEL_SCRIPT") {
+    return (c.hook as string) || "(no hook)";
+  }
+  if (format === "EMAIL_NEWSLETTER") {
+    return (c.subject as string) || "(no subject)";
+  }
+  if (format === "CAROUSEL") {
+    const cover = c.coverSlide as { title?: string } | undefined;
+    return cover?.title || "(no cover)";
+  }
+  if (format === "STORY_SEQUENCE") {
+    const frames = c.frames as { text?: string }[] | undefined;
+    return frames?.[0]?.text || "(no frames)";
+  }
+  return "(empty)";
+}
+
+export function DraftCard({
+  draft,
+  defaultExpanded = false,
+}: {
+  draft: Draft;
+  defaultExpanded?: boolean;
+}) {
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenHint, setRegenHint] = useState("");
   const [variant, setVariant] = useState<"primary" | "alternate">("primary");
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const utils = trpc.useUtils();
   const hasAlternate = Boolean(
     draft.alternateContent && typeof draft.alternateContent === "object",
@@ -97,28 +153,63 @@ export function DraftCard({ draft }: { draft: Draft }) {
   const pending =
     approve.isPending || reject.isPending || regenerate.isPending;
 
-  return (
-    <Card className="mb-md" id={`d-${draft.id}`}>
-      <div className="flex items-center justify-between mb-sm">
-        <div className="flex items-center gap-sm flex-wrap">
-          <StatusDot tone={status.dot} animated={status.dot === "attn"} />
-          <span className={`text-xs ${status.color}`}>
-            {status.label.toLowerCase()}
-          </span>
-          <span className="text-xs text-ink4">
-            · {draft.platform.toLowerCase()}
-            {draft.format
-              ? ` · ${draft.format.toLowerCase().replace(/_/g, " ")}`
-              : ""}
-          </span>
-        </div>
-        {voiceScore !== null && !Number.isNaN(voiceScore) ? (
-          <span className="text-xs text-ink4">
-            voice {Math.round(voiceScore * 100)}%
-          </span>
-        ) : null}
-      </div>
+  const thumbnail = thumbnailFromContent(
+    draft.format ?? "SINGLE_POST",
+    visibleContent,
+  );
+  const previewLine = previewLineFromContent(
+    draft.format ?? "SINGLE_POST",
+    visibleContent,
+  );
 
+  return (
+    <Card className="mb-md overflow-hidden" padded={false} id={`d-${draft.id}`}>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full text-left flex items-center gap-md p-md hover:bg-surface transition-colors"
+      >
+        {thumbnail ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnail}
+            alt=""
+            className="shrink-0 w-[56px] h-[56px] rounded-md object-cover bg-bg"
+          />
+        ) : (
+          <div className="shrink-0 w-[56px] h-[56px] rounded-md bg-bg border-hairline border-border flex items-center justify-center">
+            <span className="text-[10px] text-ink4 font-mono">img</span>
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-xs flex-wrap mb-[2px]">
+            <StatusDot tone={status.dot} animated={status.dot === "attn"} />
+            <span className={`text-[11px] ${status.color}`}>
+              {status.label.toLowerCase()}
+            </span>
+            <span className="text-[11px] text-ink4">
+              · {draft.platform.toLowerCase()}
+              {draft.format
+                ? ` · ${draft.format.toLowerCase().replace(/_/g, " ")}`
+                : ""}
+            </span>
+            {voiceScore !== null && !Number.isNaN(voiceScore) ? (
+              <span className="text-[11px] text-ink4">
+                · voice {Math.round(voiceScore * 100)}%
+              </span>
+            ) : null}
+          </div>
+          <div className="text-sm text-ink leading-snug truncate">
+            {previewLine}
+          </div>
+        </div>
+        <span className="shrink-0 text-ink4 font-mono text-xs">
+          {expanded ? "close" : "open →"}
+        </span>
+      </button>
+
+      {!expanded ? null : (
+      <div className="px-md pb-md">
       {hasAlternate ? (
         <div className="flex items-center gap-xs mb-md">
           <button
@@ -365,6 +456,8 @@ export function DraftCard({ draft }: { draft: Draft }) {
             reject.error?.message ||
             regenerate.error?.message}
         </p>
+      )}
+      </div>
       )}
     </Card>
   );

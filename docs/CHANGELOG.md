@@ -41,6 +41,7 @@ Format note: write changes from the user's perspective in plain English. "Users 
 - Hitting the monthly brand-kit limit now shows an inline upgrade card instead of a bare error message. TRIAL users get a "choose a plan →" link to `/onboarding/plan`; users on a paid plan get an "upgrade plan →" button that opens the Stripe customer portal directly.
 
 ### Changed
+- /content drafts list redesigned for scannability. Each draft is now a single 80px-tall row showing thumbnail + format + hook + status + open-arrow. Click a row to expand the full body, action buttons, and editor inline; click again to collapse. The first row in "needs your eyes" is auto-expanded so users see something to review without clicking. Hero images inside the expanded body are capped at 280px wide instead of full-card-width — a typical post no longer requires scrolling past a billboard-sized photo to reach approve/reject.
 - Drafts panel feels less crowded. The two chip rows (format + platform) for the "generate new" action are now collapsed by default — the panel shows one summary line ("auto · instagram ▾") that expands the full pickers when clicked. Frequent users who already know what they want hit "write me one →" without seeing the chips at all.
 
 ### Fixed

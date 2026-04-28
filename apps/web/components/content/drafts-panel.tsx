@@ -185,7 +185,9 @@ export function DraftsPanel() {
             </p>
           </div>
         ) : (
-          awaitingItems.map((d) => <DraftCard key={d.id} draft={d} />)
+          awaitingItems.map((d, i) => (
+            <DraftCard key={d.id} draft={d} defaultExpanded={i === 0} />
+          ))
         )}
       </section>
 

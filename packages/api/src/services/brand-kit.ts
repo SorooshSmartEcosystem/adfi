@@ -287,22 +287,30 @@ Generate the 5 SVG variants.`;
   // consumes the entire budget and the response comes back with only a
   // 'thinking' block (no text). One automatic retry with thinking disabled
   // — deterministic completion, same prompt — recovers ~100% of these.
+  //
+  // Streaming is required: the SDK pre-flight rejects non-streaming
+  // requests whose worst-case duration could exceed 10 minutes, and
+  // 24k tokens + adaptive thinking on Opus 4.7 trips that check. We stream
+  // and call `.finalMessage()` to assemble the same shape we'd otherwise
+  // get from `.create()`.
   const callLogoModel = (withThinking: boolean) =>
-    anthropic().messages.create({
-      model: MODELS.OPUS,
-      max_tokens: 24000,
-      ...(withThinking ? { thinking: { type: "adaptive" as const } } : {}),
-      system: [
-        { type: "text", text: LOGO_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-      ],
-      messages: [{ role: "user", content: userMessage }],
-      output_config: {
-        format: {
-          type: "json_schema",
-          schema: jsonSchemaForAnthropic(LogoTemplatesSchema),
+    anthropic()
+      .messages.stream({
+        model: MODELS.OPUS,
+        max_tokens: 24000,
+        ...(withThinking ? { thinking: { type: "adaptive" as const } } : {}),
+        system: [
+          { type: "text", text: LOGO_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+        ],
+        messages: [{ role: "user", content: userMessage }],
+        output_config: {
+          format: {
+            type: "json_schema",
+            schema: jsonSchemaForAnthropic(LogoTemplatesSchema),
+          },
         },
-      },
-    });
+      })
+      .finalMessage();
 
   let response = await callLogoModel(true);
   let block = response.content.find((b) => b.type === "text");
@@ -406,7 +414,10 @@ Brand image style (for atmosphere — translate to vector geometry):
 ${args.imageStyle}
 
 Generate the 3 SVG cover graphics.`;
-  const response = await anthropic().messages.create({
+  // Streaming required — same reason as the logo step (16k tokens + adaptive
+  // thinking on Opus 4.7 can trip the SDK's 10-minute pre-flight check).
+  const response = await anthropic()
+    .messages.stream({
     model: MODELS.OPUS,
     max_tokens: 16000,
     thinking: { type: "adaptive" },
@@ -424,7 +435,8 @@ Generate the 3 SVG cover graphics.`;
         schema: jsonSchemaForAnthropic(BrandGraphicsSchema),
       },
     },
-  });
+    })
+    .finalMessage();
   if (args.userId) {
     void recordAnthropicUsage({
       userId: args.userId,

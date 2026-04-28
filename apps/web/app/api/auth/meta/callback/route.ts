@@ -80,6 +80,14 @@ export async function GET(req: NextRequest) {
 
     // 2. fetch the pages this user manages
     const pages = await listPages(long.accessToken);
+    console.log("[meta/callback] pages from Graph:", {
+      count: pages.length,
+      summaries: pages.map((p) => ({
+        id: p.id,
+        name: p.name,
+        hasIg: !!p.igBusinessId,
+      })),
+    });
     if (pages.length === 0) {
       return NextResponse.redirect(settingsRedirect("error_no_pages"));
     }
@@ -118,6 +126,12 @@ export async function GET(req: NextRequest) {
     });
 
     // If the page also has an Instagram Business account, store that too.
+    if (!page.igBusinessId) {
+      console.warn(
+        "[meta/callback] page has no instagram_business_account — IG row not created. Most likely the user's IG account isn't linked to this Page in Meta Business Suite.",
+        { pageId: page.id, pageName: page.name },
+      );
+    }
     if (page.igBusinessId) {
       await db.connectedAccount.upsert({
         where: {

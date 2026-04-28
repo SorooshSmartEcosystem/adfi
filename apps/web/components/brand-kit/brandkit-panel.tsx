@@ -212,7 +212,8 @@ export function BrandKitPanel() {
   }
   if (!query.data) return null;
 
-  const { kit, plan, quota, generationCostCents, monthlyCap } = query.data;
+  const { kit, plan, quota, generationCostCents, monthlyCap, templates } =
+    query.data;
   const remainingLine =
     quota.remaining > 0
       ? `${quota.remaining}/${monthlyCap} regenerations left this month · ${plan.toLowerCase()} plan · ~$${(generationCostCents / 100).toFixed(2)} per regenerate`
@@ -289,6 +290,7 @@ export function BrandKitPanel() {
         voiceTone: kit.voiceTone as VoiceTone | null,
         businessName,
       }}
+      templates={templates ?? null}
       remainingLine={remainingLine}
       plan={plan}
       hint={hint}
@@ -321,6 +323,14 @@ export function BrandKitPanel() {
 // Brand book — the visual layout matching the reference design.
 // =============================================================
 
+type AppliedTemplates = {
+  favicon: string;
+  socialAvatar: string;
+  businessCard: string;
+  emailHeader: string;
+  instagramPost: string;
+};
+
 type BookProps = {
   kit: {
     version: number;
@@ -334,6 +344,10 @@ type BookProps = {
     voiceTone: VoiceTone | null;
     businessName: string;
   };
+  // Pre-rendered application mockups from the design-agent — favicon,
+  // social avatar, business card, email header, instagram post. Null
+  // when the kit hasn't generated a logo `mark` yet (e.g. legacy rows).
+  templates: AppliedTemplates | null;
   remainingLine: string;
   plan: string;
   hint: string;
@@ -367,6 +381,7 @@ function BrandBook(p: BookProps) {
       <GraphicsSection graphics={kit.graphics} palette={palette} />
       <UsageSection logo={kit.logos.mark} palette={palette} />
       <MockupsSection
+        templates={p.templates}
         logo={kit.logos.mark}
         wordmark={kit.logos.wordmark}
         palette={palette}
@@ -522,15 +537,111 @@ function UsageCard({
   );
 }
 
+// Single mockup card — preview frame + label/caption. Used five times
+// below; lifted out so the styling stays consistent.
+function MockupCard({
+  svg,
+  label,
+  caption,
+  bg,
+  aspect,
+}: {
+  svg: string;
+  label: string;
+  caption: string;
+  bg: string;
+  aspect?: string;
+}) {
+  return (
+    <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
+      <div
+        className="flex items-center justify-center p-lg"
+        style={{ background: bg, aspectRatio: aspect ?? "4/3" }}
+      >
+        <div
+          className="max-w-full max-h-full [&>svg]:w-auto [&>svg]:h-full [&>svg]:max-w-full"
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
+      </div>
+      <div className="px-lg py-md">
+        <div className="text-xs font-medium">{label}</div>
+        <div className="text-[11px] text-ink4">{caption}</div>
+      </div>
+    </div>
+  );
+}
+
 function MockupsSection({
+  templates,
   logo,
   wordmark,
   palette,
 }: {
+  templates: AppliedTemplates | null;
   logo: string;
   wordmark: string;
   palette: Palette;
 }) {
+  // Real-world mockups come pre-rendered from the design-agent's
+  // template engine on the server (palette + mark inner substituted
+  // into 5 fixed layouts). Fall back to the in-panel approximations
+  // when templates are missing — kits generated before the design-agent
+  // wiring landed don't have them, and this section shouldn't disappear
+  // for those rows.
+
+  if (templates) {
+    return (
+      <div>
+        <SectionHeader
+          num="08 · IN CONTEXT"
+          title="real-world applications."
+          sub="how the mark looks where it actually lives — favicon, social avatar, business card, email header, social post. each rendered from your palette."
+        />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+          <MockupCard
+            svg={templates.favicon}
+            label="favicon · 32px"
+            caption="browser tab"
+            bg={palette.surface}
+            aspect="1/1"
+          />
+          <MockupCard
+            svg={templates.socialAvatar}
+            label="social avatar"
+            caption="instagram, linkedin, x"
+            bg={palette.surface}
+            aspect="1/1"
+          />
+          <MockupCard
+            svg={templates.businessCard}
+            label="business card"
+            caption="85.6×54mm · landscape"
+            bg={palette.surface}
+            aspect="856/540"
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-md mt-md">
+          <MockupCard
+            svg={templates.emailHeader}
+            label="email header"
+            caption="600×200 · newsletter top"
+            bg={palette.surface}
+            aspect="600/200"
+          />
+          <MockupCard
+            svg={templates.instagramPost}
+            label="instagram post"
+            caption="1080×1080 · square feed"
+            bg={palette.surface}
+            aspect="1/1"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback: hand-drawn approximations for legacy kits without
+  // server-side templates. Same three slots as before.
   const logoSvg = cleanSvg(applyPalette(logo, palette));
   const wordmarkSvg = cleanSvg(applyPalette(wordmark, palette));
   return (
@@ -541,7 +652,6 @@ function MockupsSection({
         sub="how the mark looks where it actually lives — favicon, social avatar, business card."
       />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
-        {/* Favicon mockup */}
         <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
           <div
             className="h-[180px] flex items-center justify-center"
@@ -569,7 +679,6 @@ function MockupsSection({
           </div>
         </div>
 
-        {/* Social avatar mockup */}
         <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
           <div
             className="h-[180px] flex items-center justify-center"
@@ -577,11 +686,7 @@ function MockupsSection({
           >
             <div
               className="rounded-full overflow-hidden flex items-center justify-center"
-              style={{
-                width: 96,
-                height: 96,
-                background: palette.ink,
-              }}
+              style={{ width: 96, height: 96, background: palette.ink }}
             >
               <div
                 className="w-[60%] h-[60%] [&>svg]:w-full [&>svg]:h-full"
@@ -596,7 +701,6 @@ function MockupsSection({
           </div>
         </div>
 
-        {/* Business card mockup */}
         <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden">
           <div
             className="h-[180px] flex items-center justify-center p-md"

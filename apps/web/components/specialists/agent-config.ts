@@ -60,9 +60,9 @@ export const AGENTS: Record<string, AgentDef> = {
     id: "ads",
     name: "ads",
     tier: "studio",
-    role: "paid campaigns · budget optimization",
+    role: "paid campaigns · meta + google + youtube",
     currently: "",
-    coming: true,
+    coming: false,
     dbAgent: "ADS",
   },
   site: {

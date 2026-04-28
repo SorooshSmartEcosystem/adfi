@@ -19,4 +19,12 @@ export {
   AppointmentStatus,
   Agent,
   FindingSeverity,
+  SubscriberStatus,
+  CampaignStatus,
+  CampaignGoal,
+  CampaignPlatform,
+  CampaignAdFormat,
+  CampaignAdStatus,
+  CampaignNotificationType,
+  CampaignNotificationSeverity,
 } from "@prisma/client";

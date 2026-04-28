@@ -10,6 +10,7 @@ function routeFromPath(pathname: string | null): AppRoute {
   if (!pathname) return "dashboard";
   if (pathname.startsWith("/inbox")) return "inbox";
   if (pathname.startsWith("/content")) return "content";
+  if (pathname.startsWith("/campaigns")) return "campaigns";
   if (pathname.startsWith("/report")) return "report";
   if (pathname.startsWith("/brandkit")) return "brandkit";
   if (pathname.startsWith("/settings")) return "settings";
@@ -18,6 +19,7 @@ function routeFromPath(pathname: string | null): AppRoute {
   if (pathname.startsWith("/specialist/echo")) return "specialist-echo";
   if (pathname.startsWith("/specialist/scout")) return "specialist-scout";
   if (pathname.startsWith("/specialist/pulse")) return "specialist-pulse";
+  if (pathname.startsWith("/specialist/ads")) return "specialist-ads";
   return "dashboard";
 }
 

@@ -2,6 +2,7 @@ export type AppRoute =
   | "dashboard"
   | "inbox"
   | "content"
+  | "campaigns"
   | "report"
   | "brandkit"
   | "settings"
@@ -9,9 +10,14 @@ export type AppRoute =
   | "specialist-signal"
   | "specialist-echo"
   | "specialist-scout"
-  | "specialist-pulse";
+  | "specialist-pulse"
+  | "specialist-ads";
 
-export type NavBadges = { inbox?: number; content?: number };
+export type NavBadges = {
+  inbox?: number;
+  content?: number;
+  campaigns?: number;
+};
 
 // Icons live in components/app-shell/nav-icons.tsx — single-stroke line
 // glyphs that match the brand's no-decoration aesthetic. The icon name
@@ -20,6 +26,7 @@ export type NavIcon =
   | "dashboard"
   | "inbox"
   | "content"
+  | "campaigns"
   | "brandkit"
   | "report"
   | "settings"
@@ -27,7 +34,8 @@ export type NavIcon =
   | "signal"
   | "echo"
   | "scout"
-  | "pulse";
+  | "pulse"
+  | "ads";
 
 export const NAV_PRIMARY: {
   id: AppRoute;
@@ -39,6 +47,7 @@ export const NAV_PRIMARY: {
   { id: "dashboard", label: "dashboard", href: "/dashboard", icon: "dashboard" },
   { id: "inbox", label: "inbox", href: "/inbox", icon: "inbox", badgeKey: "inbox" },
   { id: "content", label: "content", href: "/content", icon: "content", badgeKey: "content" },
+  { id: "campaigns", label: "campaigns", href: "/campaigns", icon: "campaigns", badgeKey: "campaigns" },
   { id: "brandkit", label: "brand kit", href: "/brandkit", icon: "brandkit" },
   { id: "report", label: "weekly report", href: "/report", icon: "report" },
 ];
@@ -49,6 +58,7 @@ export const NAV_AGENTS: { id: AppRoute; label: string; href: string; icon: NavI
   { id: "specialist-echo", label: "echo", href: "/specialist/echo", icon: "echo" },
   { id: "specialist-scout", label: "scout", href: "/specialist/scout", icon: "scout" },
   { id: "specialist-pulse", label: "pulse", href: "/specialist/pulse", icon: "pulse" },
+  { id: "specialist-ads", label: "ads", href: "/specialist/ads", icon: "ads" },
 ];
 
 export const NAV_BOTTOM: { id: AppRoute; label: string; href: string; icon: NavIcon }[] = [
@@ -59,6 +69,7 @@ export const TOPBAR_COPY: Record<AppRoute, { title: string }> = {
   dashboard: { title: "dashboard" },
   inbox: { title: "inbox" },
   content: { title: "content" },
+  campaigns: { title: "campaigns" },
   report: { title: "weekly report" },
   brandkit: { title: "brand kit" },
   settings: { title: "settings" },
@@ -67,4 +78,5 @@ export const TOPBAR_COPY: Record<AppRoute, { title: string }> = {
   "specialist-echo": { title: "echo" },
   "specialist-scout": { title: "scout" },
   "specialist-pulse": { title: "pulse" },
+  "specialist-ads": { title: "ads" },
 };

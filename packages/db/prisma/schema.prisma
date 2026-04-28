@@ -52,6 +52,8 @@ model User {
   agentEvents           AgentEvent[]
   contacts              Contact[]
   brandKits             BrandKit[]
+  campaigns             Campaign[]
+  campaignNotifications CampaignNotification[]
   businesses            Business[]
   currentBusiness       Business? @relation("CurrentBusiness", fields: [currentBusinessId], references: [id])
 
@@ -85,6 +87,7 @@ model Business {
   contentDrafts    ContentDraft[]
   contentPlans     ContentPlan[]
   contentPosts     ContentPost[]
+  campaigns        Campaign[]
   messages         Message[]
   calls            Call[]
   appointments     Appointment[]
@@ -722,6 +725,187 @@ model BrandKitVersion {
   @@unique([brandKitId, version])
   @@index([brandKitId, createdAt])
   @@map("brand_kit_versions")
+}
+
+// =============================================================
+// Campaigns — paid-ads campaigns drafted, run, and optimized by the
+// Campaign Manager agent (Agent.ADS). Multi-platform from day 1: a
+// single Campaign owns N CampaignAd rows, one per (platform, angle)
+// combination. Phase 1 only generates drafts (no platform push);
+// Phase 2 wires Meta Marketing API; Phase 3 wires Google Ads.
+// See docs/CAMPAIGN_MANAGER_DESIGN.md for the full design.
+// =============================================================
+model Campaign {
+  id           String              @id @default(uuid()) @db.Uuid
+  userId       String              @map("user_id") @db.Uuid
+  businessId   String              @map("business_id") @db.Uuid
+  status       CampaignStatus      @default(DRAFT)
+  name         String
+  brief        String              @db.Text                   // owner's original ask
+  goal         CampaignGoal
+  audience     Json                                            // unified audience description (rationale + targeting hints)
+  schedule     Json                                            // { startDate, endDate, totalBudgetCents }
+  platforms    CampaignPlatform[]                              // which platforms this campaign runs on
+  reasoning    Json?                                           // agent's why per platform
+  approvedAt   DateTime?           @map("approved_at")
+  pausedAt     DateTime?           @map("paused_at")
+  endedAt      DateTime?           @map("ended_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  user         User                @relation(fields: [userId], references: [id])
+  business     Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  ads          CampaignAd[]
+  metrics      CampaignMetrics[]
+  notifications CampaignNotification[]
+
+  @@index([businessId, status])
+  @@index([businessId, createdAt])
+  @@map("campaigns")
+}
+
+enum CampaignStatus {
+  DRAFT
+  AWAITING_REVIEW
+  ACTIVE
+  PAUSED
+  ENDED
+  REJECTED
+  FAILED
+}
+
+enum CampaignGoal {
+  LEADS
+  SALES
+  TRAFFIC
+  AWARENESS
+  APP_INSTALLS
+}
+
+enum CampaignPlatform {
+  META       // Instagram + Facebook (one ad object spans both)
+  GOOGLE     // Search + Display
+  YOUTUBE    // YouTube ads (separate from Google Search even though same Google Ads account)
+  TIKTOK     // coming soon
+}
+
+// One CampaignAd per platform variant (3-5 angles × N platforms).
+model CampaignAd {
+  id                  String              @id @default(uuid()) @db.Uuid
+  campaignId          String              @map("campaign_id") @db.Uuid
+  platform            CampaignPlatform
+  externalId          String?             @map("external_id")           // platform's ad id post-push
+  externalCampaignId  String?             @map("external_campaign_id")  // platform's campaign id
+  externalAdSetId     String?             @map("external_adset_id")     // platform's ad-set id
+  angle               String                                            // "social-proof" | "craftsmanship" | etc.
+  format              CampaignAdFormat
+  creative            Json                                              // platform-shaped creative payload
+  targeting           Json                                              // platform-shaped targeting
+  status              CampaignAdStatus    @default(DRAFT)
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  campaign            Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adMetrics           CampaignAdMetrics[]
+
+  @@index([campaignId, platform])
+  @@map("campaign_ads")
+}
+
+enum CampaignAdFormat {
+  IMAGE
+  VIDEO_SCRIPT     // we describe; owner films + uploads
+  TEXT             // text-only (e.g. Google Search responsive ads)
+}
+
+enum CampaignAdStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+  REJECTED         // platform rejected
+}
+
+// Daily rollup per campaign. Pulled from each platform's insights
+// API and merged into a single time series.
+model CampaignMetrics {
+  id                   String   @id @default(uuid()) @db.Uuid
+  campaignId           String   @map("campaign_id") @db.Uuid
+  day                  DateTime @db.Date
+  spendCents           Int      @map("spend_cents")
+  impressions          Int
+  clicks               Int
+  conversions          Int      @default(0)
+  conversionValueCents Int      @default(0) @map("conversion_value_cents")
+  rawInsights          Json?    @map("raw_insights")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  campaign             Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, day])
+  @@index([campaignId, day])
+  @@map("campaign_metrics")
+}
+
+// Daily rollup per ad — used by the weekly rebalance to identify
+// the winning creative angle per platform.
+model CampaignAdMetrics {
+  id                   String   @id @default(uuid()) @db.Uuid
+  adId                 String   @map("ad_id") @db.Uuid
+  day                  DateTime @db.Date
+  spendCents           Int      @map("spend_cents")
+  impressions          Int
+  clicks               Int
+  conversions          Int      @default(0)
+  conversionValueCents Int      @default(0) @map("conversion_value_cents")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  ad                   CampaignAd @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@unique([adId, day])
+  @@map("campaign_ad_metrics")
+}
+
+// In-app + email + SMS notifications for the campaign lifecycle.
+// Surfaced in the topbar bell + a panel; URGENT also fires an SMS.
+model CampaignNotification {
+  id              String                       @id @default(uuid()) @db.Uuid
+  campaignId      String                       @map("campaign_id") @db.Uuid
+  userId          String                       @map("user_id") @db.Uuid
+  type            CampaignNotificationType
+  severity        CampaignNotificationSeverity
+  title           String
+  body            String                       @db.Text
+  payload         Json?
+  acknowledged    Boolean                      @default(false)
+  acknowledgedAt  DateTime?                    @map("acknowledged_at")
+  createdAt       DateTime                     @default(now()) @map("created_at")
+
+  campaign        Campaign                     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user            User                         @relation(fields: [userId], references: [id])
+
+  @@index([userId, acknowledged, createdAt])
+  @@map("campaign_notifications")
+}
+
+enum CampaignNotificationType {
+  LAUNCHED
+  FIRST_SPEND
+  HALF_BUDGET_SPENT
+  NEAR_BUDGET_CAP
+  BUDGET_CAP_REACHED
+  DAILY_WINNER
+  WEEKLY_REPORT
+  AD_REJECTED
+  SPEND_SPIKE
+  POLICY_FLAG
+  PLATFORM_ERROR
+}
+
+enum CampaignNotificationSeverity {
+  INFO
+  ATTENTION
+  URGENT
 }
 
 // =============================================================

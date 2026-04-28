@@ -102,6 +102,22 @@ const GLYPHS: Record<NavIcon, React.ReactElement> = {
       <path d="M2 8h2.5l1.5-3 2 6 1.7-4 1.3 2H14" />
     </g>
   ),
+  // campaigns — megaphone
+  campaigns: (
+    <g>
+      <path d="M3 7l8-3v8l-8-3z" />
+      <path d="M11 6.5l3-1v5l-3-1" />
+      <path d="M5 10l1 3.5h2L7 10" />
+    </g>
+  ),
+  // ads — bullseye target
+  ads: (
+    <g>
+      <circle cx="8" cy="8" r="5.5" />
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="8" cy="8" r="1" fill="currentColor" />
+    </g>
+  ),
 };
 
 export function NavIconGlyph({ name }: { name: NavIcon }) {

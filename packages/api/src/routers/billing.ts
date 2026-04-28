@@ -39,14 +39,28 @@ export const billingRouter = router({
     return getCurrentUsage(ctx.user.id);
   }),
 
+  // Returns the user's highest-tier active subscription. With duplicates
+  // (an old upgrade flow could spawn a 2nd sub on the same customer), we
+  // pick the best tier so the UI reflects what they're actually paying
+  // for, not whichever sub happened to be created last.
   getCurrent: authedProc.input(z.void()).query(async ({ ctx }) => {
-    return ctx.db.subscription.findFirst({
+    const subs = await ctx.db.subscription.findMany({
       where: {
         userId: ctx.user.id,
         status: { in: ["TRIALING", "ACTIVE", "PAST_DUE"] },
       },
       orderBy: { createdAt: "desc" },
     });
+    if (subs.length === 0) return null;
+    const RANK: Record<string, number> = {
+      SOLO: 1,
+      TEAM: 2,
+      STUDIO: 3,
+      AGENCY: 4,
+    };
+    return subs.reduce((best, s) =>
+      (RANK[s.plan] ?? 0) > (RANK[best.plan] ?? 0) ? s : best,
+    );
   }),
 
   // Starts a Stripe Checkout session with a 7-day trial. Used for the

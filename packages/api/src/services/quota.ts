@@ -63,26 +63,56 @@ export function nextResetAt(d: Date = new Date()): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
 }
 
-// Resolves the user's plan-key for quota purposes. Active/Trialing
-// subscription → that plan; otherwise treated as TRIAL.
+// Resolves the user's plan-key for quota purposes. With multiple subs
+// (e.g. an upgrade attempt spawned a duplicate before we added the
+// active-sub guard), pick the highest tier — the user paid for the
+// best plan they hold, so quota should reflect that.
+const PLAN_RANK: Record<PlanKey, number> = {
+  TRIAL: 0,
+  SOLO: 1,
+  TEAM: 2,
+  STUDIO: 3,
+  AGENCY: 4,
+};
+
 async function resolvePlanKey(userId: string): Promise<PlanKey> {
-  const sub = await db.subscription.findFirst({
+  const subs = await db.subscription.findMany({
     where: { userId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } },
-    orderBy: { createdAt: "desc" },
     select: { plan: true },
   });
-  return sub?.plan ?? "TRIAL";
+  if (subs.length === 0) return "TRIAL";
+  return subs.reduce<PlanKey>(
+    (best, s) =>
+      PLAN_RANK[s.plan as PlanKey] > PLAN_RANK[best] ? (s.plan as PlanKey) : best,
+    subs[0]!.plan as PlanKey,
+  );
 }
 
-// Looks up (or initializes) the current period's row for a user. The
-// limit + plan snapshot happen on first touch of the period — mid-month
-// upgrades only affect the next period.
+// Looks up (or initializes) the current period's row for a user.
+//
+// Self-healing: if an UPGRADE happened mid-period and the stripe webhook
+// didn't bump our cap (e.g. duplicate sub edge case, missed delivery),
+// we'll detect on next read that the user's resolved plan is higher
+// than the stored snapshot and raise creditsLimit + plan to match. We
+// never lower the cap — the user already paid for the higher tier this
+// period, even on a downgrade.
 async function getOrCreatePeriodRow(userId: string) {
   const period = periodFor();
   const existing = await db.userUsage.findUnique({
     where: { userId_period: { userId, period } },
   });
-  if (existing) return existing;
+
+  if (existing) {
+    const resolved = await resolvePlanKey(userId);
+    const resolvedLimit = PLAN_LIMITS[resolved];
+    if (resolvedLimit > existing.creditsLimit) {
+      return db.userUsage.update({
+        where: { id: existing.id },
+        data: { creditsLimit: resolvedLimit, plan: resolved },
+      });
+    }
+    return existing;
+  }
 
   const planKey = await resolvePlanKey(userId);
   return db.userUsage.create({

@@ -140,17 +140,30 @@ export async function guardInbound(args: {
   return { allow: true };
 }
 
-// Resolve the user's effective plan for guard purposes. Active subscription
-// wins; otherwise we treat them as trial.
+// Resolve the user's effective plan for guard purposes.
+//
+// Both ACTIVE and TRIALING count — once Stripe is collecting card info on
+// a trial, we treat the user as on that plan (the older "TRIALING ⇒ TRIAL
+// tier" rule blocked campaigns for users mid-trial on STUDIO).
+//
+// If multiple subs exist (e.g. an upgrade attempt spawned a duplicate),
+// pick the highest tier among them — the user's effective access should
+// reflect the best plan they're paying for, not whichever was created last.
+const PLAN_RANK: Record<Plan, number> = {
+  SOLO: 1,
+  TEAM: 2,
+  STUDIO: 3,
+  AGENCY: 4,
+};
+
 export async function effectivePlan(userId: string): Promise<Plan | "TRIAL"> {
-  const sub = await db.subscription.findFirst({
-    where: {
-      userId,
-      status: { in: ["ACTIVE", "TRIALING"] },
-    },
-    orderBy: { createdAt: "desc" },
-    select: { plan: true, status: true },
+  const subs = await db.subscription.findMany({
+    where: { userId, status: { in: ["ACTIVE", "TRIALING"] } },
+    select: { plan: true },
   });
-  if (sub?.status === "ACTIVE") return sub.plan;
-  return "TRIAL";
+  if (subs.length === 0) return "TRIAL";
+  return subs.reduce<Plan>(
+    (best, s) => (PLAN_RANK[s.plan] > PLAN_RANK[best] ? s.plan : best),
+    subs[0]!.plan,
+  );
 }

@@ -122,8 +122,25 @@ function applyPalette(svg: string, palette: Palette): string {
 // Strip any XML declaration / BOM the model might've slipped in — those
 // break <img src=data:...> rendering. Used both for inline embedding and
 // for download payloads.
+//
+// Also force the root <svg> to size to its container (width=100% height=100%).
+// LLM output reliably includes viewBox but often omits width/height
+// attributes; with no intrinsic size the SVG collapses to 0×0 inside a
+// flex container that itself is sized by content (the in-panel logo
+// cards). Downloads worked because a bare <svg> in the document body
+// gets the body's width by default — the panel doesn't have that
+// luxury.
 function cleanSvg(svg: string): string {
-  return svg.replace(/^\s*<\?xml[^?]*\?>\s*/i, "").trim();
+  const stripped = svg.replace(/^\s*<\?xml[^?]*\?>\s*/i, "").trim();
+  return stripped.replace(/<svg\b([^>]*)>/i, (match, attrs: string) => {
+    let next = attrs;
+    if (!/\bwidth\s*=/.test(next)) next += ' width="100%"';
+    if (!/\bheight\s*=/.test(next)) next += ' height="100%"';
+    if (!/\bpreserveAspectRatio\s*=/.test(next)) {
+      next += ' preserveAspectRatio="xMidYMid meet"';
+    }
+    return `<svg${next}>`;
+  });
 }
 
 // Inline SVG rendering via dangerouslySetInnerHTML. We tried data URIs

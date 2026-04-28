@@ -36,23 +36,33 @@ import {
   type AppliedTemplates,
 } from "@orb/design-agent";
 
-// Plan ceilings on brand-kit generations per 30 days. Tuned for
-// 'reasonable iteration during initial setup' rather than 'one
-// shot' — most users need 2-4 generations before they're happy
-// with the direction, and gating that behind a paywall hurts onboarding.
+// Plan ceilings on brand-kit generations per rolling 30 days. Tuned
+// against ~10× headroom over realistic use, not 1000× — STUDIO and
+// AGENCY were previously 999 (effectively unlimited) which made worst-
+// case Anthropic spend per user blow through the plan price several
+// times over.
+//
+// Sizing rationale (per business included in the plan):
+//   SOLO/TEAM: 1 business — most users need 2-4 attempts before they
+//     settle. 8/20 leaves slack for voice tweaks across the month.
+//   STUDIO: 2 businesses — 20/business with margin = 40.
+//   AGENCY: 8 businesses — 15/business with margin = 120.
 export const MONTHLY_BRANDKIT_CAP: Record<Plan | "TRIAL", number> = {
-  TRIAL: 5,
-  SOLO: 10,
-  TEAM: 30,
-  STUDIO: 999,
-  AGENCY: 999,
+  TRIAL: 3,
+  SOLO: 8,
+  TEAM: 20,
+  STUDIO: 40,
+  AGENCY: 120,
 };
 
-// Approximate per-generation cost (cents). Spec uses Sonnet; logos +
-// graphics use Opus 4.7 with adaptive thinking for design-discipline
-// reasons (a senior-designer model produces noticeably more restrained
-// SVG geometry than a generalist mid-tier model). Used in UI quota line.
-export const BRANDKIT_GENERATION_COST_CENTS = 30;
+// Honest per-generation cost (cents). Old constant said 30¢ which was
+// the original Sonnet-only pipeline. Today we run Sonnet for the spec
+// + Opus 4.7 (adaptive thinking, max_tokens 24k) for logos + Opus 4.7
+// (adaptive thinking, max_tokens 16k) for graphics. Worst case Anthropic
+// spend is ~$3 per regenerate; typical run lands around $1.20-$1.60
+// because adaptive thinking rarely maxes the budget. Showing $1.50 in
+// the UI is honest-to-typical and still favorable vs. worst case.
+export const BRANDKIT_GENERATION_COST_CENTS = 150;
 
 // =============================================================
 // Spec generation

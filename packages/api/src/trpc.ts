@@ -11,38 +11,43 @@ export const middleware = t.middleware;
 export const publicProc = t.procedure;
 
 // Resolves the user's active business once per request and attaches the
-// id to ctx. Falls back to bootstrapping a default business via
-// ensureCurrentBusiness if none exists yet (legacy account / migration
-// edge case). The id is what every per-business query (BrandKit,
-// ContentDraft, ConnectedAccount, etc.) scopes against.
+// id to ctx. The hot path is one tiny query (just currentBusinessId);
+// only when that field is null do we run the self-heal flow that
+// creates a default Business — so 99% of requests pay one indexed
+// PK lookup, not the wider profile fetch.
 const isAuthed = middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Please sign in" });
   }
   const row = await ctx.db.user.findUnique({
     where: { id: ctx.user.id },
-    select: {
-      currentBusinessId: true,
-      email: true,
-      businessName: true,
-      businessDescription: true,
-      businessLogoUrl: true,
-      businessWebsiteUrl: true,
-    },
+    select: { currentBusinessId: true },
   });
   let currentBusinessId = row?.currentBusinessId ?? null;
   if (!currentBusinessId) {
     // Self-heal: every authed user must have at least one Business.
+    // Only runs the wider profile fetch when we actually need to
+    // bootstrap — keeps the steady-state hot path fast.
+    const profile = await ctx.db.user.findUnique({
+      where: { id: ctx.user.id },
+      select: {
+        email: true,
+        businessName: true,
+        businessDescription: true,
+        businessLogoUrl: true,
+        businessWebsiteUrl: true,
+      },
+    });
     const created = await ctx.db.business.create({
       data: {
         userId: ctx.user.id,
         name:
-          row?.businessName?.trim() ||
-          row?.email?.split("@")[0] ||
+          profile?.businessName?.trim() ||
+          profile?.email?.split("@")[0] ||
           "my business",
-        description: row?.businessDescription ?? null,
-        logoUrl: row?.businessLogoUrl ?? null,
-        websiteUrl: row?.businessWebsiteUrl ?? null,
+        description: profile?.businessDescription ?? null,
+        logoUrl: profile?.businessLogoUrl ?? null,
+        websiteUrl: profile?.businessWebsiteUrl ?? null,
       },
     });
     await ctx.db.user.update({

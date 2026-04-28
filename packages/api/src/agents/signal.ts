@@ -62,18 +62,26 @@ type ThreadMessage = {
 
 export async function runSignal(args: {
   brandVoice: unknown;
+  businessName?: string | null;
   businessDescription: string;
   threadHistory: ThreadMessage[];
   inboundMessage: string;
   userId?: string;
 }): Promise<SignalOutput> {
+  // Outbound messages are labeled "You" in the conversation history we
+  // hand the model — earlier "ADFI" leaked into customer-facing replies
+  // when the model parroted that label back as the platform name. The
+  // model is the business owner; "you" is the right pronoun.
   const historyText = args.threadHistory
     .map(
-      (m) => `${m.direction === Direction.INBOUND ? "Customer" : "ADFI"}: ${m.body}`,
+      (m) => `${m.direction === Direction.INBOUND ? "Customer" : "You"}: ${m.body}`,
     )
     .join("\n");
 
-  const userMessage = `Business description:
+  const userMessage = `Business name (use this when a customer asks what platform / product / service / app this is):
+${args.businessName?.trim() || "(not set — ask the customer to hold rather than inventing)"}
+
+Business description:
 ${args.businessDescription || "(not set)"}
 
 Brand voice fingerprint:
@@ -137,6 +145,7 @@ export async function processInboundSms(args: {
     where: { number: args.to, status: PhoneNumberStatus.ACTIVE },
     include: {
       user: { include: { agentContext: true } },
+      business: true,
     },
   });
 
@@ -230,6 +239,7 @@ export async function processInboundSms(args: {
 
   const result = await runSignal({
     brandVoice: user.agentContext?.strategistOutput ?? {},
+    businessName: phoneRecord.business?.name ?? user.businessName,
     businessDescription: user.businessDescription ?? "",
     threadHistory: history,
     inboundMessage: args.body,
@@ -310,6 +320,7 @@ export async function processInboundMessenger(args: {
     where: { externalId: args.pageId, disconnectedAt: null },
     include: {
       user: { include: { agentContext: true } },
+      business: true,
     },
   });
   if (!account) {
@@ -493,6 +504,7 @@ export async function processInboundMessenger(args: {
 
   const result = await runSignal({
     brandVoice: user.agentContext?.strategistOutput ?? {},
+    businessName: account.business?.name ?? user.businessName,
     businessDescription: user.businessDescription ?? "",
     threadHistory: history,
     inboundMessage: args.body,
@@ -578,6 +590,7 @@ export async function processInboundTelegram(args: {
     },
     include: {
       user: { include: { agentContext: true } },
+      business: true,
     },
   });
   if (!account) {
@@ -773,6 +786,7 @@ export async function processInboundTelegram(args: {
   try {
     result = await runSignal({
       brandVoice: user.agentContext.strategistOutput,
+      businessName: account.business?.name ?? user.businessName,
       businessDescription: user.businessDescription ?? "",
       threadHistory: history,
       inboundMessage: args.body,

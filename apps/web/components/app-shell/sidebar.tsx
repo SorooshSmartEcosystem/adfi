@@ -21,7 +21,7 @@ export function Sidebar({
 }: {
   open: boolean;
   activeRoute: AppRoute;
-  business: { name: string; initials: string };
+  business: { name: string; initials: string; logoUrl?: string | null };
   user: { name: string; planLabel: string };
   navBadges: NavBadges;
   onNavigate: () => void;
@@ -32,9 +32,18 @@ export function Sidebar({
         className={`fixed top-0 bottom-0 left-0 w-[260px] bg-bg border-r-hairline border-border flex flex-col p-lg z-50 overflow-y-auto transition-transform duration-200 ${open ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         <div className="flex items-center gap-sm pb-lg hairline-b2 mb-md px-xs">
-          <div className="w-7 h-7 rounded-md bg-ink text-white flex items-center justify-center font-mono text-xs font-medium shrink-0">
-            {business.initials}
-          </div>
+          {business.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={business.logoUrl}
+              alt=""
+              className="w-7 h-7 rounded-md object-cover shrink-0 bg-ink"
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-md bg-ink text-white flex items-center justify-center font-mono text-xs font-medium shrink-0">
+              {business.initials}
+            </div>
+          )}
           <div className="flex flex-col min-w-0">
             <div className="text-sm font-medium truncate">{business.name}</div>
             <div className="text-[11px] text-ink4 mt-[1px]">

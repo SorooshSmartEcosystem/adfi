@@ -31,9 +31,14 @@ export default async function DashLayout({
 
   const { user, home } = await getDashUserAndHome();
 
+  // Always prefer the user-set businessName. Fall back to email
+  // username only when the field truly hasn't been set yet — never
+  // derive from businessDescription, which is freeform copy that
+  // produces ugly chips like "we help small businesses scale by".
   const businessName =
-    user.businessDescription?.split(/[.\n]/)[0]?.slice(0, 30)?.trim() ||
-    (user.email?.split("@")[0] ?? "your business");
+    user.businessName?.trim() ||
+    user.email?.split("@")[0] ||
+    "your business";
   const userName = user.email?.split("@")[0] ?? "you";
 
   return (
@@ -41,6 +46,7 @@ export default async function DashLayout({
       business={{
         name: businessName,
         initials: initialsFrom(businessName),
+        logoUrl: user.businessLogoUrl ?? null,
       }}
       user={{
         name: userName,

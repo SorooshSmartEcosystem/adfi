@@ -27,7 +27,7 @@ export function AppShell({
   navBadges,
   children,
 }: {
-  business: { name: string; initials: string };
+  business: { name: string; initials: string; logoUrl?: string | null };
   user: { name: string; planLabel: string };
   navBadges: NavBadges;
   children: ReactNode;

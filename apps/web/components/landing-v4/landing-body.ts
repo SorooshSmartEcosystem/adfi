@@ -785,14 +785,14 @@ const RAW_BODY = `\
     <div class="pricing-grid reveal">
       <div class="price-card">
         <div class="price-head">
-          <span class="price-name">starter</span>
-          <span class="price-amt">$39<span class="per">/mo</span></span>
+          <span class="price-name">solo</span>
+          <span class="price-amt">$29<span class="per">/mo</span></span>
         </div>
-        <div class="price-tagline">THE ESSENTIALS</div>
+        <div class="price-tagline">GET YOUR HOURS BACK</div>
         <ul class="price-list">
-          <li>i answer your calls and texts</li>
-          <li>i give you business insights each week</li>
-          <li>no content, no ads — yet</li>
+          <li>1 business · 60 drafts a month</li>
+          <li>i write all your posts, carousels, reels, newsletters</li>
+          <li>i answer dms in your voice</li>
         </ul>
         <a href="#" class="price-cta">start 7 days free</a>
       </div>
@@ -801,14 +801,15 @@ const RAW_BODY = `\
         <div class="price-badge">MOST POPULAR</div>
         <div class="price-head">
           <span class="price-name">team</span>
-          <span class="price-amt">$99<span class="per">/mo</span></span>
+          <span class="price-amt">$79<span class="per">/mo</span></span>
         </div>
-        <div class="price-tagline">MOST SOLOPRENEURS PICK THIS</div>
+        <div class="price-tagline">NEVER MISS A CUSTOMER</div>
         <ul class="price-list">
-          <li>everything in starter</li>
-          <li>i post to instagram and linkedin</li>
-          <li>i watch your competitors</li>
-          <li>i run your weekly business review</li>
+          <li>everything in solo · 250 drafts</li>
+          <li>i answer your calls and texts in your voice</li>
+          <li>i cite real, fresh data in every article</li>
+          <li>i watch your competitors daily</li>
+          <li>priority queue · drafts ~2× faster</li>
         </ul>
         <a href="#" class="price-cta">start 7 days free</a>
       </div>
@@ -816,14 +817,29 @@ const RAW_BODY = `\
       <div class="price-card">
         <div class="price-head">
           <span class="price-name">studio</span>
-          <span class="price-amt">$299<span class="per">/mo</span></span>
+          <span class="price-amt">$199<span class="per">/mo</span></span>
         </div>
-        <div class="price-tagline">A FULL MARKETING TEAM</div>
+        <div class="price-tagline">RUN MULTIPLE BRANDS</div>
         <ul class="price-list">
-          <li>everything in team</li>
-          <li>i run your paid ad campaigns</li>
-          <li>i build and update your website</li>
-          <li>unlimited everything</li>
+          <li>everything in team · 600 shared drafts</li>
+          <li>2 businesses · separate voices, channels, dashboards</li>
+          <li>custom newsletter domain</li>
+          <li>multi-language drafts · advanced analytics</li>
+        </ul>
+        <a href="#" class="price-cta">start 7 days free</a>
+      </div>
+
+      <div class="price-card">
+        <div class="price-head">
+          <span class="price-name">agency</span>
+          <span class="price-amt">$499<span class="per">/mo</span></span>
+        </div>
+        <div class="price-tagline">WHITE-LABEL FOR CLIENTS</div>
+        <ul class="price-list">
+          <li>everything in studio · 2000 shared drafts</li>
+          <li>up to 8 client businesses</li>
+          <li>white-label · your logo, your domain</li>
+          <li>3 team seats · client dashboards · bulk planning</li>
         </ul>
         <a href="#" class="price-cta">start 7 days free</a>
       </div>

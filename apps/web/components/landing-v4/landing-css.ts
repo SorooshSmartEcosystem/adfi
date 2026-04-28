@@ -1776,8 +1776,13 @@ export const LANDING_CSS = `\
       grid-template-columns: 1fr 1fr 1fr;
     }
     .pricing-grid {
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       align-items: start;
+    }
+  }
+  @media (min-width: 1100px) {
+    .pricing-grid {
+      grid-template-columns: 1fr 1fr 1fr 1fr;
     }
     .price-card.featured {
       transform: translateY(-8px);

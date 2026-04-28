@@ -12,12 +12,27 @@ import { OrbError } from "../errors";
 //   Newsletter send             1 per 100 recipients (min 1)
 //   Image generation (future)   5 each
 //
-// Tier amounts are sized so a typical solopreneur month fits comfortably.
+// 2026-04-28 pricing reshape: trial is now full TEAM access (50 credits +
+// 5 voice calls) for 7 days; tiers redesigned around capability gates,
+// not just credit caps. AGENCY is the new multi-business tier.
 export const PLAN_LIMITS: Record<"TRIAL" | Plan, number> = {
-  TRIAL: 20,
+  TRIAL: 50,
   SOLO: 60,
-  TEAM: 200,
-  STUDIO: 800,
+  TEAM: 250,
+  STUDIO: 600,
+  AGENCY: 2000,
+};
+
+// Voice/SMS calls are the highest-cost operation per use ($0.50–$1.50
+// each via Vapi + Twilio), so they get their own monthly cap separate
+// from the LLM credit pool. Trial is capped at 5 to demonstrate the
+// feature without burning $50 of voice on a tire-kicker.
+export const VOICE_CALL_LIMITS: Record<"TRIAL" | Plan, number> = {
+  TRIAL: 5,
+  SOLO: 0, // SOLO is DM-only; no voice calls
+  TEAM: 100,
+  STUDIO: 250,
+  AGENCY: 600,
 };
 
 export const CREDIT_COSTS = {

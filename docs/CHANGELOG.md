@@ -32,6 +32,16 @@ Format note: write changes from the user's perspective in plain English. "Users 
 - Branded 404 page and an in-app error fallback that surfaces the digest for support.
 - Favicon, apple-touch-icon, and a PWA manifest so the dashboard installs from Chrome/Safari.
 
+### Changed (pricing reshape · 2026-04-28)
+- **Plan ladder rebuilt around capability gates, not credit caps.** Each upgrade now unlocks a specific new capability so the value of going up is obvious:
+  - **SOLO $29/mo** (was $49) — 1 business · 60 credits · DM-only
+  - **TEAM $79/mo** (was $99) — 1 business · 250 credits · adds voice calls + web research + priority queue
+  - **STUDIO $199/mo** (unchanged) — now **2 businesses** (was 1) · 600 shared credits · custom newsletter domain + analytics
+  - **AGENCY $499/mo** (NEW tier) — up to 8 businesses · 2000 shared credits · white-label, client dashboards, 3 team seats
+- 7-day trial is now full TEAM access (50 credits + 5 voice calls), not the old 20-credit hobbled tier — users see the killer features (voice, research, priority) before deciding. Card-on-file required, auto-converts to TEAM ($79) on day 7. Reminder email day 5 + day 6.
+- Voice/SMS calls have their own monthly cap separate from the LLM credit pool (Vapi + Twilio per-minute cost is non-trivial). SOLO is DM-only (0 calls); TEAM gets 100/mo; STUDIO 250; AGENCY 600. Trial gets 5.
+- `Plan` enum gains AGENCY. Migration `20260428000000_agency_plan` adds it; existing subscriptions are unaffected (additive only).
+
 ### Added
 - Echo now does live web research before writing fact-heavy drafts. Long-form blog/article formats and any draft whose hint mentions news / market / Q1 / prices / data / etc. trigger a research pass against Anthropic's web_search tool first; the cited findings get pasted into Echo's prompt so the model writes from up-to-date numbers and real sources instead of stale training-cutoff guesses. Fixes the class of bug where Echo wrote that "bitcoin was $42k" — the model now sees today's price with a citation before composing.
 - Sidebar links now have icons. Single-stroke line glyphs (geometric, no decoration) on every nav row — dashboard / inbox / content / brand kit / report / settings + the five specialists. Active link inverts the stroke to white-on-ink.

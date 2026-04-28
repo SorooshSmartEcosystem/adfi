@@ -17,6 +17,7 @@ const PRICE_BY_PLAN: Record<Plan, string | undefined> = {
   SOLO: process.env.STRIPE_PRICE_SOLO,
   TEAM: process.env.STRIPE_PRICE_TEAM,
   STUDIO: process.env.STRIPE_PRICE_STUDIO,
+  AGENCY: process.env.STRIPE_PRICE_AGENCY,
 };
 
 export function priceIdForPlan(plan: Plan): string {
@@ -35,7 +36,8 @@ export function planForPriceId(priceId: string): Plan | null {
 }
 
 export const PLAN_PRICES_CENTS: Record<Plan, number> = {
-  SOLO: 3900,
-  TEAM: 9900,
-  STUDIO: 29900,
+  SOLO: 2900,
+  TEAM: 7900,
+  STUDIO: 19900,
+  AGENCY: 49900,
 };

@@ -3,15 +3,17 @@ import { Card } from "../shared/card";
 import { trpc } from "../../lib/trpc";
 
 const PLAN_LABEL: Record<string, string> = {
-  SOLO: "starter · monthly",
+  SOLO: "solo · monthly",
   TEAM: "team · monthly",
   STUDIO: "studio · monthly",
+  AGENCY: "agency · monthly",
 };
 
 const PLAN_PRICE: Record<string, string> = {
-  SOLO: "$39/mo",
-  TEAM: "$99/mo",
-  STUDIO: "$299/mo",
+  SOLO: "$29/mo",
+  TEAM: "$79/mo",
+  STUDIO: "$199/mo",
+  AGENCY: "$499/mo",
 };
 
 export function BillingCard() {

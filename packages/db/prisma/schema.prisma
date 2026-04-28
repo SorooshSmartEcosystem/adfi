@@ -82,6 +82,7 @@ enum Plan {
   SOLO
   TEAM
   STUDIO
+  AGENCY
 }
 
 enum SubscriptionStatus {

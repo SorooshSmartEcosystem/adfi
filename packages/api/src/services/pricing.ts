@@ -31,12 +31,19 @@ export const TWILIO_CENTS = {
   campaignRegistration: 1000, // $10 one-time
 };
 
-// Plan prices — placeholders. Wire Stripe price IDs to these when billing
-// goes live. Gross margin calculations use these as MRR per active user.
+// Plan prices — wired to Stripe price IDs via STRIPE_PRICE_<TIER> env.
+// Gross margin calculations use these as MRR per active user.
+//
+// 2026-04-28 reshape: SOLO drops to $29 (was $49), TEAM drops to $79
+// (was $99), STUDIO unchanged at $199 but now includes 2 businesses,
+// new AGENCY at $499 for up to 8 businesses with 2000 shared credits.
+// Each tier unlocks a capability gate (calls, multi-business, white
+// label) so the upgrade ladder feels like more than just more credits.
 export const PLAN_PRICING_CENTS = {
-  SOLO: 4900, // $49/mo
-  TEAM: 9900, // $99/mo
+  SOLO: 2900, // $29/mo
+  TEAM: 7900, // $79/mo
   STUDIO: 19900, // $199/mo
+  AGENCY: 49900, // $499/mo
 } as const;
 
 // Fixed monthly overhead not tied to user volume

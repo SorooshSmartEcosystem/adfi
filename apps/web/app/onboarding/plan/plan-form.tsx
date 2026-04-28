@@ -7,7 +7,7 @@ import {
 import { PrimaryButton } from "../../../components/onboarding/primary-button";
 import { trpc } from "../../../lib/trpc";
 
-type PlanId = "SOLO" | "TEAM" | "STUDIO";
+type PlanId = "SOLO" | "TEAM" | "STUDIO" | "AGENCY";
 
 const PLANS: {
   id: PlanId;
@@ -16,15 +16,16 @@ const PLANS: {
   tagline: string;
   recommended?: boolean;
 }[] = [
-  { id: "SOLO", name: "starter", price: 39, tagline: "the essentials" },
+  { id: "SOLO", name: "solo", price: 29, tagline: "get your hours back" },
   {
     id: "TEAM",
     name: "team",
-    price: 99,
-    tagline: "most solopreneurs pick this",
+    price: 79,
+    tagline: "never miss a customer",
     recommended: true,
   },
-  { id: "STUDIO", name: "studio", price: 299, tagline: "a full marketing team" },
+  { id: "STUDIO", name: "studio", price: 199, tagline: "run multiple brands" },
+  { id: "AGENCY", name: "agency", price: 499, tagline: "white-label for clients" },
 ];
 
 export function PlanForm() {

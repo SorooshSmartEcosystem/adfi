@@ -37,6 +37,7 @@ const DAILY_SIGNAL_CAP: Record<Plan | "TRIAL", number> = {
   SOLO: 500,
   TEAM: 1500,
   STUDIO: 5000,
+  AGENCY: 15000,
 };
 
 export type GuardResult =

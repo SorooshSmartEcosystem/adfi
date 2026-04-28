@@ -37,6 +37,7 @@ export const MONTHLY_BRANDKIT_CAP: Record<Plan | "TRIAL", number> = {
   SOLO: 10,
   TEAM: 30,
   STUDIO: 999,
+  AGENCY: 999,
 };
 
 // Approximate per-generation cost (cents). Spec uses Sonnet; logos +

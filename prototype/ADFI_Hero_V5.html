@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADFI · New Top Hero</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    background: #FAFAF7;
+    color: #111;
+    font-weight: 400;
+    line-height: 1.5;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  button, input, textarea { font-family: inherit; }
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: "SF Mono", "JetBrains Mono", monospace; }
+
+  :root {
+    --bg: #FAFAF7;
+    --ink: #111;
+    --ink3: #666;
+    --ink4: #888;
+    --ink5: #aaa;
+    --surface: #F2EFE5;
+    --border: #E5E3DB;
+    --border2: #EEEBE0;
+    --alive: #7CE896;
+    --alive-dark: #3a9d5c;
+    --attn-bg: #FFF9ED;
+    --attn-border: #F0D98C;
+    --attn-text: #8a6a1e;
+    --urgent: #C84A3E;
+  }
+
+  /* Standalone preview header */
+  .preview-bar {
+    background: white;
+    border-bottom: 0.5px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .preview-bar-title {
+    font-family: "SF Mono", monospace;
+    font-size: 11px;
+    color: var(--ink4);
+    letter-spacing: 0.1em;
+  }
+  .preview-bar-meta {
+    font-size: 12px;
+    color: var(--ink3);
+  }
+
+  /* ===================================
+     HERO LAYOUT
+  =================================== */
+  .hero {
+    position: relative;
+    min-height: 760px;
+    padding: 60px 24px 80px;
+    overflow: hidden;
+  }
+  @media (max-width: 700px) {
+    .hero { min-height: auto; padding: 40px 20px 60px; }
+  }
+
+  .hero-inner {
+    position: relative;
+    max-width: 720px;
+    margin: 0 auto;
+    text-align: center;
+    z-index: 5;
+  }
+
+  /* ===================================
+     3D ORB + PULSE RINGS
+  =================================== */
+  .orb-wrap {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    margin: 40px auto 28px;
+  }
+  @media (max-width: 700px) {
+    .orb-wrap { width: 80px; height: 80px; margin: 24px auto 22px; }
+  }
+
+  /* Pulse rings — concentric hairlines that ripple outward */
+  .orb-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 0.5px solid rgba(17, 17, 17, 0.18);
+    animation: ring-pulse 2.4s ease-out infinite;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .orb-ring:nth-child(2) { animation-delay: 0.8s; }
+  .orb-ring:nth-child(3) { animation-delay: 1.6s; }
+
+  @keyframes ring-pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    100% {
+      transform: scale(2.6);
+      opacity: 0;
+    }
+  }
+
+  /* The 3D orb itself */
+  .orb-3d {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%,
+      #5a5a5a 0%,
+      #2a2a2a 35%,
+      #0a0a0a 75%,
+      #000 100%);
+    box-shadow:
+      inset -6px -10px 20px rgba(0,0,0,0.5),
+      inset 6px 6px 14px rgba(255,255,255,0.06),
+      0 18px 36px rgba(0,0,0,0.12);
+    animation: orb-breathe 3.2s ease-in-out infinite;
+    z-index: 2;
+  }
+  .orb-3d::before {
+    content: '';
+    position: absolute;
+    top: 18%; left: 22%;
+    width: 26%; height: 18%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.4) 0%, transparent 70%);
+    border-radius: 50%;
+    transform: rotate(-25deg);
+  }
+  .orb-3d::after {
+    content: '';
+    position: absolute;
+    bottom: 12%; right: 18%;
+    width: 22%; height: 14%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.08) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  @keyframes orb-breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+
+  /* ADFI wordmark below orb */
+  .wordmark {
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin-bottom: 32px;
+  }
+  @media (max-width: 700px) {
+    .wordmark { font-size: 15px; margin-bottom: 24px; }
+  }
+
+  /* Headline */
+  .hero-h1 {
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+    margin-bottom: 14px;
+    color: var(--ink);
+  }
+  .hero-sub {
+    font-size: clamp(15px, 2vw, 17px);
+    color: var(--ink3);
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+
+  /* ===================================
+     INPUT FORM
+  =================================== */
+  .form-wrap {
+    max-width: 540px;
+    margin: 0 auto;
+    text-align: left;
+    position: relative;
+  }
+
+  .form-label {
+    font-family: "SF Mono", monospace;
+    font-size: 10px;
+    color: var(--ink4);
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .business-textarea {
+    width: 100%;
+    min-height: 96px;
+    padding: 18px 20px;
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    font-size: 15px;
+    color: var(--ink);
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    -webkit-appearance: none;
+  }
+  .business-textarea::placeholder {
+    color: var(--ink5);
+  }
+  .business-textarea:focus {
+    outline: none;
+    border-color: var(--ink);
+    box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.04);
+  }
+
+  /* Preset chips below textarea */
+  .preset-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .preset-chip {
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+    padding: 7px 14px;
+    font-size: 12px;
+    color: var(--ink3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-chip:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .preset-chip:active { transform: scale(0.97); }
+
+  /* Continue button + tiny meta */
+  .form-action {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .continue-btn {
+    background: var(--ink);
+    color: white;
+    padding: 13px 22px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .continue-btn:active { transform: scale(0.97); }
+  .form-meta {
+    font-family: "SF Mono", monospace;
+    font-size: 10px;
+    color: var(--ink4);
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .form-meta::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--alive);
+  }
+
+  /* ===================================
+     CORNER ANIMATIONS — fast loops
+     Each card lives in a corner of the white space.
+     They cycle independently, ~2s per loop, staggered.
+  =================================== */
+  .corner {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .corner-card {
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    width: 200px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.05);
+    opacity: 0;
+    animation: corner-cycle 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  /* Different starting offsets per corner for natural staggering */
+  .corner-tl { top: 80px; left: 40px; }
+  .corner-tr { top: 110px; right: 40px; }
+  .corner-bl { bottom: 80px; left: 60px; }
+  .corner-br { bottom: 110px; right: 60px; }
+
+  .corner-tl .corner-card { animation-delay: 0s; }
+  .corner-tr .corner-card { animation-delay: 0.5s; }
+  .corner-bl .corner-card { animation-delay: 1.0s; }
+  .corner-br .corner-card { animation-delay: 1.5s; }
+
+  /* Each card fades in, holds, fades out, all in 2s */
+  @keyframes corner-cycle {
+    0%   { opacity: 0; transform: translateY(8px) scale(0.96); }
+    20%  { opacity: 1; transform: translateY(0) scale(1); }
+    75%  { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  }
+
+  /* Card content: small mono label + short headline */
+  .cc-mono {
+    font-family: "SF Mono", monospace;
+    font-size: 9px;
+    color: var(--ink4);
+    letter-spacing: 0.12em;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .cc-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+  }
+  .cc-dot.alive { background: var(--alive); }
+  .cc-dot.urgent { background: var(--urgent); }
+  .cc-dot.attn { background: var(--attn-border); }
+  .cc-dot.ink { background: var(--ink); }
+  .cc-title {
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--ink);
+  }
+  .cc-meta {
+    font-size: 10.5px;
+    color: var(--ink3);
+    line-height: 1.4;
+    margin-top: 2px;
+  }
+
+  /* The amber variant for "rival move" */
+  .corner-card.amber {
+    background: var(--attn-bg);
+    border-color: var(--attn-border);
+  }
+  .corner-card.amber .cc-mono { color: var(--attn-text); }
+
+  /* On smaller screens, the corner cards collapse to a quiet ticker below input */
+  @media (max-width: 700px) {
+    .corner { display: none; }
+
+    .mobile-ticker {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      margin-top: 32px;
+      padding: 8px 0 20px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .mobile-ticker::-webkit-scrollbar { display: none; }
+    .ticker-card {
+      flex-shrink: 0;
+      background: white;
+      border: 0.5px solid var(--border);
+      border-radius: 100px;
+      padding: 8px 14px;
+      font-size: 11px;
+      color: var(--ink3);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      animation: ticker-pulse 2.4s ease-in-out infinite;
+    }
+    .ticker-card:nth-child(2) { animation-delay: 0.6s; }
+    .ticker-card:nth-child(3) { animation-delay: 1.2s; }
+    .ticker-card:nth-child(4) { animation-delay: 1.8s; }
+    .ticker-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .ticker-dot.alive { background: var(--alive); }
+    .ticker-dot.urgent { background: var(--urgent); }
+    .ticker-dot.attn { background: var(--attn-border); }
+    .ticker-dot.ink { background: var(--ink); }
+    @keyframes ticker-pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+  }
+  @media (min-width: 701px) {
+    .mobile-ticker { display: none; }
+  }
+
+  /* Trust strip */
+  .trust-row {
+    margin-top: 36px;
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .trust-item {
+    font-family: "SF Mono", monospace;
+    font-size: 10px;
+    color: var(--ink4);
+    letter-spacing: 0.08em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .trust-item::before {
+    content: '';
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--ink);
+    opacity: 0.4;
+  }
+</style>
+</head>
+<body>
+
+<div class="preview-bar">
+  <span class="preview-bar-title">NEW TOP HERO · STANDALONE PREVIEW</span>
+  <span class="preview-bar-meta">3D orb + pulse rings · onboarding input · 4 corner animations (fast loops)</span>
+</div>
+
+<section class="hero">
+
+  <!-- Corner animations (desktop only) -->
+  <div class="corner corner-tl">
+    <div class="corner-card">
+      <div class="cc-mono">
+        <span class="cc-dot urgent"></span>
+        <span>CALL · ANSWERED</span>
+      </div>
+      <div class="cc-title">+1 (416) 555-0934</div>
+      <div class="cc-meta">booked thursday 2pm</div>
+    </div>
+  </div>
+
+  <div class="corner corner-tr">
+    <div class="corner-card">
+      <div class="cc-mono">
+        <span class="cc-dot alive"></span>
+        <span>ECHO · PUBLISHED</span>
+      </div>
+      <div class="cc-title">"wheel-thrown this morning ✨"</div>
+      <div class="cc-meta">↑ 18% reach · instagram</div>
+    </div>
+  </div>
+
+  <div class="corner corner-bl">
+    <div class="corner-card">
+      <div class="cc-mono">
+        <span class="cc-dot alive"></span>
+        <span>PULSE · TRENDING</span>
+      </div>
+      <div class="cc-title">handmade ceramic mugs</div>
+      <div class="cc-meta">↑ 180% on tiktok this week</div>
+    </div>
+  </div>
+
+  <div class="corner corner-br">
+    <div class="corner-card amber">
+      <div class="cc-mono">
+        <span class="cc-dot attn"></span>
+        <span>SCOUT · RIVAL MOVE</span>
+      </div>
+      <div class="cc-title">east fork · 20% off</div>
+      <div class="cc-meta">to interior designers</div>
+    </div>
+  </div>
+
+  <!-- Centered hero column -->
+  <div class="hero-inner">
+
+    <!-- 3D orb with pulse rings -->
+    <div class="orb-wrap">
+      <div class="orb-ring"></div>
+      <div class="orb-ring"></div>
+      <div class="orb-ring"></div>
+      <div class="orb-3d"></div>
+    </div>
+
+    <div class="wordmark">adfi</div>
+
+    <h1 class="hero-h1">Tell me about your business.</h1>
+    <p class="hero-sub">i'll show you what i can do for it.</p>
+
+    <!-- Input form -->
+    <div class="form-wrap">
+      <label class="form-label" for="bizDesc">YOUR BUSINESS</label>
+      <textarea
+        id="bizDesc"
+        class="business-textarea"
+        placeholder="e.g. ceramics studio in toronto, mostly handmade dinnerware. we sell on instagram and at saturday markets."
+      ></textarea>
+
+      <div class="preset-row">
+        <button class="preset-chip" data-preset="ceramics">ceramics studio</button>
+        <button class="preset-chip" data-preset="photographer">freelance photographer</button>
+        <button class="preset-chip" data-preset="plant">plant shop</button>
+        <button class="preset-chip" data-preset="yoga">yoga instructor</button>
+        <button class="preset-chip" data-preset="bakery">bakery</button>
+      </div>
+
+      <div class="form-action">
+        <button class="continue-btn">continue →</button>
+        <span class="form-meta">no card · no signup yet · ~60 sec</span>
+      </div>
+    </div>
+
+    <!-- Mobile ticker (replaces corner animations on small screens) -->
+    <div class="mobile-ticker">
+      <div class="ticker-card">
+        <span class="ticker-dot urgent"></span>
+        <span>call answered · booked thu</span>
+      </div>
+      <div class="ticker-card">
+        <span class="ticker-dot alive"></span>
+        <span>echo published · ↑ 18%</span>
+      </div>
+      <div class="ticker-card">
+        <span class="ticker-dot alive"></span>
+        <span>pulse trending · ↑ 180%</span>
+      </div>
+      <div class="ticker-card">
+        <span class="ticker-dot attn"></span>
+        <span>scout · rival move</span>
+      </div>
+    </div>
+
+    <div class="trust-row">
+      <span class="trust-item">REAL ANALYSIS</span>
+      <span class="trust-item">NO CARD YET</span>
+      <span class="trust-item">~60 SECONDS</span>
+    </div>
+
+  </div>
+</section>
+
+<script>
+  // Preset chip → fills textarea with starter text
+  const presets = {
+    ceramics: "ceramics studio in toronto, mostly handmade dinnerware. we sell on instagram and at saturday markets.",
+    photographer: "freelance photographer based in toronto. weddings, brand work, portraits. clients find me on instagram and word of mouth.",
+    plant: "plant shop with a small storefront. we do deliveries and host plant care workshops monthly.",
+    yoga: "independent yoga instructor. small group classes plus 1:1 sessions. mostly local clients in toronto.",
+    bakery: "neighborhood bakery. sourdough, pastries, custom cakes. instagram is our biggest lead source."
+  };
+
+  const textarea = document.getElementById('bizDesc');
+  document.querySelectorAll('.preset-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const preset = chip.dataset.preset;
+      if (presets[preset]) {
+        textarea.value = presets[preset];
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      }
+    });
+  });
+
+  // Continue button (placeholder — would proceed to step 2 in real flow)
+  document.querySelector('.continue-btn').addEventListener('click', () => {
+    if (!textarea.value.trim()) {
+      textarea.focus();
+      textarea.style.borderColor = '#C84A3E';
+      setTimeout(() => textarea.style.borderColor = '', 1200);
+      return;
+    }
+    // In production this would advance to step 2 of onboarding
+    alert('PROTOTYPE: would advance to step 2 — "what do you want more of?"');
+  });
+</script>
+</body>
+</html>

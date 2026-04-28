@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADFI · Meet the Team Section</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    background: #FAFAF7;
+    color: #111;
+    font-weight: 400;
+    line-height: 1.5;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: "SF Mono", "JetBrains Mono", monospace; }
+
+  :root {
+    --bg: #FAFAF7;
+    --ink: #111;
+    --ink3: #666;
+    --ink4: #888;
+    --ink5: #aaa;
+    --surface: #F2EFE5;
+    --border: #E5E3DB;
+    --border2: #EEEBE0;
+    --alive: #7CE896;
+    --alive-dark: #3a9d5c;
+    --attn-bg: #FFF9ED;
+    --attn-border: #F0D98C;
+    --attn-text: #8a6a1e;
+    --urgent: #C84A3E;
+  }
+
+  @keyframes orb-breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+  @keyframes pulse-ring {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.18); opacity: 0; }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Section header */
+  .meet {
+    padding: 90px 24px;
+    background: #FAFAF7;
+  }
+  .meet-wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .meet-eyebrow {
+    font-family: "SF Mono", monospace;
+    font-size: 10px;
+    color: var(--ink4);
+    letter-spacing: 0.2em;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .meet-eyebrow::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--ink);
+  }
+  .meet h2 {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 14px;
+    max-width: 640px;
+  }
+  .meet-sub {
+    font-size: 16px;
+    color: var(--ink3);
+    line-height: 1.6;
+    max-width: 560px;
+    margin-bottom: 48px;
+  }
+
+  /* Two-column layout */
+  .meet-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+  @media (min-width: 900px) {
+    .meet-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 60px;
+    }
+  }
+
+  /* Agent list (left column) */
+  .agent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  /* On mobile, agent list becomes horizontal scrollable tabs */
+  @media (max-width: 899px) {
+    .agent-list {
+      flex-direction: row;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 0 12px;
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+    }
+    .agent-list::-webkit-scrollbar { display: none; }
+  }
+
+  .agent-row {
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: background 0.25s ease, border-color 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  @media (max-width: 899px) {
+    .agent-row {
+      flex-shrink: 0;
+      min-width: 200px;
+      scroll-snap-align: start;
+      padding: 14px 16px;
+    }
+  }
+  .agent-row:hover:not(.active) {
+    border-color: var(--ink5);
+    background: #FBFAF5;
+  }
+  .agent-row.active {
+    background: var(--ink);
+    color: white;
+    border-color: var(--ink);
+  }
+  .agent-row.coming {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .agent-row-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .agent-row-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--alive);
+    flex-shrink: 0;
+  }
+  .agent-row.coming .agent-row-dot {
+    background: transparent;
+    border: 1px solid var(--border);
+  }
+  .agent-row.active .agent-row-dot {
+    background: var(--alive);
+    box-shadow: 0 0 0 3px rgba(124, 232, 150, 0.2);
+  }
+  .agent-row-name {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    flex: 1;
+  }
+  .agent-row-soon {
+    font-family: "SF Mono", monospace;
+    font-size: 9px;
+    background: var(--attn-bg);
+    color: var(--attn-text);
+    border: 0.5px solid var(--attn-border);
+    padding: 2px 7px;
+    border-radius: 100px;
+    letter-spacing: 0.1em;
+  }
+  .agent-row-desc {
+    font-size: 13px;
+    color: var(--ink3);
+    line-height: 1.5;
+    padding-left: 17px;
+  }
+  .agent-row.active .agent-row-desc {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  /* Progress bar (only visible on active row) */
+  .agent-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: var(--alive);
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+  .agent-row:not(.active) .agent-progress { display: none; }
+
+  /* Phone column (right) */
+  .phone-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    position: sticky;
+    top: 24px;
+  }
+  @media (max-width: 899px) {
+    .phone-wrap { position: static; }
+  }
+  .phone {
+    background: #111;
+    border-radius: 36px;
+    padding: 14px 12px 18px;
+    width: 280px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.16), 0 8px 24px rgba(0,0,0,0.08);
+    position: relative;
+  }
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 80px; height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 100px;
+  }
+  .phone-screen {
+    background: #FAFAF7;
+    border-radius: 24px;
+    padding: 22px 16px 18px;
+    min-height: 480px;
+    position: relative;
+    overflow: hidden;
+  }
+  .phone-screen-inner {
+    animation: fade-in 0.4s ease;
+  }
+
+  /* Phone status bar */
+  .ps-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px 12px;
+    margin-bottom: 12px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .ps-orb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, #5a5a5a 0%, #111 60%);
+    animation: orb-breathe 3s ease-in-out infinite;
+  }
+  .ps-text {
+    font-family: "SF Mono", monospace;
+    font-size: 9px;
+    color: var(--ink4);
+    letter-spacing: 0.15em;
+    flex: 1;
+    margin-left: 8px;
+  }
+  .ps-time {
+    font-family: "SF Mono", monospace;
+    font-size: 9px;
+    color: var(--ink4);
+  }
+
+  /* Phone cards */
+  .pc-card {
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: card-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  @keyframes card-in {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .pc-card.amber-card {
+    background: var(--attn-bg);
+    border-color: var(--attn-border);
+  }
+  .pc-card.dark-card {
+    background: #111;
+    color: white;
+    border: none;
+  }
+  .pc-mono {
+    font-family: "SF Mono", monospace;
+    font-size: 9px;
+    color: var(--ink4);
+    letter-spacing: 0.12em;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .pc-card.dark-card .pc-mono { color: rgba(255,255,255,0.5); }
+  .pc-mono-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+  }
+  .pc-mono-dot.alive { background: var(--alive); }
+  .pc-mono-dot.urgent { background: var(--urgent); }
+  .pc-mono-dot.attn { background: var(--attn-border); }
+  .pc-mono-dot.ink { background: var(--ink); }
+  .pc-card.amber-card .pc-mono { color: var(--attn-text); }
+  .pc-title {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.35;
+    margin-bottom: 3px;
+    color: #111;
+  }
+  .pc-card.dark-card .pc-title { color: white; }
+  .pc-meta {
+    font-size: 11px;
+    color: var(--ink3);
+    line-height: 1.4;
+  }
+  .pc-card.dark-card .pc-meta { color: rgba(255,255,255,0.7); }
+  .pc-tag {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 7px;
+    border-radius: 100px;
+    font-family: "SF Mono", monospace;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+  }
+  .pc-tag.alive { background: rgba(124, 232, 150, 0.15); color: var(--alive-dark); }
+
+  /* Call orb visual */
+  .pc-call-orb-wrap {
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+  .pc-call-orb {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, #5a5a5a 0%, #111 60%);
+    position: relative;
+    animation: orb-breathe 3s ease-in-out infinite;
+  }
+  .pc-call-orb::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(200, 74, 62, 0.4);
+    animation: pulse-ring 2s ease-in-out infinite;
+  }
+
+  /* Post image (Echo) */
+  .pc-post-img {
+    height: 130px;
+    background: linear-gradient(135deg, #C9A881 0%, #8B6F47 100%);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .pc-post-img::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 25% 30%, rgba(255,255,255,0.15) 0%, transparent 40%),
+      radial-gradient(circle at 75% 70%, rgba(0,0,0,0.2) 0%, transparent 50%);
+  }
+  .pc-post-cap {
+    font-size: 11px;
+    line-height: 1.4;
+    color: #111;
+    margin-bottom: 5px;
+  }
+  .pc-post-stats {
+    display: flex;
+    gap: 10px;
+    font-family: "SF Mono", monospace;
+    font-size: 9px;
+    color: var(--ink4);
+  }
+
+  /* Progress bar inside dark card (Echo drafting) */
+  .pc-progress {
+    height: 3px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .pc-progress-fill {
+    height: 100%;
+    background: white;
+    border-radius: 2px;
+    width: 0%;
+    animation: progress-grow 4s ease-out forwards;
+  }
+  @keyframes progress-grow {
+    to { width: 100%; }
+  }
+
+  /* KPI mini cards (Strategist) */
+  .pc-kpi-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .pc-kpi {
+    background: white;
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    opacity: 0;
+    animation: card-in 0.5s ease forwards;
+  }
+  .pc-kpi-label {
+    font-family: "SF Mono", monospace;
+    font-size: 8px;
+    color: var(--ink4);
+    letter-spacing: 0.15em;
+    margin-bottom: 3px;
+  }
+  .pc-kpi-num {
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .pc-kpi-delta {
+    font-family: "SF Mono", monospace;
+    font-size: 8px;
+    color: var(--alive-dark);
+    margin-top: 2px;
+  }
+
+  /* DM platform row (for Signal DMs scene if needed) */
+  .pc-dm-platform {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .pc-dm-icon {
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #111;
+    flex-shrink: 0;
+  }
+  .pc-dm-name {
+    font-family: "SF Mono", monospace;
+    font-size: 9px;
+    color: var(--ink4);
+    letter-spacing: 0.1em;
+  }
+  .pc-dm-status {
+    margin-left: auto;
+    font-family: "SF Mono", monospace;
+    font-size: 9px;
+    color: var(--alive-dark);
+  }
+
+  /* Bottom CTA */
+  .meet-cta-row {
+    text-align: center;
+    margin-top: 56px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: white;
+    padding: 14px 28px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.15s;
+  }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--ink);
+    padding: 14px 24px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 0.5px solid var(--border);
+    transition: border-color 0.15s;
+    text-decoration: none;
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+
+  /* Standalone preview header */
+  .preview-header {
+    background: white;
+    border-bottom: 0.5px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .preview-header-title {
+    font-family: "SF Mono", monospace;
+    font-size: 11px;
+    color: var(--ink4);
+    letter-spacing: 0.1em;
+  }
+  .preview-header-meta {
+    font-size: 12px;
+    color: var(--ink3);
+  }
+</style>
+</head>
+<body>
+
+<div class="preview-header">
+  <span class="preview-header-title">MEET-THE-TEAM SECTION · STANDALONE PREVIEW</span>
+  <span class="preview-header-meta">auto-advances every 8s · click any agent to switch</span>
+</div>
+
+<section class="meet">
+  <div class="meet-wrap">
+    <div class="meet-eyebrow">MEET THE TEAM</div>
+    <h2>Six specialists. One colleague.</h2>
+    <p class="meet-sub">you talk to adfi. behind the scenes, six agents coordinate so you don't have to manage them. here's what each one does.</p>
+
+    <div class="meet-grid">
+
+      <!-- Agent list -->
+      <div class="agent-list" id="agentList">
+        <button class="agent-row active" data-agent="signal">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">signal</span>
+          </div>
+          <div class="agent-row-desc">answers calls, replies to sms and dms, books appointments.</div>
+          <div class="agent-progress"></div>
+        </button>
+
+        <button class="agent-row" data-agent="echo">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">echo</span>
+          </div>
+          <div class="agent-row-desc">writes posts in your voice, publishes on the right schedule.</div>
+          <div class="agent-progress"></div>
+        </button>
+
+        <button class="agent-row" data-agent="scout">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">scout</span>
+          </div>
+          <div class="agent-row-desc">tracks your competitors. surfaces what's worth your attention.</div>
+          <div class="agent-progress"></div>
+        </button>
+
+        <button class="agent-row" data-agent="pulse">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">pulse</span>
+          </div>
+          <div class="agent-row-desc">spots trends and news that could move your business.</div>
+          <div class="agent-progress"></div>
+        </button>
+
+        <button class="agent-row" data-agent="strategist">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">strategist</span>
+          </div>
+          <div class="agent-row-desc">runs your weekly business review and sets the plan.</div>
+          <div class="agent-progress"></div>
+        </button>
+
+        <button class="agent-row coming" data-agent="ads">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">ads</span>
+            <span class="agent-row-soon">SOON</span>
+          </div>
+          <div class="agent-row-desc">runs your paid campaigns on meta and google.</div>
+          <div class="agent-progress"></div>
+        </button>
+      </div>
+
+      <!-- Phone -->
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-screen-inner" id="phoneInner">
+              <!-- Content swapped by JS based on active agent -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom CTA -->
+    <div class="meet-cta-row">
+      <a href="#" class="btn-primary">hire the team free for 7 days</a>
+      <a href="#" class="btn-secondary">see all features</a>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ===================================
+   MEET-THE-TEAM SECTION ENGINE
+=================================== */
+
+const AGENT_DURATION = 8000;  // ms each agent stays active
+const PROGRESS_TICK = 100;    // ms
+
+const SCENES = {
+  signal: {
+    statusLabel: 'SIGNAL · LIVE',
+    statusTime: '2:14PM',
+    content: `
+      <div class="pc-call-orb-wrap">
+        <div class="pc-call-orb"></div>
+      </div>
+      <div class="pc-card" style="animation-delay: 0.1s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot urgent"></span>
+          <span>INCOMING CALL</span>
+        </div>
+        <div class="pc-title">+1 (416) 555-0934</div>
+        <div class="pc-meta">i'm answering in your voice...</div>
+      </div>
+      <div class="pc-card" style="animation-delay: 1.0s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot ink"></span>
+          <span>WHAT THEY ASKED</span>
+        </div>
+        <div class="pc-meta">"do you do custom dinnerware?"</div>
+      </div>
+      <div class="pc-card amber-card" style="animation-delay: 2.0s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot attn"></span>
+          <span>BOOKED FOR YOU</span>
+        </div>
+        <div class="pc-title">thursday · 2:00pm</div>
+        <div class="pc-meta">design consultation · est. $4-8k</div>
+      </div>
+    `
+  },
+  echo: {
+    statusLabel: 'ECHO · DRAFTING',
+    statusTime: '11:02AM',
+    content: `
+      <div class="pc-card dark-card" style="animation-delay: 0.1s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot alive"></span>
+          <span>WRITING IN YOUR VOICE</span>
+        </div>
+        <div class="pc-meta">matching tone, format, hashtags...</div>
+        <div class="pc-progress"><div class="pc-progress-fill"></div></div>
+      </div>
+      <div class="pc-card" style="animation-delay: 1.5s; padding: 8px;">
+        <div class="pc-post-img"></div>
+        <div class="pc-post-cap">"the way light catches glaze at golden hour ✨ wheel-thrown this morning."</div>
+        <div class="pc-post-stats">
+          <span>♡ 1,240</span>
+          <span>↑ 18%</span>
+        </div>
+      </div>
+      <div class="pc-card" style="animation-delay: 3.0s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot alive"></span>
+          <span>PUBLISHED · INSTAGRAM</span>
+        </div>
+        <div class="pc-meta">scheduling 2 more for this week</div>
+      </div>
+    `
+  },
+  scout: {
+    statusLabel: 'SCOUT · WEEKLY DIGEST',
+    statusTime: 'MON 9AM',
+    content: `
+      <div class="pc-card amber-card" style="animation-delay: 0.1s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot attn"></span>
+          <span>RIVAL MOVE · EAST FORK</span>
+        </div>
+        <div class="pc-title">20% off to interior designers.</div>
+        <div class="pc-meta">running through end of month</div>
+        <span class="pc-tag" style="background: #FFF9ED; color: #8a6a1e;">consider matching</span>
+      </div>
+      <div class="pc-card" style="animation-delay: 1.2s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot ink"></span>
+          <span>WHAT'S WORKING FOR THEM</span>
+        </div>
+        <div class="pc-meta">heath ceramics' wheel-throwing reels are getting 4x their normal reach</div>
+      </div>
+      <div class="pc-card" style="animation-delay: 2.4s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot ink"></span>
+          <span>PRICE INTEL</span>
+        </div>
+        <div class="pc-meta">avg dinnerware set in your region: $185-240. you're at $165.</div>
+      </div>
+    `
+  },
+  pulse: {
+    statusLabel: 'PULSE · TRENDING NOW',
+    statusTime: 'TODAY',
+    content: `
+      <div class="pc-card" style="animation-delay: 0.1s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot alive"></span>
+          <span>TRENDING · TIKTOK</span>
+        </div>
+        <div class="pc-title">"handmade ceramic mugs" +180%</div>
+        <div class="pc-meta">3.4M views this week · post a making-of reel?</div>
+        <span class="pc-tag alive">good moment</span>
+      </div>
+      <div class="pc-card" style="animation-delay: 1.2s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot ink"></span>
+          <span>PRESS · TORONTO LIFE</span>
+        </div>
+        <div class="pc-title">"ontario's craft revival"</div>
+        <div class="pc-meta">they're profiling local potters. i can pitch you.</div>
+      </div>
+      <div class="pc-card amber-card" style="animation-delay: 2.4s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot attn"></span>
+          <span>HOLIDAY OPPORTUNITY</span>
+        </div>
+        <div class="pc-meta">mother's day in 14 days · gift bundles outsell singles 3:1</div>
+      </div>
+    `
+  },
+  strategist: {
+    statusLabel: 'WEEKLY REVIEW · APR 22-28',
+    statusTime: 'SUN 6PM',
+    content: `
+      <div class="pc-kpi-row">
+        <div class="pc-kpi" style="animation-delay: 0.1s;">
+          <div class="pc-kpi-label">REVENUE</div>
+          <div class="pc-kpi-num">$4.2k</div>
+          <div class="pc-kpi-delta">↑ 38%</div>
+        </div>
+        <div class="pc-kpi" style="animation-delay: 0.25s;">
+          <div class="pc-kpi-label">REACH</div>
+          <div class="pc-kpi-num">8.4k</div>
+          <div class="pc-kpi-delta">↑ 23%</div>
+        </div>
+        <div class="pc-kpi" style="animation-delay: 0.4s;">
+          <div class="pc-kpi-label">CONVOS</div>
+          <div class="pc-kpi-num">21</div>
+          <div class="pc-kpi-delta">↑ 12%</div>
+        </div>
+        <div class="pc-kpi" style="animation-delay: 0.55s;">
+          <div class="pc-kpi-label">SAVED</div>
+          <div class="pc-kpi-num">~6h</div>
+          <div class="pc-kpi-delta">this week</div>
+        </div>
+      </div>
+      <div class="pc-card" style="animation-delay: 0.9s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot ink"></span>
+          <span>THIS WEEK'S STORY</span>
+        </div>
+        <div class="pc-meta">your reels outperformed 80% of past posts. a designer called — i booked a $4-8k project.</div>
+      </div>
+      <div class="pc-card" style="animation-delay: 2.0s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot alive"></span>
+          <span>WHAT TO FOCUS ON NEXT</span>
+        </div>
+        <div class="pc-meta">double down on process videos. mornings 8-10am are your sweet spot.</div>
+      </div>
+    `
+  },
+  ads: {
+    statusLabel: 'ADS · COMING SOON',
+    statusTime: '',
+    content: `
+      <div class="pc-card amber-card" style="animation-delay: 0.1s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot attn"></span>
+          <span>NOT LIVE YET</span>
+        </div>
+        <div class="pc-title">paid campaigns on meta and google</div>
+        <div class="pc-meta">i'll budget, target, and optimize your ads. shipping next quarter.</div>
+      </div>
+      <div class="pc-card" style="animation-delay: 1.2s;">
+        <div class="pc-mono">
+          <span class="pc-mono-dot ink"></span>
+          <span>WHAT I'LL DO</span>
+        </div>
+        <div class="pc-meta">find the right audiences, write the creative, watch performance daily, kill what's not working.</div>
+      </div>
+    `
+  }
+};
+
+const ORDER = ['signal', 'echo', 'scout', 'pulse', 'strategist', 'ads'];
+
+let currentIdx = 0;
+let progressTimer = null;
+let advanceTimer = null;
+let progressMs = 0;
+let userInteracted = false;
+let userInteractedTimer = null;
+
+const phoneInner = document.getElementById('phoneInner');
+const agentRows = document.querySelectorAll('.agent-row');
+
+function renderScene(agentId) {
+  const scene = SCENES[agentId];
+  if (!scene) return;
+
+  // Re-trigger fade-in on the inner wrapper
+  phoneInner.style.animation = 'none';
+  // Force reflow
+  void phoneInner.offsetHeight;
+  phoneInner.style.animation = 'fade-in 0.4s ease';
+
+  phoneInner.innerHTML = `
+    <div class="ps-bar">
+      <div class="ps-orb"></div>
+      <span class="ps-text">${scene.statusLabel}</span>
+      <span class="ps-time">${scene.statusTime}</span>
+    </div>
+    ${scene.content}
+  `;
+}
+
+function setActive(idx) {
+  currentIdx = idx;
+  const agentId = ORDER[idx];
+
+  agentRows.forEach((row, i) => {
+    row.classList.toggle('active', i === idx);
+    const progress = row.querySelector('.agent-progress');
+    if (progress) {
+      progress.style.width = i === idx ? '0%' : '0%';
+    }
+  });
+
+  renderScene(agentId);
+
+  // Reset progress
+  progressMs = 0;
+  if (progressTimer) clearInterval(progressTimer);
+  if (advanceTimer) clearTimeout(advanceTimer);
+
+  const activeProgress = agentRows[idx].querySelector('.agent-progress');
+
+  progressTimer = setInterval(() => {
+    progressMs += PROGRESS_TICK;
+    const pct = (progressMs / AGENT_DURATION) * 100;
+    if (activeProgress) {
+      activeProgress.style.width = Math.min(pct, 100) + '%';
+    }
+  }, PROGRESS_TICK);
+
+  advanceTimer = setTimeout(() => {
+    if (!userInteracted) {
+      const next = (idx + 1) % ORDER.length;
+      setActive(next);
+    }
+  }, AGENT_DURATION);
+}
+
+function handleAgentClick(idx) {
+  // Mark as user interacted, pause auto-advance briefly
+  userInteracted = true;
+  if (userInteractedTimer) clearTimeout(userInteractedTimer);
+
+  setActive(idx);
+
+  // Resume auto-advance after 30 seconds of no interaction
+  userInteractedTimer = setTimeout(() => {
+    userInteracted = false;
+    setActive((currentIdx + 1) % ORDER.length);
+  }, 30000);
+}
+
+agentRows.forEach((row, i) => {
+  // Skip click handler for "coming soon" agents — they show but don't auto-advance from
+  row.addEventListener('click', () => handleAgentClick(i));
+
+  // On mobile, also scroll the clicked row into view in the horizontal scroll container
+  row.addEventListener('click', () => {
+    if (window.innerWidth < 900) {
+      row.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    }
+  });
+});
+
+// IntersectionObserver: pause when off-screen
+const section = document.querySelector('.meet');
+let isVisible = true;
+const sectionObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    isVisible = entry.isIntersecting;
+    if (!isVisible) {
+      if (progressTimer) clearInterval(progressTimer);
+      if (advanceTimer) clearTimeout(advanceTimer);
+    } else {
+      // Resume from current
+      setActive(currentIdx);
+    }
+  });
+}, { threshold: 0.1 });
+
+sectionObserver.observe(section);
+
+// Initial load
+setActive(0);
+</script>
+</body>
+</html>

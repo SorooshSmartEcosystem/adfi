@@ -518,20 +518,391 @@ mirrors the web tab.
   Bid caps + manual bidding are advanced and rarely useful at
   solopreneur budgets.
 
-## Open questions to confirm before implementing
+## Decisions locked in (2026-04-28)
 
-1. **Plan tier confirmation** — STUDIO+ only? Or do we want a "TEAM
-   Lite" version that drafts campaigns but the owner has to push to
-   Meta themselves (no Marketing API integration on TEAM)?
-2. **Currency** — defaulting to the connected ad account's currency.
-   Multi-currency display in the UI?
-3. **Minimum budget** — recommend $7-10/day floor below which Meta
-   barely delivers. Hard-enforce or just warn?
-4. **Image generation** — stick with Replicate Flux Schnell? Or upgrade
-   to Flux 1.1 Pro for ad creatives specifically (paid ads = higher
-   bar)? Cost difference: $0.003 vs $0.04 per image.
-5. **Approval flow** — does owner approve all variants at once or per
-   variant?
+User answered the open questions:
 
-When you're ready, reply with answers to those 5 questions + "go" and
-I'll start Phase 1 (schema + migration + brief intake).
+1. ✅ **Plan tier:** STUDIO+ only. SOLO + TEAM don't get paid ads.
+2. ✅ **Currency:** default to the connected ad account's currency.
+   Multi-currency display deferred.
+3. ✅ **Minimum budget:** just warn — don't hard-enforce. Owner
+   can override and ship $5/day if they want.
+4. ✅ **Image generation:** best/strongest model — Flux 1.1 Pro
+   ($0.04/image vs Schnell's $0.003). Paid ads warrant the
+   sharper output. Updated cost table above accordingly.
+5. ✅ **Approval flow:** all variants approved in one click. The
+   owner sees the full draft (3-5 ads) and clicks "approve" once
+   to launch the whole campaign.
+
+**Added requirement: multi-platform from day one.**
+
+Original v1 was Meta-only. New scope: Campaign Manager produces
+ONE unified campaign brief that fans out across multiple
+ad platforms. Owner picks which platforms to enable per campaign;
+the agent adapts the creative + audience + budget split per
+platform automatically.
+
+**Platforms (priority order):**
+1. **Meta** — Instagram + Facebook (single ad account, one auth)
+2. **Google Ads** — Search + Display + YouTube
+3. **TikTok Ads** — coming soon (UI shows the option, marked
+   "soon" until v2.5)
+
+This shifts the data model and the agent's mental model. Updated
+sections below.
+
+## Multi-platform architecture (revised)
+
+A `Campaign` is now platform-agnostic. It carries the brief and the
+budget; the per-platform implementations live in `CampaignAd` rows.
+
+**Owner flow:**
+1. Owner creates a campaign brief (one form, one prompt).
+2. Owner selects which platforms to run on (Meta · Google · YouTube
+   · TikTok). At launch: only Meta is connected by default; others
+   show "connect first" or "coming soon."
+3. Campaign Manager produces a **single unified campaign brief** —
+   audience intent, creative angles, budget total — and adapts it
+   per platform:
+   - **Meta**: 1:1 + 4:5 image, IG-style copy, interest + lookalike
+     targeting, OUTCOME_LEADS / OUTCOME_SALES objective
+   - **Google Ads**: responsive search ads (15 headlines + 4
+     descriptions) for Search; image + video for Display + YouTube;
+     keyword themes derived from the brief
+   - **TikTok**: 9:16 video brief (we don't generate video, but the
+     brief explains shot list + sounds + on-screen text); copy in
+     TikTok's voice register
+4. Owner reviews ALL platform variants in one screen, approves
+   everything in one click.
+5. Agent pushes each platform via its respective API; persists
+   per-platform `CampaignAd` rows with their `externalId`.
+6. Daily insights cron polls each connected platform's metrics API
+   and rolls up into a single unified `CampaignMetrics` view.
+7. Weekly rebalance — reads cross-platform results, shifts budget
+   to the winning platform AND winning creative angle. Pauses
+   underperformers across platforms.
+
+**Updated schema:**
+
+```prisma
+model Campaign {
+  id                  String              @id @default(uuid()) @db.Uuid
+  userId              String              @map("user_id") @db.Uuid
+  businessId          String              @map("business_id") @db.Uuid
+  status              CampaignStatus      @default(DRAFT)
+  name                String
+  brief               String              @db.Text       // owner's original ask
+  goal                CampaignGoal                       // LEADS | SALES | TRAFFIC | AWARENESS | APP_INSTALLS
+  audience            Json                                // unified audience description
+  schedule            Json                                // start, end, totalBudgetCents
+  platforms           CampaignPlatform[]                 // which platforms this campaign runs on
+  reasoning           Json?                              // agent's why per platform
+  approvedAt          DateTime?           @map("approved_at")
+  pausedAt            DateTime?           @map("paused_at")
+  endedAt             DateTime?           @map("ended_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  user                User                @relation(fields: [userId], references: [id])
+  business            Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  ads                 CampaignAd[]
+  metrics             CampaignMetrics[]
+  notifications       CampaignNotification[]
+
+  @@index([businessId, status])
+  @@map("campaigns")
+}
+
+enum CampaignGoal {
+  LEADS
+  SALES
+  TRAFFIC
+  AWARENESS
+  APP_INSTALLS
+}
+
+// One CampaignAd per platform variant. Same campaign owns N ads
+// (3-5 creative angles × M platforms = up to 20 ad rows for a
+// 5-angle, 4-platform campaign).
+model CampaignAd {
+  id                  String              @id @default(uuid()) @db.Uuid
+  campaignId          String              @map("campaign_id") @db.Uuid
+  platform            CampaignPlatform
+  externalId          String?             @map("external_id")    // platform's ad id post-push
+  externalCampaignId  String?             @map("external_campaign_id")
+  externalAdSetId     String?             @map("external_adset_id")
+  angle               String                                     // "social-proof", "craftsmanship", etc.
+  format              CampaignAdFormat                           // IMAGE | VIDEO_SCRIPT | TEXT
+  // platform-shaped creative payload — see types in services/campaigns.ts
+  creative            Json
+  // platform-shaped audience targeting (Meta interests, Google
+  // keywords, TikTok hashtags, etc.)
+  targeting           Json
+  status              CampaignAdStatus    @default(DRAFT)
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  campaign            Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adMetrics           CampaignAdMetrics[]
+
+  @@index([campaignId, platform])
+  @@map("campaign_ads")
+}
+
+enum CampaignPlatform {
+  META       // Instagram + Facebook (one ad object spans both)
+  GOOGLE     // Search + Display
+  YOUTUBE    // YouTube ads (separate from Google Search even though same Google Ads account)
+  TIKTOK     // TikTok Ads (v2.5)
+}
+
+enum CampaignAdFormat {
+  IMAGE
+  VIDEO_SCRIPT     // we describe the video; owner films + uploads
+  TEXT             // text-only (Google Search responsive ads)
+}
+
+enum CampaignAdStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+  REJECTED       // platform rejected (Meta policy, Google review, etc.)
+}
+
+// Notifications — surfaced both in-app (FindingSeverity-style banner)
+// and via email (and SMS for URGENT). Campaign-scoped so the user can
+// drill into "show me all alerts for this campaign."
+model CampaignNotification {
+  id            String                      @id @default(uuid()) @db.Uuid
+  campaignId    String                      @map("campaign_id") @db.Uuid
+  userId        String                      @map("user_id") @db.Uuid
+  type          CampaignNotificationType
+  severity      CampaignNotificationSeverity
+  title         String
+  body          String                      @db.Text
+  payload       Json?
+  acknowledged  Boolean                     @default(false)
+  acknowledgedAt DateTime?                  @map("acknowledged_at")
+  createdAt     DateTime                    @default(now()) @map("created_at")
+
+  campaign      Campaign                    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user          User                        @relation(fields: [userId], references: [id])
+
+  @@index([userId, acknowledged, createdAt])
+  @@map("campaign_notifications")
+}
+
+enum CampaignNotificationType {
+  LAUNCHED                  // campaign just went live on platform
+  FIRST_SPEND               // first $10 spent — proof of life
+  HALF_BUDGET_SPENT         // 50% milestone
+  NEAR_BUDGET_CAP           // 90% — owner heads-up
+  BUDGET_CAP_REACHED        // 100% — auto-paused
+  DAILY_WINNER              // a creative is clearly outperforming
+  WEEKLY_REPORT             // sunday rollup
+  AD_REJECTED               // platform refused our creative
+  SPEND_SPIKE               // 2× baseline — possible misconfig
+  POLICY_FLAG               // brand description hits restricted-industry keyword
+  PLATFORM_ERROR            // API error streak — admin notified
+}
+
+enum CampaignNotificationSeverity {
+  INFO       // green — passive update
+  ATTENTION  // amber — owner should look but no action required
+  URGENT     // red — owner must act (budget cap, rejected ad, etc.)
+}
+```
+
+**Existing `CampaignMetrics` + `CampaignAdMetrics` keep the same shape**
+— they're already platform-agnostic since they roll up daily counts.
+Reading the metrics back: the dashboard groups by `campaign.platforms`
+and surfaces per-platform spend / impressions / conversions plus the
+unified totals.
+
+## Smart UI/UX (revised)
+
+The user explicitly asked for "smart and easy UI/UX, perfect and simple
+metrics and report, notification system." Specifically calling out
+that the form-based flow in the original design wasn't what they want.
+
+**Brief intake — conversational, not form:**
+
+```
++---------------------------------------------+
+|  ❘ what should i promote?                   |
+|                                             |
+|  ┌─────────────────────────────────────┐    |
+|  │ promote my new wholesale tier to    │    |
+|  │ interior designers, $300 over 14    │    |
+|  │ days.                                │    |
+|  └─────────────────────────────────────┘    |
+|                                             |
+|         [ start drafting → ]                |
++---------------------------------------------+
+```
+
+Single textarea. Agent parses what it can ("wholesale tier",
+"interior designers", "$300", "14 days") and asks at most ONE
+follow-up question if something critical is missing. Examples:
+- "what's your goal — leads or direct sales?" (only if ambiguous)
+- "how do you want to track success?" (only if no objective inferred)
+
+Otherwise the agent runs straight to draft, using brand voice +
+recent post performance as implicit context.
+
+**Platform picker — checkbox row above the brief:**
+
+```
+where should i run this?
+
+[✓ meta]  [○ google]  [○ youtube]  [— tiktok soon]
+   ig+fb     search          coming
+   ads      + display
+```
+
+Connected platforms pre-checked. Disconnected show "connect first"
+inline link. TikTok shows "soon" disabled. Owner can run on multiple
+platforms; budget splits automatically by the agent unless the owner
+sets manual splits.
+
+**Draft review — single screen, all platforms tabbed:**
+
+```
++---------------------------------------------+
+|  draft · wholesale tier                     |
+|  $300 · 14 days · meta + google             |
+|                                             |
+|  [ meta ]  [ google ]                       |
+|  ─────                                      |
+|                                             |
+|  3 creative variants for meta:              |
+|  ┌──────┐  ┌──────┐  ┌──────┐               |
+|  │ img  │  │ img  │  │ img  │               |
+|  │ 1    │  │ 2    │  │ 3    │               |
+|  └──────┘  └──────┘  └──────┘               |
+|  social      craftsmanship   value          |
+|                                             |
+|  audience: interior designers · canada · 28-55 |
+|  budget on meta: $200 / 14d                 |
+|                                             |
+|  [ approve all & launch → ]                 |
+|                                             |
+|  [ regenerate ]  [ edit ]  [ reject ]       |
++---------------------------------------------+
+```
+
+One click on "approve all & launch" pushes every variant on every
+selected platform live.
+
+**Metrics dashboard — keep it under 5 numbers:**
+
+```
++------------------------------------------+
+|  wholesale tier · day 7 of 14            |
+|  ──────────────────────────              |
+|                                          |
+|  spent              $148 of $300         |
+|  reached            48 designers         |
+|  contacted you      3                    |
+|  estimated value    ~$9k pipeline        |
+|                                          |
+|  best so far — variant 2 (craftsmanship) |
+|  i'm scaling its budget +50%             |
+|  paused variants 1 + 3                   |
+|                                          |
+|  [ see breakdown ]   [ pause campaign ]  |
++------------------------------------------+
+```
+
+The "see breakdown" link reveals per-platform numbers (spend, CPL,
+ROAS) but the default view is single-business owner-friendly.
+
+## Notification system
+
+The `CampaignNotification` model + a notification surface in the
+sidebar (badge on /content) + email + SMS for URGENT events.
+
+**Lifecycle events that fire notifications:**
+
+| Type | Severity | Channel |
+|---|---|---|
+| LAUNCHED | INFO | in-app only |
+| FIRST_SPEND | INFO | in-app + email |
+| HALF_BUDGET_SPENT | INFO | in-app only |
+| NEAR_BUDGET_CAP | ATTENTION | in-app + email |
+| BUDGET_CAP_REACHED | URGENT | in-app + email + SMS |
+| DAILY_WINNER | INFO | in-app only |
+| WEEKLY_REPORT | INFO | email |
+| AD_REJECTED | ATTENTION | in-app + email |
+| SPEND_SPIKE | URGENT | in-app + email + SMS |
+| POLICY_FLAG | URGENT | in-app + email |
+| PLATFORM_ERROR | (admin) | admin email only |
+
+Email goes through the existing SendGrid + business-branded
+templates (same as newsletter). SMS uses the connected business
+Twilio number for outbound (won't bill the customer's $0.0075 since
+it's owner-bound, not customer-bound).
+
+In-app: small bell icon in the sidebar with unack count; click opens
+a panel listing recent CampaignNotification rows; clicking one jumps
+to the campaign detail.
+
+## Phased rollout (revised for multi-platform)
+
+**Phase 1 — Schema + brief + draft (Meta + Google scaffolding, no
+push)** · 4-5 days
+- Migration adds Campaign + CampaignAd + CampaignMetrics +
+  CampaignAdMetrics + CampaignNotification (5 tables)
+- Conversational brief intake on `/content` "campaigns" tab
+- Agent generates unified brief + per-platform variants
+  (Meta: image ads with copy; Google: text ads + image for Display;
+  YouTube: video script brief)
+- Drafts saved as `Campaign{ status: DRAFT }`, ads as
+  `CampaignAd{ status: DRAFT }`. Owner can review.
+- No actual ad spend, no platform pushes, no API calls beyond
+  Replicate for image generation.
+
+**Phase 2 — Meta push live + daily insights** · 4-5 days
+- Add `ads_management` to META_OAUTH_SCOPES (re-prompt connections)
+- Implement `services/meta-ads.ts` (campaign + ad set + ad creation
+  using Marketing API)
+- "approve all & launch" wires through to actual ad pushes per
+  selected platform — Meta only at this phase
+- Daily insights cron: pulls Meta insights, persists per-day rows
+- Hard budget cap server-side
+- Notifications: LAUNCHED, FIRST_SPEND, HALF/NEAR/CAP_REACHED,
+  AD_REJECTED, SPEND_SPIKE
+
+**Phase 3 — Google + YouTube** · 5-7 days
+- `services/google-ads.ts` — Search responsive ads + Display image
+  ads + YouTube video brief (video upload still owner-driven)
+- OAuth flow for Google Ads (separate from Supabase OAuth — this is
+  Google Cloud OAuth with `adwords` scope)
+- Multi-platform brief generation hits both APIs on approval
+
+**Phase 4 — Weekly rebalance + report + notifications complete** ·
+3-4 days
+- Weekly cron pauses underperformers across platforms, scales
+  winners, drafts fresh angles
+- /report adds "campaigns" section
+- WEEKLY_REPORT email
+- DAILY_WINNER notifications
+
+**Phase 5 — TikTok + App Reviews** · ongoing
+- TikTok Ads service (sandbox first; v2.5 GA)
+- Submit Meta App Review for `ads_management`
+- Submit Google Ads API access (Standard tier — free)
+
+## Open questions resolved; ready to implement
+
+All 5 design questions are answered. New scope (multi-platform from
+day 1) is bigger than the original Meta-only v1 — Phase 1 grew
+from 3-4 days to 4-5 days. But the architecture is right for what
+the user actually wants: one campaign brief, every channel, owner
+sees one approval screen.
+
+**Next step: write a brief implementation plan with file-tree
+proposal, then start Phase 1.** Don't implement yet — check the
+file-tree with the user first per the
+`feedback_concise_proposals.md` memory rule.

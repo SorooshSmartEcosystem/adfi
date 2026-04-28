@@ -1,7 +1,7 @@
 ---
 title: ROADMAP
 purpose: What ships next, in rough priority order. Living doc.
-last_updated: 2026-04-28
+last_updated: 2026-04-28 (evening)
 ---
 
 # ROADMAP
@@ -15,11 +15,32 @@ For what's *already shipped*, read [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Now (this week)
 
-### Landing-page agent consolidation
-- Merge hero canvas + service-section phone mockups into one tab-switcher
-- Auto-rotates every ~5s; manual click pauses, "▶ resume" reactivates
-- Reduced-motion aware
-- Files: `landing-v4/landing-{body,script,css}.ts`
+### Motion-reel package — `@orb/motion-reel`
+- **Direction confirmed 2026-04-28 evening** — code-as-video for Reels /
+  TikToks / Shorts using the landing-page scene templates as the design
+  ceiling. Same pattern as `@orb/design-agent`: hand-tuned scene
+  choreographies once, brand tokens + content slots vary per business.
+- Economics: ~$0.05 per 30-second reel (script LLM call + compute) vs
+  ~$9–$30 for raster gen via Sora/Veo. Margin per reel: 99%+.
+- Phase-1 stack: headless Chromium + WebCodecs (or `MediaRecorder`
+  fallback) on Vercel Pro functions. Phase-2 stack: motion-canvas if
+  volume justifies.
+- First template to extract: Signal scene from `landing-script.ts` —
+  generalize so the SMS bubbles + reply text + stat label come from
+  client content (not ADFI demo content) and the orb gradient comes
+  from client palette.
+- Open decision: Vercel-first (faster, more debugging) vs. dedicated
+  render service on Fly/Railway from day one (cleaner, +1 day setup).
+- See `memory/project_motion_reel_direction.md`.
+
+### Content page redesign — port prototype into live route
+- Source of truth: `prototype/ADFI_Content_Page_Redesign.html`
+- Goal: 90-second scan view that answers "is anything wrong? do I need
+  to act?" — the current page shows ~800 words by default and
+  overwhelms solopreneurs.
+- Key shifts: collapsed-by-default sections, amber needs-you card,
+  inline slot expansion (one open at a time), why-this-plan reasoning
+  hidden by default, calendar + performance below the fold.
 
 ### Stripe price IDs for new tiers
 - Create 4 monthly recurring products in Stripe dashboard
@@ -33,6 +54,24 @@ For what's *already shipped*, read [`CHANGELOG.md`](CHANGELOG.md).
 - If `hasIg: false`, that's a Meta Business Suite config (user side, not code)
 
 ## Soon (next 2-4 weeks)
+
+### Design-agent LLM phases (Phase 1 + Phase 6)
+- Pure-code phases (Phase 2 palette + Phase 5 templates) shipped
+  2026-04-28. LLM phases (Phase 1 kernel, Phase 6 structured voice
+  prose) still need scaffolding.
+- Requires schema migration: add `kernel` JSON column to BrandKit +
+  BrandKitVersion. Not blocking — existing `voiceTone` JSON +
+  `logoConcept` string carry equivalent info today.
+- Pull in if/when motion-reel templates need the structured kernel for
+  per-template content selection.
+- Skill spec: `.claude/skills/design-agent/SKILL.md`.
+
+### Landing-page agent consolidation (deferred)
+- Merge hero canvas + service-section phone mockups into one
+  tab-switcher
+- Was "Now" priority but motion-reel takes precedence — those scenes
+  become reel templates anyway, so consolidating them on the landing
+  page first is wasted effort.
 
 ### AgentContext per-business
 - Currently 1 brand voice per User; STUDIO/AGENCY users share voice
@@ -81,11 +120,12 @@ For what's *already shipped*, read [`CHANGELOG.md`](CHANGELOG.md).
 - /download page already prepared with disabled "soon" buttons; flip
   on URLs once stores accept the apps
 
-### Vercel Pro upgrade
-- Trigger: first paying user OR cold-start UX hurts launch
-- Unlocks: every-minute crons, 3GB function memory, longer log retention,
-  team seats, password-protected previews
-- Cost: $20/mo per developer
+### Vercel Pro upgrade — DONE 2026-04-28
+- Triggered earlier than planned by a stuck deploy webhook on Hobby
+  after a failed prerender. 2GB function memory enabled for heavy
+  routes (api/trpc, api/cron/*, api/upload/logo). Sub-daily crons
+  remain off (no current need). See CHANGELOG `Changed (vercel ·
+  2026-04-28)`.
 
 ### App Review (Meta)
 - We currently use the legacy `instagram_*` scopes; works in dev mode
@@ -149,17 +189,22 @@ For what's *already shipped*, read [`CHANGELOG.md`](CHANGELOG.md).
 
 ## What we explicitly are *not* doing
 
-- **Custom logo generator** — model-generated SVG logos hit a structural
-  ceiling. See `memory/project_brandkit_postponed.md`. Real solution
-  if/when needed: third-party logo API or curated template library.
+- **Pure LLM-generated logos at production quality** — model-generated
+  SVG logos hit a structural ceiling. See
+  `memory/project_brandkit_postponed.md`. The design-agent layer wraps
+  the LLM with WCAG-corrected palettes + deterministic templates, but
+  the mark itself is still LLM output. Real long-term solution: curated
+  template library or third-party logo API.
 - **Self-hosted LLM** — Anthropic SLA + cost is fine; no benefit to
   running our own.
 - **Generic AI chatbot product** — ADFI is for solopreneur marketing.
   Don't dilute the wedge.
 - **Web3 / crypto integrations** — out of scope; SorooshX is a
   *customer's* business, not part of ADFI itself.
-- **Video editor / capture tools** — Echo writes reel scripts; users
-  film/edit themselves. Expanding into video tooling is a different
-  product.
+- **Raster video generation (Sora / Pika / Veo) for reels** — superseded
+  by motion-reel (code-as-video). Raster gen costs $9–$30 per 30s clip
+  vs ~$0.05 for code-as-video, with worse brand consistency. Keep
+  raster as an optional STUDIO+ escape hatch only if a client need
+  forces it (lifestyle / faces / real footage).
 - **Customer-facing AI agent that says "I'm an AI"** — Signal speaks AS
   the business, never as a bot. See `agents/prompts/signal.ts`.

@@ -1,10 +1,10 @@
 ---
 title: SESSION_STATE
 purpose: Hand-off snapshot for the next Claude Code session
-last_updated: 2026-04-28
+last_updated: 2026-04-28 (evening)
 ---
 
-# Session state — 2026-04-28
+# Session state — 2026-04-28 (evening)
 
 Frozen snapshot of where ADFI is, what's been built, what's locked, what's
 open, and exactly what to do next. A fresh Claude Code session should be
@@ -19,16 +19,22 @@ foundation specifically, see "Multi-business" section below.
 
 ## 1. Project status
 
-**Phase:** pre-launch / private development. No real users. Hosting on
-Vercel Hobby. The user (Soroush) is testing personally; one test user
-(`maya@ceramicsco.example`) was previously seeded then deleted.
+**Phase:** pre-launch / private development. No real users. **Vercel Pro**
+(upgraded from Hobby on 2026-04-28 after a stuck deploy webhook on Hobby
+— see CHANGELOG `Changed (vercel · 2026-04-28)`). The user (Soroush) is
+testing personally; one test user (`maya@ceramicsco.example`) was
+previously seeded then deleted.
 
 **Active branch:** `main`. Production at `https://www.adfi.ca`. Mobile app
 exists in `apps/mobile` (Expo) but is not yet in the App Store / Play Store.
 
-**Recent direction:** finishing multi-business foundation, then landing-page
-consolidation, then onboarding polish. App Store / Play Store submissions
-are deferred until the web product feels polished.
+**Recent direction (2026-04-28 evening):** the design system is moving from
+"LLM generates everything" to "LLM picks direction, code does the rest"
+— `@orb/design-agent` shipped its pure-code phases (palette + templates).
+Specialist pages were redesigned per the Pulse prototype. Brand-kit caps
+were right-sized after the user flagged 999/STUDIO as economically broken.
+Next direction: **motion-reel package** (code-as-video using the
+landing-page scene templates as reference).
 
 ---
 
@@ -112,8 +118,54 @@ of this doc.
 Functionally complete and shipped. Generation pipeline (palette →
 typography → logos → graphics → voice) using Opus 4.7 + Anthropic web
 search tool, version history, restore, one-file HTML brand book download,
-contrast-aware prompts. Visual quality of AI-generated SVG logos is
-*parked* — see [`memory/project_brandkit_postponed.md`](~/.claude/projects/-Users-soroushosivand-Projects-adfi/memory/project_brandkit_postponed.md).
+contrast-aware prompts.
+
+**Updated 2026-04-28 evening:**
+- New `@orb/design-agent` package wraps the pipeline. Two pure-code
+  phases now run alongside the LLM-tuned logo + graphics generation:
+  WCAG palette correction (`ensureWcagPalette` auto-corrects any LLM
+  palette that fails AA contrast) and 5 application templates (favicon /
+  social avatar / business card / email header / instagram post)
+  rendered server-side and returned via `trpc.brandKit.getMine`.
+- Logos render fix: `cleanSvg()` now injects `width="100%" height="100%"`
+  on the root `<svg>` when missing — was making logos collapse to 0×0
+  in the panel even though downloads worked.
+- Caps right-sized: TRIAL **0** (paid feature), SOLO 2, TEAM 3, STUDIO 4,
+  AGENCY 12 per rolling 30 days. Cost line corrected from $0.30 →
+  $1.50 per regenerate. See `memory/project_pricing_tiers.md`
+  "Brand-kit exception" addition.
+- LLM logo + graphics prompts are still *parked* — see
+  [`memory/project_brandkit_postponed.md`](~/.claude/projects/-Users-soroushosivand-Projects-adfi/memory/project_brandkit_postponed.md).
+  The design-agent layer wraps them, doesn't replace them. The "LLM phases"
+  of the design-agent skill (kernel, structured voice prose) are not yet
+  shipped — they'd need a schema migration adding a `kernel` JSON column.
+
+### Specialist pages redesign (2026-04-28)
+
+The dynamic `/specialist/[id]` route was replaced with one route per
+agent: `strategist`, `signal`, `echo`, `scout`, `pulse`, `ads`. Each
+uses a shared `SpecialistPageLayout` (breathing signature orb + tier
+pill + control row + `currently` card with rotating phrases + shimmer
+progress bar) per `prototype/ADFI_Pulse_Page.html`. Per-agent sections:
+BrandVoicePanel for Strategist, FindingsList for Signal/Scout/Pulse,
+RecentDraftsGrid for Echo, campaigns list / empty-state for Ads. Files
+under `apps/web/components/specialist/` (new) + the existing
+`components/specialists/` (kept for shared bits like agent-config and
+agent-controls).
+
+### Plan resolution (fixed 2026-04-28)
+
+Three independent bugs combined to lock STUDIO trial users out of
+campaigns and freeze their credit cap. Now fixed in
+[`packages/api/src/services/abuse-guard.ts`](../packages/api/src/services/abuse-guard.ts)
+(`effectivePlan`),
+[`packages/api/src/services/quota.ts`](../packages/api/src/services/quota.ts)
+(`resolvePlanKey` + `getOrCreatePeriodRow` self-healing),
+[`packages/api/src/routers/billing.ts`](../packages/api/src/routers/billing.ts)
+(`getCurrent`). TRIALING + ACTIVE both count as the sub's plan; resolvers
+pick highest tier among active subs; `getCurrentUsage` self-heals
+`creditsLimit` upward when the resolved plan's cap exceeds the stored
+cap. Detailed in CHANGELOG `Fixed (plan resolution · 2026-04-28)`.
 
 ### Echo content agent + web research
 
@@ -239,23 +291,37 @@ Workarounds:
 
 ## 5. Next 3 actions, in priority order
 
-**1. Landing-page consolidation** (user-requested, in flight)
-   Consolidate hero canvas + service-section phone mockups into one
-   tab-switcher section. Auto-rotates every X seconds; user clicks a
-   tab → freezes auto, shows that agent's content. Manual play/pause.
-   Design proposal in section 6 below.
+**1. Motion-reel package — `@orb/motion-reel`** (user direction confirmed
+   2026-04-28 evening)
+   Code-as-video for Reels / TikToks / Shorts using the landing-page
+   scene templates as the reference design ceiling. Same pattern as
+   `@orb/design-agent`: hand-tuned scene choreographies once, brand
+   tokens + content slots vary per business. Phase-1 stack: headless
+   Chromium + WebCodecs (or `MediaRecorder` fallback) on Vercel Pro
+   functions. Phase-2 stack: motion-canvas if volume justifies.
+   Templates to extract from `landing-script.ts` first: Signal scene
+   (sms typing → reply), Echo scene (draft → preview → publish),
+   Pulse rotating signals, stat card, carousel-as-reel. See
+   `memory/project_motion_reel_direction.md`.
+   **Decision still pending:** Vercel-first (faster ship, more
+   debugging) vs. dedicated tiny render service on Fly/Railway from
+   day one (cleaner, ~1 extra day setup).
 
-**2. AgentContext per-business**
-   Drop `@@unique([userId])` on AgentContext, add bootstrap in
-   `business.create` (clone the user's first AgentContext to seed the
-   new Business's voice), scope every read by `businessId`. Touches
-   strategist + signal + echo. ~150 LOC.
+**2. Content page redesign — port prototype into live route**
+   Standalone HTML at `prototype/ADFI_Content_Page_Redesign.html` is
+   the source of truth. Collapsed-by-default sections, amber needs-you
+   card, inline slot expansion (one open at a time), why-this-plan
+   reasoning hidden by default. The current `/content` route shows
+   ~800 words by default and overwhelms solopreneurs; the redesign
+   targets a 90-second scan with detail one click deeper.
 
-**3. Onboarding flow polish**
-   Close the gap between sign-up and first specialist run so the
-   product feels automatic per the "hire, don't supervise" thesis.
-   Currently there's a manual run-now needed; the daily cron then
-   takes over but day-1 user sees an empty dashboard.
+**3. Design-agent LLM phases (deferred — needs schema migration)**
+   Phases 1 (kernel) and 6 (structured voice prose) from the
+   design-agent skill require adding a `kernel` JSON column to
+   BrandKit + BrandKitVersion. Not urgent — the existing `voiceTone`
+   JSON from Strategist + `logoConcept` string carry equivalent info.
+   Pull in if/when motion-reel templates need the structured kernel
+   for content selection.
 
 ---
 

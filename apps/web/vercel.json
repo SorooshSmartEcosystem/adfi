@@ -16,6 +16,20 @@
     {
       "path": "/api/cron/quarterly-strategist",
       "schedule": "0 7 * * 1"
+    },
+    {
+      "_comment": "Warmer — pings /api/health every 5 minutes so the tRPC + dashboard functions don't go cold during business hours. Vercel free/Hobby allows daily; Pro allows minute-level. Adjust schedule per your plan.",
+      "path": "/api/health",
+      "schedule": "*/5 * * * *"
     }
-  ]
+  ],
+  "_comment_functions": "Memory bumps. Default 1024MB cold-starts at ~800ms-1.2s; 2048MB cuts that to ~400-600ms because Vercel's Lambda allocates more vCPU at higher memory. Apply only to user-facing routes — crons and webhooks can stay default since latency doesn't matter there.",
+  "functions": {
+    "app/api/trpc/[trpc]/route.ts": {
+      "memory": 2048
+    },
+    "app/(dash)/**/page.tsx": {
+      "memory": 2048
+    }
+  }
 }

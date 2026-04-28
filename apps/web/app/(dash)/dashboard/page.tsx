@@ -58,7 +58,12 @@ export default async function DashboardPage() {
     await Promise.all([
       getDashUserAndHome(),
       trpc.user.getRecentActivity({ limit: 6 }),
-      trpc.user.getReachTimeseries({ rangeDays: 365 }),
+      // Default chart view is 28 days. The 1Y toggle re-queries on the
+      // client, so server-rendering 365 days every page load is wasted
+      // work — most users never click 1Y, and the year-long scan
+      // dominates this page's first-paint latency on accounts with
+      // many posts.
+      trpc.user.getReachTimeseries({ rangeDays: 28 }),
       trpc.user.getWhatsWorking(),
       trpc.connections.list(),
     ]);

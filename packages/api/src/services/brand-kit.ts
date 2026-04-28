@@ -27,6 +27,14 @@ import {
   MODELS,
   recordAnthropicUsage,
 } from "./anthropic";
+import {
+  generatePalette as deriveDesignPalette,
+  validatePaletteContrast,
+  renderAllTemplates,
+  extractMarkInner,
+  type Palette as DesignPalette,
+  type AppliedTemplates,
+} from "@orb/design-agent";
 
 // Plan ceilings on brand-kit generations per 30 days. Tuned for
 // 'reasonable iteration during initial setup' rather than 'one
@@ -457,6 +465,91 @@ Generate the 3 SVG cover graphics.`;
 }
 
 // =============================================================
+// WCAG validation + auto-correction (Design agent — Phase 2)
+// =============================================================
+//
+// The LLM picks palette direction with strong taste, but it doesn't run
+// a contrast check. We validate every result against WCAG AA; if any
+// text/bg pair fails, we re-derive the palette deterministically from
+// the LLM's primary as the anchor. The LLM still chooses what feels
+// right; the math guarantees readable output.
+
+// Map our stored palette shape ({…, bg}) ↔ design-agent shape ({…, background, border}).
+// We don't carry `border` in the stored JSON yet, so we synthesize it on
+// derivation and drop it on round-trip. Existing UI continues to read
+// the same 6 keys.
+function toDesignPalette(p: Palette): DesignPalette {
+  // Build ColorRoles from hexes only — design-agent's helpers parse hex
+  // back into rgb/hsl when validating.
+  const lift = (hex: string) => ({
+    hex,
+    rgb: { r: 0, g: 0, b: 0 },
+    hsl: { h: 0, s: 0, l: 0 },
+  });
+  return {
+    primary: lift(p.primary),
+    secondary: lift(p.secondary),
+    accent: lift(p.accent),
+    ink: lift(p.ink),
+    surface: lift(p.surface),
+    background: lift(p.bg),
+    border: lift(p.bg), // unused for validation
+    rationale: p.rationale,
+  };
+}
+
+function fromDesignPalette(d: DesignPalette): Palette {
+  return {
+    primary: d.primary.hex,
+    secondary: d.secondary.hex,
+    accent: d.accent.hex,
+    ink: d.ink.hex,
+    surface: d.surface.hex,
+    bg: d.background.hex,
+    rationale: d.rationale,
+  };
+}
+
+// If the LLM's palette fails AA, derive a corrected one from its primary.
+// Returns the original palette unchanged when it already passes.
+export function ensureWcagPalette(p: Palette): Palette {
+  const report = validatePaletteContrast(toDesignPalette(p));
+  if (report.passes) return p;
+  console.warn(
+    `[brandkit] palette failed WCAG (${report.failures
+      .map((f) => `${f.fg}/${f.bg} ${f.ratio.toFixed(2)}<${f.required}`)
+      .join(", ")}); auto-correcting from primary=${p.primary}`,
+  );
+  const derived = deriveDesignPalette(p.primary, p.rationale);
+  return fromDesignPalette(derived);
+}
+
+// =============================================================
+// Application templates (Design agent — Phase 5)
+// =============================================================
+//
+// Pure code, deterministic. Substitutes the kit's palette tokens + the
+// inner contents of its `mark` SVG into 5 pre-built layouts (favicon,
+// social avatar, business card, email header, instagram post). Cheap
+// enough to compute on every read — no need to persist.
+
+export function renderBrandTemplates(args: {
+  palette: Palette;
+  logoMark: string; // full <svg>…</svg> from logoTemplates.mark
+  businessName: string;
+  tagline?: string;
+  url?: string;
+}): AppliedTemplates {
+  return renderAllTemplates({
+    palette: toDesignPalette(args.palette),
+    markInner: extractMarkInner(args.logoMark),
+    businessName: args.businessName,
+    tagline: args.tagline,
+    url: args.url,
+  });
+}
+
+// =============================================================
 // Token replacement — the rendering side of the SVG-template approach
 // =============================================================
 
@@ -504,14 +597,22 @@ export async function generateBrandKit(args: {
   const t0 = Date.now();
   console.log(`[brandkit] starting generation for user=${args.userId}`);
 
-  // 1. Spec
-  const spec = await generateBrandKitSpec({
+  // 1. Spec — LLM picks the direction (palette anchor, type pairing,
+  // image style, logo concept).
+  const rawSpec = await generateBrandKitSpec({
     businessName,
     businessDescription: description,
     voiceTone,
     refinementHint: args.refinementHint,
     userId: args.userId,
   });
+  // Run the design-agent's WCAG validator. If the LLM's palette fails AA
+  // for ink-on-bg or ink-on-surface, derive a corrected palette from its
+  // primary — the LLM keeps its directional taste, the math guarantees
+  // readability. This is the "Phase 2" pure-code layer from the
+  // design-agent skill grafted onto the existing Sonnet spec call.
+  const correctedPalette = ensureWcagPalette(rawSpec.palette);
+  const spec: BrandSpec = { ...rawSpec, palette: correctedPalette };
   console.log(
     `[brandkit] spec done in ${Math.round((Date.now() - t0) / 1000)}s`,
   );

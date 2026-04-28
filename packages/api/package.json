@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.88.0",
     "@orb/auth": "workspace:*",
     "@orb/db": "workspace:*",
+    "@orb/design-agent": "workspace:*",
     "@prisma/client": "^5.22.0",
     "@supabase/supabase-js": "^2.48.0",
     "@trpc/server": "^11.0.0",

@@ -224,6 +224,9 @@ importers:
       '@orb/db':
         specifier: workspace:*
         version: link:../db
+      '@orb/design-agent':
+        specifier: workspace:*
+        version: link:../design-agent
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)

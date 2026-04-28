@@ -10,8 +10,10 @@ import {
   getBrandKit,
   listBrandKitVersions,
   restoreBrandKitVersion,
+  renderBrandTemplates,
   BRANDKIT_GENERATION_COST_CENTS,
   MONTHLY_BRANDKIT_CAP,
+  type Palette,
 } from "../services/brand-kit";
 import { effectivePlan } from "../services/abuse-guard";
 import { notifyAdminOfError } from "../services/admin-notify";
@@ -22,15 +24,49 @@ const HEX = z
 
 export const brandKitRouter = router({
   getMine: authedProc.input(z.void()).query(async ({ ctx }) => {
-    const [kit, plan] = await Promise.all([
+    const [kit, plan, businessName] = await Promise.all([
       getBrandKit({ userId: ctx.user.id, businessId: ctx.currentBusinessId }),
       effectivePlan(ctx.user.id),
+      ctx.db.user
+        .findUnique({
+          where: { id: ctx.user.id },
+          select: { businessName: true },
+        })
+        .then((u) => u?.businessName?.trim() || "your business"),
     ]);
     const quota = await brandKitGenerationsRemaining(ctx.user.id, plan);
+
+    // Render the 5 application templates (favicon, social avatar,
+    // business card, email header, instagram post) — pure code, cheap
+    // enough to compute on every read. Only when the kit has both a
+    // palette and a logo `mark` to embed.
+    let templates: ReturnType<typeof renderBrandTemplates> | null = null;
+    if (kit) {
+      const palette = kit.palette as unknown as Palette | null;
+      const logos = kit.logoTemplates as unknown as
+        | { mark?: string; primary?: string }
+        | null;
+      const logoMark = logos?.mark ?? logos?.primary;
+      if (palette && logoMark) {
+        try {
+          templates = renderBrandTemplates({
+            palette,
+            logoMark,
+            businessName,
+          });
+        } catch (err) {
+          // Don't break getMine if a template fails to render —
+          // logo SVG might be malformed. Leave templates null.
+          console.warn("[brandkit] template render failed:", err);
+        }
+      }
+    }
+
     return {
       kit,
       plan,
       quota,
+      templates,
       generationCostCents: BRANDKIT_GENERATION_COST_CENTS,
       monthlyCap: MONTHLY_BRANDKIT_CAP[plan],
     };

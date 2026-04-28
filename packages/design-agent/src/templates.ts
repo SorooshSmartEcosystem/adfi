@@ -6,23 +6,11 @@
 // and looks consistent across clients because the layout never changes —
 // only the brand tokens do.
 //
-// Why no LLM: layout decisions don't need creativity. Templates are
-// solved-once design problems. We just need substitution.
-
-import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+// Templates live as TS string exports in template-strings.ts (NOT
+// .svg files read at runtime) — see the comment there for why.
 
 import type { AppliedTemplates, Palette, TemplateSlots } from "./types";
-
-const TEMPLATES_DIR = (() => {
-  // Resolve the templates directory once. Works in both Next.js Node
-  // runtime (via __dirname after compile) and ESM (via import.meta.url).
-  if (typeof __dirname !== "undefined") {
-    return join(__dirname, "templates");
-  }
-  return join(dirname(fileURLToPath(import.meta.url)), "templates");
-})();
+import { TEMPLATE_STRINGS, type TemplateName } from "./template-strings";
 
 // Substitute every `{{key}}` in the SVG with `slots[key]`. Keys that
 // appear in the template but not in `slots` are left intact so a missing
@@ -31,17 +19,6 @@ export function applySlots(svg: string, slots: TemplateSlots): string {
   return svg.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     return key in slots ? slots[key]! : match;
   });
-}
-
-// Loads a template from disk. Cached across calls in the same process —
-// the templates are static files committed to the repo.
-const cache = new Map<string, string>();
-function loadTemplate(name: string): string {
-  const cached = cache.get(name);
-  if (cached) return cached;
-  const raw = readFileSync(join(TEMPLATES_DIR, `${name}.svg`), "utf8");
-  cache.set(name, raw);
-  return raw;
 }
 
 // Inputs the template renderer needs from upstream phases.
@@ -99,15 +76,10 @@ export function extractMarkInner(svgString: string): string {
 // Render a single template by name. Exposed so callers can render one
 // template at a time (e.g. only the favicon for a quick UI preview).
 export function renderTemplate(
-  name:
-    | "favicon-template"
-    | "social-avatar-template"
-    | "business-card-template"
-    | "email-header-template"
-    | "instagram-post-template",
+  name: TemplateName,
   input: TemplateInputs,
 ): string {
-  return applySlots(loadTemplate(name), buildSlots(input));
+  return applySlots(TEMPLATE_STRINGS[name], buildSlots(input));
 }
 
 // Render all five templates at once. Cheap (string substitution); use

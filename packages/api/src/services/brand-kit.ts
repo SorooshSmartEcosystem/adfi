@@ -36,23 +36,26 @@ import {
   type AppliedTemplates,
 } from "@orb/design-agent";
 
-// Plan ceilings on brand-kit generations per rolling 30 days. Tuned
-// against ~10× headroom over realistic use, not 1000× — STUDIO and
-// AGENCY were previously 999 (effectively unlimited) which made worst-
-// case Anthropic spend per user blow through the plan price several
-// times over.
+// Plan ceilings on brand-kit generations per rolling 30 days. Sized
+// to actual usage shape (set-up-once-then-leave), not "headroom".
+// Most active users use 0 in any given month — the cap is just a
+// runaway-abuser ceiling.
 //
-// Sizing rationale (per business included in the plan):
-//   SOLO/TEAM: 1 business — most users need 2-4 attempts before they
-//     settle. 8/20 leaves slack for voice tweaks across the month.
-//   STUDIO: 2 businesses — 20/business with margin = 40.
-//   AGENCY: 8 businesses — 15/business with margin = 120.
+// TRIAL is 0 by design: brand kit is excluded from the 7-day trial.
+// A single regenerate costs ~$1.50; granting any to non-paying users
+// makes trial-burn a meaningful line item against acquisition cost.
+// Trialers see a paid-feature gate and convert to use it.
+//
+// Per-business sizing for the rest:
+//   SOLO/TEAM:    1 business — 2-3 regens / 30 days
+//   STUDIO:       2 businesses — 4 regens / 30 days
+//   AGENCY:       8 businesses — 12 regens / 30 days
 export const MONTHLY_BRANDKIT_CAP: Record<Plan | "TRIAL", number> = {
-  TRIAL: 3,
-  SOLO: 8,
-  TEAM: 20,
-  STUDIO: 40,
-  AGENCY: 120,
+  TRIAL: 0,
+  SOLO: 2,
+  TEAM: 3,
+  STUDIO: 4,
+  AGENCY: 12,
 };
 
 // Honest per-generation cost (cents). Old constant said 30¢ which was

@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import { trpc } from "../../lib/trpc";
 import { Card } from "../shared/card";
@@ -231,8 +232,15 @@ export function BrandKitPanel() {
 
   const { kit, plan, quota, generationCostCents, monthlyCap, templates } =
     query.data;
-  const remainingLine =
-    quota.remaining > 0
+
+  // Trial users (and anyone on a plan that excludes brand-kit) get a
+  // paid-feature gate instead of "0/0 regenerations left." Brand kit
+  // is a paid feature: each regen costs ~$1.50 in Anthropic spend, so
+  // we don't grant any to non-paying trial users.
+  const planAllowsBrandKit = monthlyCap > 0;
+  const remainingLine = !planAllowsBrandKit
+    ? `brand kit is a paid feature — upgrade to start generating`
+    : quota.remaining > 0
       ? `${quota.remaining}/${monthlyCap} regenerations left this month · ${plan.toLowerCase()} plan · ~$${(generationCostCents / 100).toFixed(2)} per regenerate`
       : `you've used all ${monthlyCap} regenerations this month — wait for the window to refresh or upgrade`;
 
@@ -241,6 +249,25 @@ export function BrandKitPanel() {
     kit && kit.logoTemplates && Object.keys(kit.logoTemplates).length > 0;
 
   if (!kit || !hasLogos) {
+    if (!planAllowsBrandKit) {
+      return (
+        <Card>
+          <div className="text-md font-medium mb-sm">brand kit · paid feature</div>
+          <p className="text-sm text-ink3 leading-relaxed mb-md">
+            a palette, typography pairing, five hand-tuned svg logo variants,
+            and three brand cover graphics — all crafted to your voice and
+            usable across echo, signal, and your weekly report. each
+            generation costs us ~$1.50 in compute, so it&apos;s a paid feature.
+          </p>
+          <Link
+            href="/onboarding/plan?from=settings"
+            className="inline-block bg-ink text-white text-xs font-medium px-md py-[8px] rounded-full hover:opacity-85 transition-opacity"
+          >
+            see plans →
+          </Link>
+        </Card>
+      );
+    }
     return (
       <Card>
         <div className="text-md font-medium mb-sm">no brand kit yet</div>
@@ -309,6 +336,7 @@ export function BrandKitPanel() {
       }}
       templates={templates ?? null}
       remainingLine={remainingLine}
+      canRegenerate={planAllowsBrandKit && quota.remaining > 0}
       plan={plan}
       hint={hint}
       onHintChange={setHint}
@@ -366,6 +394,9 @@ type BookProps = {
   // when the kit hasn't generated a logo `mark` yet (e.g. legacy rows).
   templates: AppliedTemplates | null;
   remainingLine: string;
+  // False when the active plan disallows brand-kit (TRIAL) or the user
+  // has hit the rolling-30-day cap. The regenerate button gates on this.
+  canRegenerate: boolean;
   plan: string;
   hint: string;
   onHintChange: (v: string) => void;
@@ -803,7 +834,7 @@ function ControlsBar(p: BookProps) {
               p.hint.trim() ? { refinementHint: p.hint.trim() } : {},
             )
           }
-          disabled={p.generate.isPending}
+          disabled={p.generate.isPending || !p.canRegenerate}
           className="bg-ink text-white text-xs font-medium px-md py-[8px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
         >
           {p.generate.isPending ? "drawing..." : "regenerate →"}

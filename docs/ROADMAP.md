@@ -1,0 +1,165 @@
+---
+title: ROADMAP
+purpose: What ships next, in rough priority order. Living doc.
+last_updated: 2026-04-28
+---
+
+# ROADMAP
+
+What's coming next, organized by horizon. Loosely ordered within each
+section. The closer to the top of a section, the higher the confidence /
+priority.
+
+For what's *currently in flight*, read [`SESSION_STATE.md`](SESSION_STATE.md).
+For what's *already shipped*, read [`CHANGELOG.md`](CHANGELOG.md).
+
+## Now (this week)
+
+### Landing-page agent consolidation
+- Merge hero canvas + service-section phone mockups into one tab-switcher
+- Auto-rotates every ~5s; manual click pauses, "▶ resume" reactivates
+- Reduced-motion aware
+- Files: `landing-v4/landing-{body,script,css}.ts`
+
+### Stripe price IDs for new tiers
+- Create 4 monthly recurring products in Stripe dashboard
+- Wire price IDs into Vercel env (`STRIPE_PRICE_SOLO`/`TEAM`/`STUDIO`/`AGENCY`)
+- Without these, checkout throws on the new pricing tiers
+
+### Instagram connect debugging
+- Diagnostic logs are in place; need to read Vercel logs for the
+  `[meta/callback] pages from Graph:` line to confirm whether IG
+  Business is linked at the FB Page level
+- If `hasIg: false`, that's a Meta Business Suite config (user side, not code)
+
+## Soon (next 2-4 weeks)
+
+### AgentContext per-business
+- Currently 1 brand voice per User; STUDIO/AGENCY users share voice
+  across businesses
+- Drop `@@unique([userId])` from AgentContext model
+- Bootstrap a per-business AgentContext at `business.create` time
+  (clone or reset)
+- Scope every read by `businessId` (strategist + signal + echo)
+- ~150 LOC, one migration
+
+### Onboarding flow polish
+- Close the gap between sign-up and first specialist run
+- Currently: user signs up, sees an empty dashboard, has to manually
+  trigger Echo / Strategist
+- Goal: by the end of onboarding, user has 1+ drafts ready, brand voice
+  set, and the daily cron picking up
+- Aligns with the "hire, don't supervise" thesis
+
+### Mobile parity
+- `apps/mobile` has the bottom tab bar but lacks:
+  - Business switcher
+  - Per-business inbox / drafts view
+  - Brand kit panel
+- Approach: port piece-by-piece, starting with brand-voice view (already
+  has a stub at `components/specialists/brand-voice-view.tsx`)
+
+### Per-business cron iteration
+- Daily-content / pulse / scout crons currently run once per User and
+  only generate for `User.currentBusinessId`
+- For STUDIO/AGENCY, this means 1 draft/day for the *active* business,
+  zero for the rest
+- Refactor `runAgentForAllEligibleUsers` → fan out per Business with
+  shared credit pool accounting
+
+## Later (1-3 months)
+
+### Voice (Vapi) wiring + per-business phone numbers
+- Twilio number is per-account today; on multi-business, each Business
+  needs its own incoming line
+- PhoneNumber.businessId is in the schema; provisioning UX isn't built
+- Route inbound calls based on dialed number → business
+
+### App Store + Play Store submission
+- iOS: TestFlight first, App Store after we have 100+ active users
+- Android: internal track via Google Play, then production
+- /download page already prepared with disabled "soon" buttons; flip
+  on URLs once stores accept the apps
+
+### Vercel Pro upgrade
+- Trigger: first paying user OR cold-start UX hurts launch
+- Unlocks: every-minute crons, 3GB function memory, longer log retention,
+  team seats, password-protected previews
+- Cost: $20/mo per developer
+
+### App Review (Meta)
+- We currently use the legacy `instagram_*` scopes; works in dev mode
+  for whoever's added under App Roles
+- For public launch, submit App Review for:
+  `instagram_basic`, `instagram_manage_messages`, `pages_show_list`,
+  `pages_read_engagement`, `business_management`
+- Each scope needs use-case justification + screen-recording
+
+### White-label for AGENCY tier
+- AGENCY plan promises "your logo, your domain"
+- Today: not built
+- Scope: custom domain mapping, per-business email From: header,
+  branded login screens at `agency.example.com/login`
+
+### Team seats for AGENCY tier
+- AGENCY plan promises 3 collaborator seats
+- Today: not built
+- Scope: invite by email, per-seat role (admin / editor / viewer),
+  RBAC on tRPC procedures
+
+### Echo cadence scaling
+- Currently: 1 draft/user/day on cron
+- For STUDIO + AGENCY: per-business 1/day → still 1-8 drafts depending on
+  count (need per-business iteration above first)
+- For TEAM ($79): 250 credits supports more than 1/day; UX should
+  surface multiple drafts/day without feeling spammy
+- Documented in [`docs/ECHO_WORKFLOW.md`](ECHO_WORKFLOW.md)
+
+## Eventually (when justified)
+
+### Multi-language
+- Strategist already produces voice fingerprint in any language the user
+  writes in; Echo follows
+- Surface as a per-business setting (STUDIO+) so an agency can run
+  English brands and Arabic brands side-by-side
+- UI strings stay English (lowercase brand voice doesn't translate well)
+
+### iOS Live Activities
+- Show signal-handled call summary on lock screen
+- Requires Apple Developer Program + native iOS work
+- Won't matter until ADFI mobile has 1k+ daily users
+
+### Inbound voice ASR + sentiment
+- Vapi already does this; we'd surface it in the inbox as
+  "tone: frustrated" / "tone: excited"
+- Useful for triage; gates "needs you" findings on actual urgency
+
+### Supabase RLS policies
+- Today: Postgres connections come through service role from the API
+  server, no RLS in place. Auth is enforced at the tRPC layer.
+- For defense-in-depth, add RLS so a leaked DB connection string can't
+  pull other users' data. Each per-business table gets a policy:
+  `business_id IN (SELECT id FROM businesses WHERE user_id = auth.uid())`
+- Adds ~200 LOC of policies + migration; deferred until launch
+
+### Self-hosted alternative
+- For users with privacy requirements (regulated industries)
+- Docker Compose recipe + helm chart
+- Far future; only pursue if sales demands it
+
+## What we explicitly are *not* doing
+
+- **Custom logo generator** — model-generated SVG logos hit a structural
+  ceiling. See `memory/project_brandkit_postponed.md`. Real solution
+  if/when needed: third-party logo API or curated template library.
+- **Self-hosted LLM** — Anthropic SLA + cost is fine; no benefit to
+  running our own.
+- **Generic AI chatbot product** — ADFI is for solopreneur marketing.
+  Don't dilute the wedge.
+- **Web3 / crypto integrations** — out of scope; SorooshX is a
+  *customer's* business, not part of ADFI itself.
+- **Video editor / capture tools** — Echo writes reel scripts; users
+  film/edit themselves. Expanding into video tooling is a different
+  product.
+- **Customer-facing AI agent that says "I'm an AI"** — Signal speaks AS
+  the business, never as a bot. See `agents/prompts/signal.ts`.

@@ -207,7 +207,8 @@ packages/api/
 │   │   ├── auth.ts
 │   │   ├── user.ts
 │   │   ├── onboarding.ts
-│   │   ├── billing.ts
+│   │   ├── billing.ts            # Stripe checkout + portal + plan change (4 tiers)
+│   │   ├── business.ts           # Multi-business: list / create / switch (plan-gated)
 │   │   ├── content.ts
 │   │   ├── messaging.ts
 │   │   ├── calls.ts
@@ -215,16 +216,22 @@ packages/api/
 │   │   ├── competitors.ts
 │   │   ├── insights.ts
 │   │   ├── brand-kit.ts          # Senior-designer agent: kit generate / edit / version history
+│   │   ├── connections.ts        # OAuth: Meta (IG/FB) + Telegram (bot + channel)
+│   │   ├── subscribers.ts        # Newsletter list management
+│   │   ├── agent.ts              # Per-agent pause / resume / run-now
 │   │   └── admin.ts
 │   │
 │   ├── agents/                  # Agent implementations
-│   │   ├── strategist.ts
-│   │   ├── scout.ts
-│   │   ├── pulse.ts
-│   │   ├── echo.ts
-│   │   ├── signal.ts
-│   │   └── prompts/             # System prompts as .md files
-│   │       ├── strategist.md
+│   │   ├── strategist.ts        # Brand voice, weekly review
+│   │   ├── scout.ts             # Competitive intel (RSS + LLM)
+│   │   ├── pulse.ts             # News/trends
+│   │   ├── echo.ts              # Content drafts (single, carousel, reel, newsletter, story)
+│   │   ├── signal.ts            # Inbound DMs/SMS/calls — speaks AS the business
+│   │   ├── planner.ts           # Weekly content plan
+│   │   └── prompts/             # System prompts as TS exports
+│   │       ├── strategist.ts
+│   │       ├── echo.ts
+│   │       ├── signal.ts        # CRITICAL: forbids leaking ADFI / Signal / agent / AI
 │   │       └── ...
 │   │
 │   └── services/                # Wrappers around third-party APIs
@@ -232,7 +239,17 @@ packages/api/
 │       ├── twilio.ts
 │       ├── vapi.ts
 │       ├── meta.ts
-│       └── anthropic.ts
+│       ├── telegram.ts
+│       ├── anthropic.ts         # SDK helpers + jsonSchemaForAnthropic + usage logging
+│       ├── replicate.ts         # Image generation (Flux Schnell)
+│       ├── research.ts          # Anthropic web_search tool wrapper for fresh data
+│       ├── newsletter.ts        # SendGrid send + unsubscribe link generation
+│       ├── brand-kit.ts         # Generation pipeline: spec → palette → logos → graphics
+│       ├── crypto.ts            # Token encryption (AES-256-GCM) for OAuth tokens
+│       ├── quota.ts             # Per-plan credit limits + voice call limits
+│       ├── pricing.ts           # MODEL_PRICING + PLAN_PRICING_CENTS + cost estimators
+│       ├── abuse-guard.ts       # Inbound rate limit + spam dedup
+│       └── onboarding-preview.ts # Anonymous /onboarding/wow runs
 │
 ├── package.json                 # @orb/api
 └── tsconfig.json

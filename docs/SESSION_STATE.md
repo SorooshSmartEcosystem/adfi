@@ -1,235 +1,350 @@
 ---
 title: SESSION_STATE
 purpose: Hand-off snapshot for the next Claude Code session
-last_updated: 2026-04-27
+last_updated: 2026-04-28
 ---
 
-# Session state — 2026-04-27
+# Session state — 2026-04-28
 
-This is a frozen snapshot of where ADFI is, what's been built recently, what's
-locked, what's open, and exactly what to do next. A fresh Claude Code session
-should be able to read this top-to-bottom and continue without any other
-context.
+Frozen snapshot of where ADFI is, what's been built, what's locked, what's
+open, and exactly what to do next. A fresh Claude Code session should be
+able to pick up by reading this top-to-bottom.
 
-For project-wide rules, read [`CLAUDE.md`](../CLAUDE.md) first; for
-architecture decisions, read [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). This
-file only covers the *current* work-in-flight — it is not a substitute for the
-permanent docs.
-
----
-
-## 1. Where we are right now
-
-**Active work area:** brand-kit (`/brandkit` panel + onboarding step).
-
-**Phase:** polishing. The brand-kit feature is functionally complete (schema,
-generation pipeline, panel UI, restore + history, HTML download). The current
-session was finishing two follow-ups on top:
-
-1. **Version history + one-file HTML brand book** — finished in commit
-   `7be8bf0`. Every generation snapshots into `brand_kit_versions`; the panel
-   shows a "history" section with palette swatches and a one-click restore
-   that bumps the version without burning a credit. Downloads section now
-   leads with `<slug>-brand-book-v<n>.html` — a self-contained file with every
-   SVG inlined (built by
-   [`apps/web/components/brand-kit/build-html-export.ts`](../apps/web/components/brand-kit/build-html-export.ts)).
-2. **Logo generation token-budget fix + diagnostic errors** — finished in
-   commit `6eba5f0`. The logo step was running out of token budget when
-   adaptive thinking deliberated for too long; doubled the cap (12k → 24k).
-   Failure messages now include `stop_reason` and content-block types so the
-   next regression is diagnosable from one error line.
-
-**Branch state:** `main`, working tree clean, **1 commit ahead of
-`origin/main`**. Nothing is pushed yet — the "Ship" todo is the only thing
-left in the in-flight list.
+For project-wide rules, read [`CLAUDE.md`](../CLAUDE.md). For architecture,
+read [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). For the agent workflow,
+[`docs/ECHO_WORKFLOW.md`](ECHO_WORKFLOW.md). For the multi-business
+foundation specifically, see "Multi-business" section below.
 
 ---
 
-## 2. What's been built (with file paths)
+## 1. Project status
 
-### Brand-kit feature (current session focus)
+**Phase:** pre-launch / private development. No real users. Hosting on
+Vercel Hobby. The user (Soroush) is testing personally; one test user
+(`maya@ceramicsco.example`) was previously seeded then deleted.
 
-**Database**
-- [`packages/db/prisma/schema.prisma`](../packages/db/prisma/schema.prisma) —
-  `BrandKit` (live row, one per user) and `BrandKitVersion` (append-only
-  history) models.
-- [`packages/db/prisma/migrations/20260427200000_brand_kits/migration.sql`](../packages/db/prisma/migrations/20260427200000_brand_kits/migration.sql)
-  — initial brand-kit table.
-- [`packages/db/prisma/migrations/20260427210000_brandkit_svg_templates/migration.sql`](../packages/db/prisma/migrations/20260427210000_brandkit_svg_templates/migration.sql)
-  — adds SVG-template columns.
-- [`packages/db/prisma/migrations/20260427220000_brandkit_versions/migration.sql`](../packages/db/prisma/migrations/20260427220000_brandkit_versions/migration.sql)
-  — `brand_kit_versions` table, unique on `(brand_kit_id, version)`,
-  cascade delete on parent.
+**Active branch:** `main`. Production at `https://www.adfi.ca`. Mobile app
+exists in `apps/mobile` (Expo) but is not yet in the App Store / Play Store.
 
-**API / service**
-- [`packages/api/src/services/brand-kit.ts`](../packages/api/src/services/brand-kit.ts)
-  — generation pipeline (palette → typography → logos → graphics → voice),
-  Opus 4.7 with adaptive thinking, reference SVGs, monthly cap enforcement.
-  - `generateBrandKit` snapshots a `BrandKitVersion` on every successful
-    generation (around L536).
-  - `listBrandKitVersions(userId)` (L679) — newest first.
-  - `restoreBrandKitVersion({ userId, versionId })` (L695) — copies the chosen
-    version into the live row, bumps version number, snapshots the new row
-    too. No model call, no credit burn.
-- [`packages/api/src/routers/brand-kit.ts`](../packages/api/src/routers/brand-kit.ts)
-  — tRPC router. Procedures: `getMine`, `generate`, `regenerate`, `update`,
-  `listVersions` (L122), `restoreVersion` (L128).
+**Recent direction:** finishing multi-business foundation, then landing-page
+consolidation, then onboarding polish. App Store / Play Store submissions
+are deferred until the web product feels polished.
 
-**Web UI**
-- [`apps/web/components/brand-kit/brandkit-panel.tsx`](../apps/web/components/brand-kit/brandkit-panel.tsx)
-  — the full `/brandkit` page. Renders palette, typography, logos in 5
-  variants, size showcase, graphics gallery, usage do/don't, mockups, voice,
-  downloads, and `HistorySection` (L1232+).
-- [`apps/web/components/brand-kit/build-html-export.ts`](../apps/web/components/brand-kit/build-html-export.ts)
-  — builds the standalone HTML brand book. Every SVG and every style is
-  inlined; only external fetch is Google Fonts (degrades to system fonts
-  offline). Recently modified by user/linter — preserve as-is.
-- [`apps/web/app/onboarding/brandkit/brandkit-form.tsx`](../apps/web/app/onboarding/brandkit/brandkit-form.tsx)
-  — onboarding step that runs the generator after sign-up.
+---
 
-### Recent surrounding work (last ~30 commits, in time order)
+## 2. What's been built end-to-end
 
-- `feat(brand-kit): schema + generation pipeline + tRPC` (`3acb423`)
-- `feat(brand-kit): /brandkit panel — palette, fonts, logos, covers` (`a6c4551`)
-- `feat(brand-kit): onboarding step + echo image biasing` (`cc438c8`)
-- `feat(brand-kit): svg-only generation + editable palette / typography` (`4b0d5b2`)
-- `feat(brand-kit): brand-book sections — sizes, usage, mockups, voice` (`588e78f`)
-- `fix(brand-kit): migration amnesty for users with empty logoTemplates` (`028539a`)
-- `feat(brand-kit): senior-designer prompts + Opus 4.7 + reference SVGs` (`e3def34`)
-- `fix(brand-kit): bump monthly caps so users can iterate on design` (`417bb2c`)
-- `fix(brand-kit): inline SVG everywhere instead of data: URIs` (`67fec10`)
-- `feat(brand-kit): version history + one-file HTML brand book` (`7be8bf0`)
-- `fix(brand-kit): bump logo max_tokens 12k→24k + diagnostic errors` (`6eba5f0`) ← HEAD
+### Pricing reshape (2026-04-28)
 
-For everything older, see [`docs/CHANGELOG.md`](CHANGELOG.md) `[Unreleased]`.
+| Plan | Businesses | Credits | Calls/mo | Price |
+|---|---|---|---|---|
+| TRIAL (7 days) | 1 | 50 | 5 | $0 |
+| SOLO | 1 | 60 | 0 (DMs only) | $29 |
+| TEAM ★ | 1 | 250 | 100 | $79 |
+| STUDIO | 2 | 600 shared | 250 | $199 |
+| AGENCY | 8 | 2000 shared | 600 | $499 |
+
+Each upgrade unlocks a *capability gate*, not just more credits:
+- SOLO → TEAM unlocks **voice calls + web research + priority queue**
+- TEAM → STUDIO unlocks **multi-business + custom newsletter domain**
+- STUDIO → AGENCY unlocks **white-label + 8 clients + 3 team seats**
+
+Stripe price IDs need to be created in dashboard and pasted into
+`STRIPE_PRICE_SOLO/TEAM/STUDIO/AGENCY` env vars. Until that's done, the
+new prices show on the landing page but checkout won't work.
+
+### Multi-business foundation (2026-04-28)
+
+The full plumbing is live:
+
+- **Schema** ([`packages/db/prisma/schema.prisma`](../packages/db/prisma/schema.prisma)) — new
+  `Business` model. Every per-business table (BrandKit, AgentContext,
+  ContentDraft/Plan/Post, ConnectedAccount, Message, Call, Appointment,
+  Competitor, Subscriber, Finding, Contact, PhoneNumber) has `businessId`
+  with FK + index.
+- **Migrations** —
+  - `20260428000000_agency_plan` adds `AGENCY` enum value
+  - `20260428100000_business_model` creates `businesses` table, adds
+    `users.current_business_id`, bootstraps a default Business per
+    existing user
+  - `20260428200000_business_isolation` adds `business_id` to all
+    per-business tables, idempotent (uses `pg_temp.add_fk_if_missing`
+    + `IF NOT EXISTS` everywhere)
+- **Context** ([`packages/api/src/context.ts`](../packages/api/src/context.ts)) —
+  `ctx.currentBusinessId` resolved once-per-request batch (was once-per-procedure)
+- **Routers scoped by businessId** — brand-kit, content, connections,
+  messaging (inbox), business itself
+- **Echo + Planner writes** — content drafts/posts/plans tagged with
+  `businessId` on create
+- **Meta OAuth callback** — new ConnectedAccount rows tagged with active
+  business
+- **Signal webhooks** — Telegram + Messenger + SMS inbound writes Message +
+  Contact rows with `businessId` from the receiving channel's `ConnectedAccount`
+  or `PhoneNumber`
+- **UI** — sidebar dropdown ([`apps/web/components/app-shell/business-switcher.tsx`](../apps/web/components/app-shell/business-switcher.tsx))
+  lists businesses, allows switching, "+ add new business" form gated by
+  per-plan ceiling
+
+**Known gap:** AgentContext is still 1-per-user (`@unique([userId])` on
+the model). Brand voice is shared across all of a user's businesses. To
+lift: drop the unique on userId, bootstrap a separate AgentContext per
+Business in `business.create`, scope every read to `businessId`. Affects
+strategist + signal + echo agents — each does an `agentContext.findUnique`
+on userId today.
+
+### Landing page
+
+- v4 prototype port at [`apps/web/components/landing-v4/`](../apps/web/components/landing-v4/)
+- Body, CSS, animation script all inlined verbatim from
+  `prototype/ADFI_Landing_v4.html`
+- Auto-playing hero canvas (5 moments cycling: call → DMs → content →
+  scout → dashboard) at ~3.2-3.8s per moment
+- Service-section phone mockups with their own scene engine
+- 4-tier pricing grid (SOLO/TEAM/STUDIO/AGENCY)
+- "get the app" nav button → `/download` page
+
+**Next change requested:** consolidate the hero canvas + service
+mockups into one tab-switcher section. Design proposal at the bottom
+of this doc.
+
+### Brand kit feature
+
+Functionally complete and shipped. Generation pipeline (palette →
+typography → logos → graphics → voice) using Opus 4.7 + Anthropic web
+search tool, version history, restore, one-file HTML brand book download,
+contrast-aware prompts. Visual quality of AI-generated SVG logos is
+*parked* — see [`memory/project_brandkit_postponed.md`](~/.claude/projects/-Users-soroushosivand-Projects-adfi/memory/project_brandkit_postponed.md).
+
+### Echo content agent + web research
+
+- Echo runs daily cron; produces 1 draft/user/day (intentional — see
+  [`docs/ECHO_WORKFLOW.md`](ECHO_WORKFLOW.md))
+- Long-form articles + news/market hints trigger a web search pass
+  ([`packages/api/src/services/research.ts`](../packages/api/src/services/research.ts))
+  using Anthropic's `web_search` tool — fixes "bitcoin was $42k" stale
+  data class of bug
+- Image generation via Replicate Flux Schnell, backfilled async after
+  draft creation
+- Drafts panel redesigned to be collapsed-by-default rows (56px
+  thumbnail + truncated hook + "open →"); first draft auto-expands
+- Hero images capped at 280px wide
+
+### Signal "ADFI" brand leak — fixed
+
+Agent prompt was leaking the internal "ADFI" name into customer
+conversations. Critical bug. Fixed in
+[`packages/api/src/agents/prompts/signal.ts`](../packages/api/src/agents/prompts/signal.ts)
++ thread-history label changed from "ADFI:" to "You:" in
+[`packages/api/src/agents/signal.ts`](../packages/api/src/agents/signal.ts).
+Also passes `businessName` to the prompt so the model can answer
+"which platform?" with the actual business name.
+
+### Performance
+
+- React Query: `staleTime: 5min`, `gcTime: 30min`,
+  `refetchOnMount: false` (apps/web/lib/trpc-provider.tsx)
+- Once-per-request `currentBusinessId` resolution (was once-per-procedure)
+- Dashboard reach query 365d → 28d (1Y toggle re-queries on client)
+- `/api/health` warmer endpoint exists; cron is daily-only on Hobby
+  (every-5-min requires Pro) — recommended workaround: external uptime
+  monitor (UptimeRobot free tier) at the same URL
+
+### Connect flows
+
+- **Stripe** — checkout + portal wired, but new Stripe price IDs need
+  creating in dashboard for the new pricing tiers
+- **Google OAuth (Supabase)** — wired and working
+- **Meta (Instagram + Facebook)** — wired but stuck. User got past OAuth
+  scope errors (legacy `instagram_*` names), connected "page +
+  business" successfully, returned to /settings, but Instagram still
+  shows as not-connected. Most likely: the Facebook Page chosen
+  doesn't have an Instagram Business account linked at the Page
+  level. Diagnosis logs added in `apps/web/app/api/auth/meta/callback/route.ts`
+  — next session should look at the actual Vercel logs for the
+  `[meta/callback] pages from Graph:` line.
+- **Telegram bot** — connect flow works; typing indicator added to
+  inbound DMs
 
 ---
 
 ## 3. Decisions locked in (do not re-litigate)
 
-These are settled — bringing them up again wastes tokens. If a change here is
-genuinely needed, raise it explicitly with the user first.
-
-- **Brand-kit logos are SVG-only.** Replicate is not used for logos. The model
-  fills 5 hand-tuned reference SVG templates with the chosen palette.
-  `applyPalette` does the substitution at render time.
-- **Logos are inlined as `<svg>` elements**, not `data:` URIs. (Fixed in
-  `67fec10` — data URIs broke palette swap and made cards render blank in
-  some browsers.)
-- **Adaptive thinking budget for the logo step is `max_tokens: 24000`.** Do
-  not lower without checking that the 5-template fill still completes.
-- **Restore does not burn a monthly credit.** No LLM call; only a DB swap
-  inside a `db.$transaction([...])`.
-- **Restore bumps the version number forward** (restoring v2 over a live v5
-  produces v6, snapshotted as a new row). Don't "rewind" the counter.
-- **`BrandKitVersion` has a unique `(brand_kit_id, version)` index** — relied
-  on by both restore and `listVersions` ordering.
-- **HTML brand book is one self-contained file.** No external image fetches,
-  no JS, only Google Fonts via `<link>` (with system-font fallbacks). The
-  user can email it to a designer and it just works.
-- **All package names use `orb`; all user-facing strings use `adfi`.** This
-  applies to the brand kit too. See [`CLAUDE.md`](../CLAUDE.md) for the rule.
-- **DB migrations run via `db:migrate` (deploy)** against the Supabase pooler.
-  `db:migrate:dev` fails on shadow DB — do not try it.
+- **No local Postgres** — Supabase pooler is the dev DB.
+  `pnpm -F @orb/db db:migrate` (deploy) is the only path. `db:migrate:dev`
+  fails on shadow DB.
+- **Hobby Vercel** while developing — upgrade trigger: first paying user
+  OR cold-start UX hurts launch.
+- **AgentContext per-business deferred** — brand voice shared across
+  businesses for now. Schema is ready (`businessId @unique` exists),
+  just needs the unique-on-userId removed + bootstrap on business create.
+- **Brand-kit visual quality parked** — model-generated SVG logos hit a
+  structural ceiling. Don't suggest more prompt tuning. See
+  `feedback_brandkit_contrast.md` + `project_brandkit_postponed.md`.
+- **Carousel design system is the bar** — match its restraint for any
+  new asset templates. See `feedback_carousel_design_locked.md`.
+- **`businessName` not businessDescription** — the sidebar label uses
+  `User.businessName` (or active `Business.name`). Never derive from
+  description. See `feedback_brandkit_contrast.md` line about chip text.
+- **Concise scaffold proposals** — summarize file plans, don't paste
+  full source. User pays per output token.
+- **No stage-by-stage confirmation** — once a multi-stage plan is
+  accepted, flow through; don't gate each stage.
 
 ---
 
 ## 4. Open questions / known issues
 
-### 4.1 — Image quality complaint — RESOLVED (this session)
+### 4.1 Stripe price IDs not yet created
 
-User said earlier this session:
+The pricing tiers landed in code (SOLO $29, TEAM $79, STUDIO $199,
+AGENCY $499) but no Stripe products/prices match. Checkout will throw
+`STRIPE_PRICE_<tier> env var is not set` until you:
 
-> Brand kit is not working well — images are not professional and are not
-> visible in the background colors. It is not as attractive as the optimized
-> home or [other] adfi brand kit.
+1. Create 4 monthly recurring products in Stripe dashboard
+2. Paste price IDs into Vercel env as `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_TEAM`,
+   `STRIPE_PRICE_STUDIO`, `STRIPE_PRICE_AGENCY`
+3. Redeploy
 
-**Root cause (after investigation):** the rendering layer was using
-`palette.bg` as the canvas color for logo and graphic cards in three places:
-the panel ([`brandkit-panel.tsx`](../apps/web/components/brand-kit/brandkit-panel.tsx)),
-the standalone HTML brand book ([`build-html-export.ts`](../apps/web/components/brand-kit/build-html-export.ts)),
-and the page body of the HTML book itself. When palette generation produced a
-near-white `palette.bg` (very common — most of our palettes are light/warm),
-white cards on a near-white body and `palette.bg` canvases collapsed into a
-single visual blob. Transparent SVG variants (`mark`, `monochrome`,
-`wordmark`) had no inset framing, so even with a "correct" mark the canvas
-itself didn't read as a framed object.
+### 4.2 Instagram connect stuck on missing IG-business-link
 
-A second cause was at the generation layer: the LLM prompts allowed sibling
-light tones (e.g. `{{surface}}` foreground on `{{bg}}` canvas) which the
-model occasionally took up on, producing graphics that were technically
-"correct" but visually invisible.
+Most likely: chosen FB Page doesn't have IG Business linked at the Page
+level. To verify, check Vercel logs for the `[meta/callback] pages from
+Graph:` line — `hasIg: false` confirms. Resolution path is in Meta
+Business Suite, not in our app: Settings → Accounts → Instagram → link
+to the chosen Page. Then disconnect + reconnect.
 
-**Fix:**
-- Logo + graphic canvases now use `palette.surface` (not `palette.bg`) +
-  an inset hairline ring (`box-shadow: inset 0 0 0 0.5px ...`).
-  `lightOnDark` keeps `palette.ink` for the dark variant.
-- The HTML brand book body now uses a fixed neutral `#FAFAF7` instead of
-  `palette.bg`, so white cards always stand out.
-- `SPEC_SYSTEM_PROMPT` has a hard luminance-gap rule for `ink` vs `bg`/`surface`,
-  plus a hard rule that `primary`/`secondary`/`accent` must each be visually
-  distinct from both `bg` and `surface`.
-- `LOGO_SYSTEM_PROMPT` and `GRAPHICS_SYSTEM_PROMPT` now ban sibling-tone
-  fg/bg pairs, cap `accent` at ≤10% area / single-detail use, and pin
-  minimum stroke widths.
+### 4.3 AgentContext shared across businesses
 
-### 4.2 — Anthropic 400: image dimension > 8000 px — NOT OUR BUG
+When a STUDIO/AGENCY user creates a 2nd business, the brand voice from
+their 1st business carries over. Fix scoped above. Won't bite SOLO or
+TEAM users.
 
-```
-API Error: 400 messages.70.content.1.image.source.base64.data:
-At least one of the image dimensions exceed max allowed size: 8000 pixels
-```
+### 4.4 Mobile parity
 
-This was the user pasting a screenshot (3840×21524 — 21k px tall) into Claude
-Code itself, not our app sending images to Anthropic. None of our agents
-forward user-uploaded images to Claude (verified via grep — no `type: "image"`
-content blocks anywhere in `packages/api/src` or `apps/web`). Replicate
-output is returned as a URL, not forwarded as base64. Marking this closed.
+`apps/mobile` exists but doesn't yet have:
+- Business switcher
+- Multi-business per-business inbox
+- Brand kit panel
+Last user-visible mobile work was the bottom tab bar. Mobile is a
+follow-up area.
 
-### 4.3 — `Ship` not done
+### 4.5 Vercel function memory + cron
 
-After the contrast fix lands, `main` will be 2+ commits ahead of
-`origin/main`. The user said "continue and finish all tasks" so push
-authorization is implicit for this session.
+On Hobby. Function memory capped at 1024MB, cron capped at daily.
+Workarounds:
+- Cold starts → external UptimeRobot ping every 5 min at `/api/health`
+- Memory → no current need; Anthropic + Replicate calls fit in 1GB
 
 ---
 
-## 5. Next actions
+## 5. Next 3 actions, in priority order
 
-All in-flight brand-kit work is done. Suggested next moves for the next
-session, roughly in priority order:
+**1. Landing-page consolidation** (user-requested, in flight)
+   Consolidate hero canvas + service-section phone mockups into one
+   tab-switcher section. Auto-rotates every X seconds; user clicks a
+   tab → freezes auto, shows that agent's content. Manual play/pause.
+   Design proposal in section 6 below.
 
-**1. Watch the first regenerated kits.** The contrast fix only fully
-manifests once a user regenerates (palette + graphics now require the new
-contrast rules). Existing kits still have their old SVGs — they benefit from
-the canvas + inset-frame fix but not from the prompt changes. Worth tailing
-admin financials for the next 24h after deploy and skimming a few kits to
-confirm the new constraints land.
+**2. AgentContext per-business**
+   Drop `@@unique([userId])` on AgentContext, add bootstrap in
+   `business.create` (clone the user's first AgentContext to seed the
+   new Business's voice), scope every read by `businessId`. Touches
+   strategist + signal + echo. ~150 LOC.
 
-**2. Onboarding flow polish (next product area).** With brand-kit
-stabilized, the visible weak spot in the onboarding funnel is the gap
-between sign-up and the first specialist run. The product thesis ("hire,
-don't supervise") implies the first run should feel automatic — currently
-there's a manual step. Worth a focused session.
-
-**3. Mobile parity for `/brandkit`.** Web has the full panel; mobile has
-nothing yet. Read `apps/mobile/components/specialists/brand-voice-view.tsx`
-as a starting point, mirror the structure for brand-kit.
+**3. Onboarding flow polish**
+   Close the gap between sign-up and first specialist run so the
+   product feels automatic per the "hire, don't supervise" thesis.
+   Currently there's a manual run-now needed; the daily cron then
+   takes over but day-1 user sees an empty dashboard.
 
 ---
 
-## 6. Pointers for the next session
+## 6. Landing-page consolidation — design proposal
 
-- The brand-kit todo list is fully closed:
-  1. ✅ Schema + migration: `BrandKitVersion` table
-  2. ✅ Service: snapshot on generate, list, restore
-  3. ✅ Router: `listVersions` + `restoreVersion` mutations
-  4. ✅ UI: history dropdown + restore + HTML download
-  5. ✅ Ship — version-history + HTML book + contrast fixes pushed
-- The user pays per output token. When proposing changes, summarize file
-  trees instead of pasting full source. See
-  `~/.claude/projects/-Users-soroushosivand-Projects-adfi/memory/feedback_concise_proposals.md`.
-- Once a multi-stage plan is accepted, flow through without re-confirming
-  each stage. See `feedback_no_stage_confirmation.md`.
-- DB workflow: Supabase pooler is the dev DB. Use `db:migrate` (deploy).
-  `db:migrate:dev` fails on shadow DB. See `project_db_workflow.md`.
+**Goal:** replace the current "hero canvas (5 cycling moments) + service
+section (separate phone mockups per agent)" with **one** consolidated
+section that introduces all agents/services in tabs.
+
+**Layout sketch:**
+
+```
+┌──────────────────────────────────────────────┐
+│  meet your team.                             │
+│  these five agents handle your marketing     │
+│  while you run the business.                 │
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │ ●  signal    echo    scout    pulse    │  │  ← tabs (current bold)
+│  └────────────────────────────────────────┘  │
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │                                        │  │
+│  │   [ canvas / phone mockup for          │  │
+│  │     the active agent ]                 │  │
+│  │                                        │  │
+│  │   "i caught a missed call at 2am.      │  │
+│  │   booked sara for tuesday."            │  │
+│  │                                        │  │
+│  └────────────────────────────────────────┘  │
+│                                              │
+│  ❯ next agent in 3s   ⏸ pause                │
+└──────────────────────────────────────────────┘
+```
+
+**Behavior:**
+
+- **Auto-rotation** — each tab shows for ~5s, then advances. Progress
+  bar under the active tab fills as time elapses (visual cue for "next
+  in 3s").
+- **Manual click** — tapping any tab pauses auto-rotation, jumps to
+  that tab, and shows a "▶ resume" button (replaces "⏸ pause"). After
+  10s of inactivity, auto-rotation resumes.
+- **Pause button** — explicit pause/play affordance. Pause persists
+  until user resumes.
+- **Off-screen pause** — IntersectionObserver pauses when section
+  scrolls out of view (already the pattern in current canvas).
+- **Reduced motion** — `prefers-reduced-motion: reduce` → no
+  auto-rotation, no fades, just the first tab visible. Manual tab
+  clicks still work.
+
+**Agents to include (reuse existing copy/animations from current
+landing-v4):**
+
+1. **Signal** — answers calls + DMs ("i caught a missed call at 2am")
+2. **Echo** — drafts content ("i drafted your next post")
+3. **Scout** — competitive intel ("i spotted what your rivals are doing")
+4. **Pulse** — news/trends ("i found a story your audience cares about")
+5. **Strategist** — runs the weekly business review ("here's what
+   worked this week, here's what didn't")
+6. **Brand Kit** *(optional 6th tab)* — your brand identity, on tap
+
+**Files to touch:**
+
+- `apps/web/components/landing-v4/landing-body.ts` — strip the existing
+  separate hero canvas + services sections, replace with the new
+  unified section's HTML
+- `apps/web/components/landing-v4/landing-script.ts` — replace the
+  two existing scene engines (hero + svc-phone) with a single
+  tab-controller; preserve IntersectionObserver pause logic
+- `apps/web/components/landing-v4/landing-css.ts` — new tabs +
+  progress-bar styles, swap out the two old section styles
+
+**Implementation effort:** ~250-400 LOC across the three files, plus
+migrating the existing per-agent HTML chunks (which are already in
+`landing-body.ts` for both the hero canvas and svc sections — just
+need to be merged + wrapped with the tab logic).
+
+**Suggested copy direction:**
+
+- Hero h1 unchanged ("Your marketing team, hired.")
+- New section header eyebrow: `MEET YOUR TEAM`
+- New section h2: `five agents. one inbox. zero supervision.`
+- Tab labels: lowercase agent names (signal / echo / scout / pulse /
+  strategist) — matches the brand voice (lowercase everywhere)
+- Per-tab content: 1-line caption + one-screenshot mockup of the
+  agent in action. The captions already exist in the current
+  landing-body.ts — pull them into the new structure.
+
+I can implement this in one pass once you confirm the design. Reply
+"go" and I'll write the code; reply with edits if you want a different
+layout or fewer/more tabs.

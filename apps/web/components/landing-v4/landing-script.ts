@@ -41,16 +41,16 @@ export const LANDING_SCRIPT = `\
     const cards = canvas.querySelectorAll('.canvas-card');
 
     const moments = [
-      { id: 'call', duration: 5000, orbMode: 'mode-call', tilt: 'tilt-left',
-        caption: 'i caught a missed call.', cardDelay: 400 },
-      { id: 'dm', duration: 6000, orbMode: 'mode-dm', tilt: '',
-        caption: 'i answered dms on instagram, facebook, and whatsapp.', cardDelay: 300, staggered: true },
-      { id: 'content', duration: 5500, orbMode: 'mode-content', tilt: 'tilt-right',
-        caption: 'i drafted your next post in your voice.', cardDelay: 400 },
-      { id: 'scout', duration: 5000, orbMode: 'mode-scout', tilt: 'tilt-right',
-        caption: 'i spotted what your rivals are doing.', cardDelay: 400 },
-      { id: 'dash', duration: 5500, orbMode: 'mode-dash', tilt: '',
-        caption: 'and your business grew this week.', cardDelay: 200, staggered: true }
+      { id: 'call', duration: 3200, orbMode: 'mode-call', tilt: 'tilt-left',
+        caption: 'i caught a missed call.', cardDelay: 240 },
+      { id: 'dm', duration: 3800, orbMode: 'mode-dm', tilt: '',
+        caption: 'i answered dms on instagram, facebook, and whatsapp.', cardDelay: 180, staggered: true },
+      { id: 'content', duration: 3500, orbMode: 'mode-content', tilt: 'tilt-right',
+        caption: 'i drafted your next post in your voice.', cardDelay: 240 },
+      { id: 'scout', duration: 3200, orbMode: 'mode-scout', tilt: 'tilt-right',
+        caption: 'i spotted what your rivals are doing.', cardDelay: 240 },
+      { id: 'dash', duration: 3500, orbMode: 'mode-dash', tilt: '',
+        caption: 'and your business grew this week.', cardDelay: 120, staggered: true }
     ];
 
     let currentStep = 0;
@@ -75,7 +75,7 @@ export const LANDING_SCRIPT = `\
       const cardsForMoment = canvas.querySelectorAll('[data-moment="' + momentId + '"]');
       if (staggered) {
         cardsForMoment.forEach((c, i) => {
-          setTimeout(() => c.classList.add('show'), delay + (i * 200));
+          setTimeout(() => c.classList.add('show'), delay + (i * 120));
         });
       } else {
         cardsForMoment.forEach(c => {
@@ -98,7 +98,7 @@ export const LANDING_SCRIPT = `\
       setTimeout(() => {
         caption.textContent = m.caption;
         caption.style.opacity = '1';
-      }, 300);
+      }, 180);
 
       showMomentCards(m.id, m.staggered, m.cardDelay);
 
@@ -166,7 +166,7 @@ export const LANDING_SCRIPT = `\
       // Show this step's cards (staggered if multiple)
       if (grouped[step]) {
         grouped[step].forEach((el, i) => {
-          setTimeout(() => el.classList.add('show'), i * 150);
+          setTimeout(() => el.classList.add('show'), i * 90);
         });
       }
     }
@@ -183,8 +183,8 @@ export const LANDING_SCRIPT = `\
         state.currentStep = state.currentStep >= totalSteps ? 1 : state.currentStep + 1;
         playStep(screen, state.currentStep, totalSteps);
 
-        const STEP_DURATION = 2400; // ms per step
-        const LOOP_PAUSE = 1200; // pause before restarting
+        const STEP_DURATION = 1500; // ms per step
+        const LOOP_PAUSE = 700; // pause before restarting
         const nextDelay = state.currentStep === totalSteps ? STEP_DURATION + LOOP_PAUSE : STEP_DURATION;
 
         state.timerId = setTimeout(() => {

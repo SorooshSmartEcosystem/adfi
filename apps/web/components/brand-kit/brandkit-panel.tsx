@@ -1,8 +1,63 @@
 "use client";
 import { useMemo, useState } from "react";
+import type { TRPCClientErrorLike } from "@trpc/client";
 import { trpc } from "../../lib/trpc";
 import { Card } from "../shared/card";
 import { buildBrandKitHtml } from "./build-html-export";
+
+// Pretty-prints a generate error. When the user has hit the monthly cap,
+// returns an upgrade CTA instead of bare error text. TRIAL users get a
+// link to the plan picker; subscribers get the Stripe customer portal.
+function GenerateErrorBanner({
+  error,
+  plan,
+}: {
+  error: TRPCClientErrorLike<{
+    transformer: false;
+    errorShape: { data: { code?: string } | null };
+  }> | null;
+  plan: string;
+}) {
+  const portal = trpc.billing.createPortalSession.useMutation({
+    onSuccess: (data) => {
+      window.location.href = data.url;
+    },
+  });
+  if (!error) return null;
+  const code = error.data?.code;
+  if (code === "TOO_MANY_REQUESTS") {
+    const isTrial = plan === "TRIAL";
+    return (
+      <div className="mt-md p-md rounded-[12px] border-hairline border-border bg-surface">
+        <div className="text-sm font-medium mb-xs">monthly limit reached.</div>
+        <p className="text-sm text-ink3 leading-relaxed mb-md">
+          {error.message}
+        </p>
+        {isTrial ? (
+          <a
+            href="/onboarding/plan?from=brandkit"
+            className="inline-block bg-ink text-white text-xs font-medium px-md py-[8px] rounded-full hover:opacity-85 transition-opacity"
+          >
+            choose a plan →
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() => portal.mutate()}
+            disabled={portal.isPending}
+            className="bg-ink text-white text-xs font-medium px-md py-[8px] rounded-full disabled:opacity-40 hover:opacity-85 transition-opacity"
+          >
+            {portal.isPending ? "opening portal..." : "upgrade plan →"}
+          </button>
+        )}
+        {portal.error ? (
+          <p className="text-sm text-urgent mt-sm">{portal.error.message}</p>
+        ) : null}
+      </div>
+    );
+  }
+  return <p className="text-sm text-urgent mt-md">{error.message}</p>;
+}
 
 type Palette = {
   primary: string;
@@ -197,9 +252,7 @@ export function BrandKitPanel() {
         >
           {generate.isPending ? "drawing your kit..." : "generate brand kit →"}
         </button>
-        {generate.error ? (
-          <p className="text-sm text-urgent mt-md">{generate.error.message}</p>
-        ) : null}
+        <GenerateErrorBanner error={generate.error} plan={plan} />
       </Card>
     );
   }
@@ -225,6 +278,7 @@ export function BrandKitPanel() {
         businessName,
       }}
       remainingLine={remainingLine}
+      plan={plan}
       hint={hint}
       onHintChange={setHint}
       generate={generate}
@@ -269,6 +323,7 @@ type BookProps = {
     businessName: string;
   };
   remainingLine: string;
+  plan: string;
   hint: string;
   onHintChange: (v: string) => void;
   generate: ReturnType<typeof trpc.brandKit.generate.useMutation>;
@@ -621,9 +676,7 @@ function ControlsBar(p: BookProps) {
           {p.generate.isPending ? "drawing..." : "regenerate →"}
         </button>
       </div>
-      {p.generate.error ? (
-        <p className="text-sm text-urgent mt-sm">{p.generate.error.message}</p>
-      ) : null}
+      <GenerateErrorBanner error={p.generate.error} plan={p.plan} />
     </Card>
   );
 }

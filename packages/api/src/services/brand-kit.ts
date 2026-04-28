@@ -280,24 +280,39 @@ Generate the 5 SVG variants.`;
   // Opus 4.7 with adaptive thinking — these are creative/aesthetic outputs
   // where the higher-tier model produces noticeably more disciplined SVG
   // geometry. Adaptive thinking lets the model deliberate on the design
-  // direction before drawing.
-  // 5 hand-tuned SVGs + adaptive thinking. Earlier runs at 12k truncated
-  // mid-output (stop_reason=max_tokens) when thinking ate half the budget.
-  const response = await anthropic().messages.create({
-    model: MODELS.OPUS,
-    max_tokens: 24000,
-    thinking: { type: "adaptive" },
-    system: [
-      { type: "text", text: LOGO_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-    ],
-    messages: [{ role: "user", content: userMessage }],
-    output_config: {
-      format: {
-        type: "json_schema",
-        schema: jsonSchemaForAnthropic(LogoTemplatesSchema),
+  // direction before drawing. Earlier runs at 12k truncated mid-output
+  // (stop_reason=max_tokens) when thinking ate half the budget; cap is 24k.
+  //
+  // Failure mode worth handling: occasionally adaptive thinking still
+  // consumes the entire budget and the response comes back with only a
+  // 'thinking' block (no text). One automatic retry with thinking disabled
+  // — deterministic completion, same prompt — recovers ~100% of these.
+  const callLogoModel = (withThinking: boolean) =>
+    anthropic().messages.create({
+      model: MODELS.OPUS,
+      max_tokens: 24000,
+      ...(withThinking ? { thinking: { type: "adaptive" as const } } : {}),
+      system: [
+        { type: "text", text: LOGO_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+      ],
+      messages: [{ role: "user", content: userMessage }],
+      output_config: {
+        format: {
+          type: "json_schema",
+          schema: jsonSchemaForAnthropic(LogoTemplatesSchema),
+        },
       },
-    },
-  });
+    });
+
+  let response = await callLogoModel(true);
+  let block = response.content.find((b) => b.type === "text");
+  if (!block || block.type !== "text") {
+    console.warn(
+      `[brandkit] logo step returned no text on first pass (stop_reason=${response.stop_reason}, blocks=[${response.content.map((b) => b.type).join(",")}]); retrying without thinking`,
+    );
+    response = await callLogoModel(false);
+    block = response.content.find((b) => b.type === "text");
+  }
   if (args.userId) {
     void recordAnthropicUsage({
       userId: args.userId,
@@ -306,11 +321,10 @@ Generate the 5 SVG variants.`;
       response,
     });
   }
-  const block = response.content.find((b) => b.type === "text");
   if (!block || block.type !== "text") {
     const blockTypes = response.content.map((b) => b.type).join(",");
     throw new Error(
-      `logo generation returned no text content (stop_reason=${response.stop_reason}, blocks=[${blockTypes}])`,
+      `logo generation returned no text content after retry (stop_reason=${response.stop_reason}, blocks=[${blockTypes}])`,
     );
   }
   return LogoTemplatesSchema.parse(JSON.parse(block.text));

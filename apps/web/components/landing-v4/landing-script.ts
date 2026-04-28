@@ -1,13 +1,15 @@
-// V4 landing page interactive script — ported from
-// /prototype/ADFI_Landing_v4.html (lines 2712-2927). Inlined as a string
-// so it ships verbatim through a <script> tag and runs on the client
-// against the dangerouslySetInnerHTML body.
+// V4 landing page interactive script. Inlined as a string so it ships
+// verbatim through a <script> tag and runs on the client against the
+// dangerouslySetInnerHTML body.
 //
-// Three blocks:
+// Blocks:
 //   - FAQ accordion toggle
 //   - Scroll-in reveal via IntersectionObserver
-//   - Hero canvas auto-loop (5 moments, ~27s cycle, pauses off-screen)
-//   - Mini-canvas engine for the service-section phone scenes
+//   - Hero canvas tabs — auto-rotate + manual click-to-tab + pause/play
+//     + progress bar fill + IntersectionObserver pause + reduced-motion
+//     support. Replaces the older auto-only engine and the per-svc-section
+//     mini-canvas (which was removed when the 5 svc-sections collapsed
+//     into the hero canvas tab interface).
 
 export const LANDING_SCRIPT = `\
   // FAQ toggle
@@ -28,7 +30,7 @@ export const LANDING_SCRIPT = `\
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
   // ===================================
-  // HERO CANVAS — 5-moment auto-loop
+  // HERO CANVAS — 5-moment auto-rotate + manual tabs + pause/play
   // ===================================
   (function() {
     const canvas = document.getElementById('heroCanvas');
@@ -38,24 +40,37 @@ export const LANDING_SCRIPT = `\
     const orbStage = document.getElementById('orbStage');
     const caption = document.getElementById('canvasCaption');
     const stepDots = canvas.querySelectorAll('.canvas-step-dot');
+    const tabs = canvas.querySelectorAll('.canvas-tab');
+    const tabProgressEls = canvas.querySelectorAll('.canvas-tab-progress');
     const cards = canvas.querySelectorAll('.canvas-card');
+    const pauseBtn = document.getElementById('canvasPause');
 
     const moments = [
-      { id: 'call', duration: 3200, orbMode: 'mode-call', tilt: 'tilt-left',
+      { id: 'call', duration: 5000, orbMode: 'mode-call', tilt: 'tilt-left',
         caption: 'i caught a missed call.', cardDelay: 240 },
-      { id: 'dm', duration: 3800, orbMode: 'mode-dm', tilt: '',
+      { id: 'dm', duration: 5500, orbMode: 'mode-dm', tilt: '',
         caption: 'i answered dms on instagram, facebook, and whatsapp.', cardDelay: 180, staggered: true },
-      { id: 'content', duration: 3500, orbMode: 'mode-content', tilt: 'tilt-right',
+      { id: 'content', duration: 5200, orbMode: 'mode-content', tilt: 'tilt-right',
         caption: 'i drafted your next post in your voice.', cardDelay: 240 },
-      { id: 'scout', duration: 3200, orbMode: 'mode-scout', tilt: 'tilt-right',
+      { id: 'scout', duration: 5000, orbMode: 'mode-scout', tilt: 'tilt-right',
         caption: 'i spotted what your rivals are doing.', cardDelay: 240 },
-      { id: 'dash', duration: 3500, orbMode: 'mode-dash', tilt: '',
+      { id: 'dash', duration: 5200, orbMode: 'mode-dash', tilt: '',
         caption: 'and your business grew this week.', cardDelay: 120, staggered: true }
     ];
 
+    const reduceMotion = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     let currentStep = 0;
     let timerId = null;
-    let isPlaying = true;
+    let progressRaf = null;
+    let progressStart = 0;
+    // 'auto' = auto-rotating, 'paused' = user-paused, 'offscreen' =
+    // section out of view, 'manual' = user clicked a tab (auto resumes
+    // after MANUAL_RESUME_AFTER ms of inactivity).
+    let mode = reduceMotion ? 'paused' : 'auto';
+    let manualResumeTimer = null;
+    const MANUAL_RESUME_AFTER = 10000;
 
     function setOrbMode(mode) {
       orb.className = 'canvas-orb';
@@ -67,6 +82,11 @@ export const LANDING_SCRIPT = `\
     }
     function setStepDot(idx) {
       stepDots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      tabs.forEach((t, i) => {
+        const active = i === idx;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
     }
     function clearAllCards() {
       cards.forEach(c => c.classList.remove('show'));
@@ -84,8 +104,34 @@ export const LANDING_SCRIPT = `\
       }
     }
 
-    function playMoment(idx) {
+    function clearProgress() {
+      if (progressRaf) {
+        cancelAnimationFrame(progressRaf);
+        progressRaf = null;
+      }
+      tabProgressEls.forEach(el => { el.style.transform = 'scaleX(0)'; });
+    }
+
+    function startProgress(idx, durationMs) {
+      clearProgress();
+      const target = tabProgressEls[idx];
+      if (!target || mode !== 'auto') return;
+      progressStart = performance.now();
+      function tick(now) {
+        const elapsed = now - progressStart;
+        const pct = Math.min(1, elapsed / durationMs);
+        target.style.transform = 'scaleX(' + pct + ')';
+        if (pct < 1 && mode === 'auto') {
+          progressRaf = requestAnimationFrame(tick);
+        }
+      }
+      progressRaf = requestAnimationFrame(tick);
+    }
+
+    function playMoment(idx, opts) {
+      opts = opts || {};
       if (idx >= moments.length) idx = 0;
+      if (idx < 0) idx = moments.length - 1;
       currentStep = idx;
       const m = moments[idx];
 
@@ -102,24 +148,95 @@ export const LANDING_SCRIPT = `\
 
       showMomentCards(m.id, m.staggered, m.cardDelay);
 
-      if (isPlaying) {
+      if (timerId) {
+        clearTimeout(timerId);
+        timerId = null;
+      }
+      if (mode === 'auto') {
+        startProgress(idx, m.duration);
         timerId = setTimeout(() => playMoment(idx + 1), m.duration);
+      } else {
+        clearProgress();
       }
     }
 
-    // Pause when off-screen
+    function setMode(next) {
+      mode = next;
+      if (pauseBtn) {
+        const isAuto = mode === 'auto';
+        pauseBtn.querySelector('.canvas-pause-icon').textContent = isAuto ? '⏸' : '▶';
+        pauseBtn.setAttribute('aria-label', isAuto ? 'pause auto-rotation' : 'resume auto-rotation');
+        pauseBtn.title = isAuto ? 'pause' : 'resume';
+      }
+      canvas.classList.toggle('paused', mode !== 'auto');
+    }
+
+    function pause() {
+      setMode('paused');
+      if (timerId) {
+        clearTimeout(timerId);
+        timerId = null;
+      }
+      clearProgress();
+    }
+
+    function resumeAuto() {
+      if (manualResumeTimer) {
+        clearTimeout(manualResumeTimer);
+        manualResumeTimer = null;
+      }
+      setMode('auto');
+      // Replay current moment to restart its timer + progress.
+      playMoment(currentStep);
+    }
+
+    // Tab click — jump + pause auto. Auto resumes after inactivity.
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const idx = parseInt(tab.dataset.tab, 10) || 0;
+        setMode('manual');
+        clearProgress();
+        if (timerId) {
+          clearTimeout(timerId);
+          timerId = null;
+        }
+        playMoment(idx);
+        if (manualResumeTimer) clearTimeout(manualResumeTimer);
+        manualResumeTimer = setTimeout(() => {
+          if (mode === 'manual') resumeAuto();
+        }, MANUAL_RESUME_AFTER);
+      });
+    });
+
+    // Pause / play button
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', () => {
+        if (mode === 'auto') {
+          pause();
+        } else {
+          resumeAuto();
+        }
+      });
+    }
+
+    // Pause when off-screen (only resume if user hadn't explicitly paused).
+    let wasAutoBeforeOffscreen = !reduceMotion;
     const canvasObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          if (!isPlaying) {
-            isPlaying = true;
-            if (!timerId) playMoment(currentStep);
+          if (mode === 'offscreen' && wasAutoBeforeOffscreen) {
+            resumeAuto();
           }
         } else {
-          isPlaying = false;
-          if (timerId) {
-            clearTimeout(timerId);
-            timerId = null;
+          if (mode === 'auto') wasAutoBeforeOffscreen = true;
+          else wasAutoBeforeOffscreen = false;
+          if (mode === 'auto') {
+            setMode('offscreen');
+            if (timerId) {
+              clearTimeout(timerId);
+              timerId = null;
+            }
+            clearProgress();
           }
         }
       });
@@ -127,103 +244,9 @@ export const LANDING_SCRIPT = `\
 
     canvasObserver.observe(canvas);
 
-    // Start
+    // Initial render — for reduced-motion, just show the first moment
+    // statically. Otherwise start auto-rotation.
     setTimeout(() => playMoment(0), 600);
-  })();
-
-  // ===================================
-  // MINI-CANVAS ENGINE — for service section phone mockups
-  // Each phone screen has data-scene attribute; cards inside have
-  // data-scene-step. Cards reveal in sequence, then loop.
-  // ===================================
-  (function() {
-    const phoneScreens = document.querySelectorAll('.svc-phone-screen[data-scene]');
-    if (!phoneScreens.length) return;
-
-    const sceneStates = new Map(); // screen → { running, timerId, currentStep }
-
-    function getStepCards(screen) {
-      const all = screen.querySelectorAll('[data-scene-step]');
-      const grouped = {};
-      all.forEach(el => {
-        const step = parseInt(el.dataset.sceneStep, 10);
-        if (!grouped[step]) grouped[step] = [];
-        grouped[step].push(el);
-      });
-      return grouped;
-    }
-
-    function playStep(screen, step, totalSteps) {
-      const grouped = getStepCards(screen);
-
-      // Hide cards from steps AFTER this one (keep prior ones visible for build-up)
-      Object.entries(grouped).forEach(([s, els]) => {
-        if (parseInt(s, 10) > step) {
-          els.forEach(el => el.classList.remove('show'));
-        }
-      });
-
-      // Show this step's cards (staggered if multiple)
-      if (grouped[step]) {
-        grouped[step].forEach((el, i) => {
-          setTimeout(() => el.classList.add('show'), i * 90);
-        });
-      }
-    }
-
-    function startScene(screen) {
-      const grouped = getStepCards(screen);
-      const totalSteps = Math.max(...Object.keys(grouped).map(n => parseInt(n, 10)));
-      const state = sceneStates.get(screen) || { currentStep: 0 };
-      state.running = true;
-      sceneStates.set(screen, state);
-
-      function next() {
-        if (!state.running) return;
-        state.currentStep = state.currentStep >= totalSteps ? 1 : state.currentStep + 1;
-        playStep(screen, state.currentStep, totalSteps);
-
-        const STEP_DURATION = 1500; // ms per step
-        const LOOP_PAUSE = 700; // pause before restarting
-        const nextDelay = state.currentStep === totalSteps ? STEP_DURATION + LOOP_PAUSE : STEP_DURATION;
-
-        state.timerId = setTimeout(() => {
-          if (state.currentStep >= totalSteps) {
-            // Reset all cards before restart
-            screen.querySelectorAll('[data-scene-step]').forEach(el => el.classList.remove('show'));
-            setTimeout(next, 200);
-          } else {
-            next();
-          }
-        }, nextDelay);
-      }
-
-      // Initial play
-      setTimeout(next, 400);
-    }
-
-    function stopScene(screen) {
-      const state = sceneStates.get(screen);
-      if (state) {
-        state.running = false;
-        if (state.timerId) clearTimeout(state.timerId);
-      }
-    }
-
-    // Pause/resume based on visibility
-    const phoneObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        const screen = entry.target;
-        if (entry.isIntersecting) {
-          if (!sceneStates.has(screen) || !sceneStates.get(screen).running) {
-            startScene(screen);
-          }
-        } else {
-          stopScene(screen);
-        }
-      });
-    }, { threshold: 0.3 });
-
-    phoneScreens.forEach(screen => phoneObserver.observe(screen));
+    if (reduceMotion) setMode('paused');
   })();
 `;

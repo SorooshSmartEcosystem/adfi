@@ -283,7 +283,7 @@ export const LANDING_CSS = `\
   .canvas {
     position: relative;
     width: 100%;
-    height: 440px;
+    height: 480px;
     margin: 0 auto;
     border-radius: 22px;
     background: linear-gradient(180deg, #FAFAF7 0%, #F4F2EA 100%);
@@ -291,10 +291,89 @@ export const LANDING_CSS = `\
     overflow: hidden;
   }
   @media (min-width: 960px) {
-    .canvas { height: 480px; }
+    .canvas { height: 540px; }
   }
   @media (max-width: 600px) {
-    .canvas { height: 380px; border-radius: 18px; }
+    .canvas { height: 460px; border-radius: 18px; }
+  }
+
+  /* Canvas tabs — sit at the top of the canvas. Active tab has the
+     fill bar animating during auto-rotate. Manual click pauses auto. */
+  .canvas-tabs {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    z-index: 5;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .canvas-tab {
+    position: relative;
+    padding: 6px 4px 8px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 0.5px solid rgba(26, 24, 21, 0.08);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b6964;
+    cursor: pointer;
+    overflow: hidden;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .canvas-tab:hover { color: #1a1815; border-color: rgba(26, 24, 21, 0.18); }
+  .canvas-tab.active {
+    color: #1a1815;
+    background: #fff;
+    border-color: rgba(26, 24, 21, 0.18);
+  }
+  .canvas-tab-label { position: relative; z-index: 2; pointer-events: none; }
+  .canvas-tab-progress {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 2px;
+    background: #1a1815;
+    transform: scaleX(0);
+    transform-origin: left center;
+    pointer-events: none;
+  }
+  .canvas.paused .canvas-tab-progress { transform: scaleX(0) !important; }
+  @media (max-width: 600px) {
+    .canvas-tab { font-size: 9px; padding: 5px 2px 7px; letter-spacing: 0.06em; }
+  }
+
+  /* Pause / play affordance — sits in the bottom-right corner of the
+     canvas. Switches between ⏸ and ▶ depending on mode. */
+  .canvas-pause {
+    position: absolute;
+    bottom: 14px;
+    right: 14px;
+    z-index: 5;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(26, 24, 21, 0.18);
+    background: rgba(255, 255, 255, 0.85);
+    color: #1a1815;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.18s ease, border-color 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .canvas-pause:hover {
+    background: #fff;
+    border-color: #1a1815;
+  }
+  .canvas-pause-icon { line-height: 1; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .canvas-tab-progress { display: none; }
   }
   .canvas::before {
     content: '';
@@ -654,14 +733,11 @@ export const LANDING_CSS = `\
   @media (max-width: 600px) {
     .canvas-caption { font-size: 11px; padding: 7px 12px; bottom: 16px; }
   }
+  /* Step dots — kept for back-compat; the canvas tabs above are the
+     primary navigator now. Hidden visually so the tabs aren't shadowed
+     by a redundant indicator. */
   .canvas-step-dots {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 6px;
-    z-index: 10;
+    display: none;
   }
   .canvas-step-dot {
     width: 5px; height: 5px;

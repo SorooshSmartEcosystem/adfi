@@ -5,11 +5,11 @@
 // Blocks:
 //   - FAQ accordion toggle
 //   - Scroll-in reveal via IntersectionObserver
-//   - Hero canvas tabs — auto-rotate + manual click-to-tab + pause/play
-//     + progress bar fill + IntersectionObserver pause + reduced-motion
-//     support. Replaces the older auto-only engine and the per-svc-section
-//     mini-canvas (which was removed when the 5 svc-sections collapsed
-//     into the hero canvas tab interface).
+//   - Meet-the-team engine: agent rows on left, phone scene on right.
+//     Auto-advances every 12s; click any agent to switch (auto resumes
+//     after 30s of no interaction). IntersectionObserver pauses when
+//     scrolled out of view. Replaced the old hero-canvas + 5
+//     svc-section mini-canvas engines.
 
 export const LANDING_SCRIPT = `\
   // FAQ toggle
@@ -30,223 +30,237 @@ export const LANDING_SCRIPT = `\
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
   // ===================================
-  // HERO CANVAS — 5-moment auto-rotate + manual tabs + pause/play
+  // MEET-THE-TEAM ENGINE
   // ===================================
   (function() {
-    const canvas = document.getElementById('heroCanvas');
-    if (!canvas) return;
+    const list = document.getElementById('agentList');
+    const phoneInner = document.getElementById('phoneInner');
+    if (!list || !phoneInner) return;
 
-    const orb = document.getElementById('canvasOrb');
-    const orbStage = document.getElementById('orbStage');
-    const caption = document.getElementById('canvasCaption');
-    const stepDots = canvas.querySelectorAll('.canvas-step-dot');
-    const tabs = canvas.querySelectorAll('.canvas-tab');
-    const tabProgressEls = canvas.querySelectorAll('.canvas-tab-progress');
-    const cards = canvas.querySelectorAll('.canvas-card');
-    const pauseBtn = document.getElementById('canvasPause');
+    const AGENT_DURATION = 12000;
+    const PROGRESS_TICK = 100;
+    const RESUME_AFTER = 30000;
 
-    const moments = [
-      { id: 'call', duration: 5000, orbMode: 'mode-call', tilt: 'tilt-left',
-        caption: 'i caught a missed call.', cardDelay: 240 },
-      { id: 'dm', duration: 5500, orbMode: 'mode-dm', tilt: '',
-        caption: 'i answered dms on instagram, facebook, and whatsapp.', cardDelay: 180, staggered: true },
-      { id: 'content', duration: 5200, orbMode: 'mode-content', tilt: 'tilt-right',
-        caption: 'i drafted your next post in your voice.', cardDelay: 240 },
-      { id: 'scout', duration: 5000, orbMode: 'mode-scout', tilt: 'tilt-right',
-        caption: 'i spotted what your rivals are doing.', cardDelay: 240 },
-      { id: 'dash', duration: 5200, orbMode: 'mode-dash', tilt: '',
-        caption: 'and your business grew this week.', cardDelay: 120, staggered: true }
-    ];
+    const SCENES = {
+      signal: {
+        statusLabel: 'SIGNAL · LIVE',
+        statusTime: '2:14PM',
+        content:
+          '<div class="pc-call-orb-wrap"><div class="pc-call-orb"></div></div>' +
+          '<div class="pc-card" style="animation-delay: 0.2s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot urgent"></span><span>INCOMING CALL</span></div>' +
+            '<div class="pc-title">+1 (416) 555-0934</div>' +
+            '<div class="pc-meta">i answered in your voice. booked thursday 2pm.</div>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 2.5s;">' +
+            '<div class="pc-dm-platform">' +
+              '<div class="pc-dm-icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></div>' +
+              '<span class="pc-dm-name">INSTAGRAM DM</span>' +
+              '<span class="pc-dm-status">✓ replied</span>' +
+            '</div>' +
+            '<div class="pc-meta">"do you ship internationally?" — i answered with rates.</div>' +
+          '</div>' +
+          '<div class="pc-card amber-card" style="animation-delay: 4.8s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot attn"></span><span>BOOKED FOR YOU</span></div>' +
+            '<div class="pc-title">thursday · 2:00pm</div>' +
+            '<div class="pc-meta">design consultation · est. $4-8k</div>' +
+          '</div>'
+      },
+      echo: {
+        statusLabel: 'ECHO · DRAFTING',
+        statusTime: '11:02AM',
+        content:
+          '<div class="pc-card dark-card" style="animation-delay: 0.2s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot alive"></span><span>WRITING IN YOUR VOICE</span></div>' +
+            '<div class="pc-meta">matching tone, format, hashtags...</div>' +
+            '<div class="pc-progress"><div class="pc-progress-fill"></div></div>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 3.0s; padding: 8px;">' +
+            '<div class="pc-post-img"></div>' +
+            '<div class="pc-post-cap">"the way light catches glaze at golden hour ✨ wheel-thrown this morning."</div>' +
+            '<div class="pc-post-stats"><span>♡ 1,240</span><span>↑ 18%</span></div>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 5.5s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot alive"></span><span>PUBLISHED · INSTAGRAM</span></div>' +
+            '<div class="pc-meta">scheduling 2 more for this week</div>' +
+          '</div>'
+      },
+      scout: {
+        statusLabel: 'SCOUT · WEEKLY DIGEST',
+        statusTime: 'MON 9AM',
+        content:
+          '<div class="pc-card amber-card" style="animation-delay: 0.2s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot attn"></span><span>RIVAL MOVE · EAST FORK</span></div>' +
+            '<div class="pc-title">20% off to interior designers.</div>' +
+            '<div class="pc-meta">running through end of month</div>' +
+            '<span class="pc-tag" style="background: #FFF9ED; color: #8a6a1e;">consider matching</span>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 2.5s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot ink"></span><span>WHAT\\'S WORKING FOR THEM</span></div>' +
+            '<div class="pc-meta">heath ceramics\\' wheel-throwing reels are getting 4x their normal reach</div>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 5.0s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot ink"></span><span>PRICE INTEL</span></div>' +
+            '<div class="pc-meta">avg dinnerware set in your region: $185-240. you\\'re at $165.</div>' +
+          '</div>'
+      },
+      pulse: {
+        statusLabel: 'PULSE · TRENDING NOW',
+        statusTime: 'TODAY',
+        content:
+          '<div class="pc-card" style="animation-delay: 0.2s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot alive"></span><span>TRENDING · TIKTOK</span></div>' +
+            '<div class="pc-title">"handmade ceramic mugs" +180%</div>' +
+            '<div class="pc-meta">3.4M views this week · post a making-of reel?</div>' +
+            '<span class="pc-tag alive">good moment</span>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 2.5s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot ink"></span><span>PRESS · TORONTO LIFE</span></div>' +
+            '<div class="pc-title">"ontario\\'s craft revival"</div>' +
+            '<div class="pc-meta">they\\'re profiling local potters. i can pitch you.</div>' +
+          '</div>' +
+          '<div class="pc-card amber-card" style="animation-delay: 5.0s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot attn"></span><span>HOLIDAY OPPORTUNITY</span></div>' +
+            '<div class="pc-meta">mother\\'s day in 14 days · gift bundles outsell singles 3:1</div>' +
+          '</div>'
+      },
+      strategist: {
+        statusLabel: 'WEEKLY REVIEW · APR 22-28',
+        statusTime: 'SUN 6PM',
+        content:
+          '<div class="pc-kpi-row">' +
+            '<div class="pc-kpi" style="animation-delay: 0.2s;"><div class="pc-kpi-label">REVENUE</div><div class="pc-kpi-num">$4.2k</div><div class="pc-kpi-delta">↑ 38%</div></div>' +
+            '<div class="pc-kpi" style="animation-delay: 0.5s;"><div class="pc-kpi-label">REACH</div><div class="pc-kpi-num">8.4k</div><div class="pc-kpi-delta">↑ 23%</div></div>' +
+            '<div class="pc-kpi" style="animation-delay: 0.8s;"><div class="pc-kpi-label">CONVOS</div><div class="pc-kpi-num">21</div><div class="pc-kpi-delta">↑ 12%</div></div>' +
+            '<div class="pc-kpi" style="animation-delay: 1.1s;"><div class="pc-kpi-label">SAVED</div><div class="pc-kpi-num">~6h</div><div class="pc-kpi-delta">this week</div></div>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 2.5s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot ink"></span><span>THIS WEEK\\'S STORY</span></div>' +
+            '<div class="pc-meta">your reels outperformed 80% of past posts. a designer called — i booked a $4-8k project.</div>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 5.5s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot alive"></span><span>WHAT TO FOCUS ON NEXT</span></div>' +
+            '<div class="pc-meta">double down on process videos. mornings 8-10am are your sweet spot.</div>' +
+          '</div>'
+      },
+      campaigns: {
+        statusLabel: 'CAMPAIGNS · OPTIMIZING',
+        statusTime: 'TODAY',
+        content:
+          '<div class="pc-card" style="animation-delay: 0.2s;">' +
+            '<div class="pc-dm-platform"><span class="pc-dm-name">FACEBOOK · META</span><span class="pc-dm-status">↑ 2.4x roas</span></div>' +
+            '<div class="pc-meta">"interior designers · 25-45 · ontario" — i shifted $40 here today.</div>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 2.8s;">' +
+            '<div class="pc-dm-platform"><span class="pc-dm-name">GOOGLE ADS</span><span class="pc-dm-status">✓ live</span></div>' +
+            '<div class="pc-meta">"custom dinnerware toronto" — bidding on 12 keywords.</div>' +
+          '</div>' +
+          '<div class="pc-card" style="animation-delay: 5.4s;">' +
+            '<div class="pc-dm-platform"><span class="pc-dm-name">TIKTOK ADS</span><span class="pc-dm-status">⚡ trending</span></div>' +
+            '<div class="pc-meta">"making-of reel boosted to lookalikes — 14k views, $8 cpm."</div>' +
+          '</div>' +
+          '<div class="pc-card amber-card" style="animation-delay: 8.0s;">' +
+            '<div class="pc-mono"><span class="pc-mono-dot attn"></span><span>WEEKLY · ALL CAMPAIGNS</span></div>' +
+            '<div class="pc-title">$340 spent · $1,180 attributed revenue</div>' +
+            '<div class="pc-meta">i killed 2 underperforming ads. shifted budget to top performers.</div>' +
+          '</div>'
+      }
+    };
 
-    const reduceMotion = window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const ORDER = ['signal', 'echo', 'scout', 'pulse', 'strategist', 'campaigns'];
+    const rows = list.querySelectorAll('.agent-row');
 
-    let currentStep = 0;
-    let timerId = null;
-    let progressRaf = null;
-    let progressStart = 0;
-    // 'auto' = auto-rotating, 'paused' = user-paused, 'offscreen' =
-    // section out of view, 'manual' = user clicked a tab (auto resumes
-    // after MANUAL_RESUME_AFTER ms of inactivity).
-    let mode = reduceMotion ? 'paused' : 'auto';
-    let manualResumeTimer = null;
-    const MANUAL_RESUME_AFTER = 10000;
+    let currentIdx = 0;
+    let progressMs = 0;
+    let progressTimer = null;
+    let advanceTimer = null;
+    let userInteracted = false;
+    let userInteractedTimer = null;
+    let isVisible = true;
 
-    function setOrbMode(mode) {
-      orb.className = 'canvas-orb';
-      if (mode) orb.classList.add(mode);
+    function renderScene(agentId) {
+      const scene = SCENES[agentId];
+      if (!scene) return;
+      phoneInner.style.animation = 'none';
+      void phoneInner.offsetHeight;
+      phoneInner.style.animation = 'meet-fade-in 0.4s ease';
+      phoneInner.innerHTML =
+        '<div class="ps-bar">' +
+          '<div class="ps-orb"></div>' +
+          '<span class="ps-text">' + scene.statusLabel + '</span>' +
+          '<span class="ps-time">' + scene.statusTime + '</span>' +
+        '</div>' +
+        scene.content;
     }
-    function setOrbTilt(tilt) {
-      orbStage.className = 'orb-stage';
-      if (tilt) orbStage.classList.add(tilt);
-    }
-    function setStepDot(idx) {
-      stepDots.forEach((d, i) => d.classList.toggle('active', i === idx));
-      tabs.forEach((t, i) => {
-        const active = i === idx;
-        t.classList.toggle('active', active);
-        t.setAttribute('aria-selected', active ? 'true' : 'false');
+
+    function setActive(idx) {
+      currentIdx = idx;
+      const agentId = ORDER[idx];
+      rows.forEach((row, i) => {
+        row.classList.toggle('active', i === idx);
+        const progress = row.querySelector('.agent-progress');
+        if (progress) progress.style.width = '0%';
       });
-    }
-    function clearAllCards() {
-      cards.forEach(c => c.classList.remove('show'));
-    }
-    function showMomentCards(momentId, staggered, delay) {
-      const cardsForMoment = canvas.querySelectorAll('[data-moment="' + momentId + '"]');
-      if (staggered) {
-        cardsForMoment.forEach((c, i) => {
-          setTimeout(() => c.classList.add('show'), delay + (i * 120));
-        });
-      } else {
-        cardsForMoment.forEach(c => {
-          setTimeout(() => c.classList.add('show'), delay);
-        });
-      }
-    }
+      renderScene(agentId);
 
-    function clearProgress() {
-      if (progressRaf) {
-        cancelAnimationFrame(progressRaf);
-        progressRaf = null;
-      }
-      tabProgressEls.forEach(el => { el.style.transform = 'scaleX(0)'; });
-    }
+      progressMs = 0;
+      if (progressTimer) clearInterval(progressTimer);
+      if (advanceTimer) clearTimeout(advanceTimer);
+      if (!isVisible) return;
 
-    function startProgress(idx, durationMs) {
-      clearProgress();
-      const target = tabProgressEls[idx];
-      if (!target || mode !== 'auto') return;
-      progressStart = performance.now();
-      function tick(now) {
-        const elapsed = now - progressStart;
-        const pct = Math.min(1, elapsed / durationMs);
-        target.style.transform = 'scaleX(' + pct + ')';
-        if (pct < 1 && mode === 'auto') {
-          progressRaf = requestAnimationFrame(tick);
+      const activeProgress = rows[idx] && rows[idx].querySelector('.agent-progress');
+      progressTimer = setInterval(() => {
+        progressMs += PROGRESS_TICK;
+        const pct = (progressMs / AGENT_DURATION) * 100;
+        if (activeProgress) {
+          activeProgress.style.width = Math.min(pct, 100) + '%';
         }
-      }
-      progressRaf = requestAnimationFrame(tick);
-    }
+      }, PROGRESS_TICK);
 
-    function playMoment(idx, opts) {
-      opts = opts || {};
-      if (idx >= moments.length) idx = 0;
-      if (idx < 0) idx = moments.length - 1;
-      currentStep = idx;
-      const m = moments[idx];
-
-      clearAllCards();
-      setOrbMode(m.orbMode);
-      setOrbTilt(m.tilt);
-      setStepDot(idx);
-
-      caption.style.opacity = '0';
-      setTimeout(() => {
-        caption.textContent = m.caption;
-        caption.style.opacity = '1';
-      }, 180);
-
-      showMomentCards(m.id, m.staggered, m.cardDelay);
-
-      if (timerId) {
-        clearTimeout(timerId);
-        timerId = null;
-      }
-      if (mode === 'auto') {
-        startProgress(idx, m.duration);
-        timerId = setTimeout(() => playMoment(idx + 1), m.duration);
-      } else {
-        clearProgress();
-      }
-    }
-
-    function setMode(next) {
-      mode = next;
-      if (pauseBtn) {
-        const isAuto = mode === 'auto';
-        pauseBtn.querySelector('.canvas-pause-icon').textContent = isAuto ? '⏸' : '▶';
-        pauseBtn.setAttribute('aria-label', isAuto ? 'pause auto-rotation' : 'resume auto-rotation');
-        pauseBtn.title = isAuto ? 'pause' : 'resume';
-      }
-      canvas.classList.toggle('paused', mode !== 'auto');
-    }
-
-    function pause() {
-      setMode('paused');
-      if (timerId) {
-        clearTimeout(timerId);
-        timerId = null;
-      }
-      clearProgress();
-    }
-
-    function resumeAuto() {
-      if (manualResumeTimer) {
-        clearTimeout(manualResumeTimer);
-        manualResumeTimer = null;
-      }
-      setMode('auto');
-      // Replay current moment to restart its timer + progress.
-      playMoment(currentStep);
-    }
-
-    // Tab click — jump + pause auto. Auto resumes after inactivity.
-    tabs.forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const idx = parseInt(tab.dataset.tab, 10) || 0;
-        setMode('manual');
-        clearProgress();
-        if (timerId) {
-          clearTimeout(timerId);
-          timerId = null;
+      advanceTimer = setTimeout(() => {
+        if (!userInteracted) {
+          setActive((idx + 1) % ORDER.length);
         }
-        playMoment(idx);
-        if (manualResumeTimer) clearTimeout(manualResumeTimer);
-        manualResumeTimer = setTimeout(() => {
-          if (mode === 'manual') resumeAuto();
-        }, MANUAL_RESUME_AFTER);
+      }, AGENT_DURATION);
+    }
+
+    function handleAgentClick(idx) {
+      userInteracted = true;
+      if (userInteractedTimer) clearTimeout(userInteractedTimer);
+      setActive(idx);
+      userInteractedTimer = setTimeout(() => {
+        userInteracted = false;
+        setActive((currentIdx + 1) % ORDER.length);
+      }, RESUME_AFTER);
+    }
+
+    rows.forEach((row, i) => {
+      row.addEventListener('click', () => handleAgentClick(i));
+      row.addEventListener('click', () => {
+        if (window.innerWidth < 900) {
+          row.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+        }
       });
     });
 
-    // Pause / play button
-    if (pauseBtn) {
-      pauseBtn.addEventListener('click', () => {
-        if (mode === 'auto') {
-          pause();
-        } else {
-          resumeAuto();
-        }
-      });
+    const sectionEl = document.querySelector('.meet');
+    if (sectionEl) {
+      const sectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          isVisible = entry.isIntersecting;
+          if (!isVisible) {
+            if (progressTimer) clearInterval(progressTimer);
+            if (advanceTimer) clearTimeout(advanceTimer);
+          } else {
+            setActive(currentIdx);
+          }
+        });
+      }, { threshold: 0.1 });
+      sectionObserver.observe(sectionEl);
     }
 
-    // Pause when off-screen (only resume if user hadn't explicitly paused).
-    let wasAutoBeforeOffscreen = !reduceMotion;
-    const canvasObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          if (mode === 'offscreen' && wasAutoBeforeOffscreen) {
-            resumeAuto();
-          }
-        } else {
-          if (mode === 'auto') wasAutoBeforeOffscreen = true;
-          else wasAutoBeforeOffscreen = false;
-          if (mode === 'auto') {
-            setMode('offscreen');
-            if (timerId) {
-              clearTimeout(timerId);
-              timerId = null;
-            }
-            clearProgress();
-          }
-        }
-      });
-    }, { threshold: 0.2 });
-
-    canvasObserver.observe(canvas);
-
-    // Initial render — for reduced-motion, just show the first moment
-    // statically. Otherwise start auto-rotation.
-    setTimeout(() => playMoment(0), 600);
-    if (reduceMotion) setMode('paused');
+    // Initial render
+    setActive(0);
   })();
 `;
+

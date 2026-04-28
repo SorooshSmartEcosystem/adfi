@@ -20,183 +20,99 @@ const RAW_BODY = `\
   </div>
 </nav>
 
-<!-- Hero -->
+<!-- Hero · v5 (minimal) — 3D orb with pulse rings, centered headline,
+     business-description textarea, continue button. Four corner cards
+     fade in/out on independent loops to suggest live agent activity. -->
 <section class="hero">
-  <div class="hero-grid">
-    <div class="hero-text">
-      <div class="hero-eyebrow">
-        <span class="hero-eyebrow-dot"></span>
-        <span>LIVE · RUNNING FOR SOLOPRENEURS NOW</span>
-      </div>
-      <h1>Your marketing team, hired.</h1>
-      <p class="sub">adfi is a team of ai agents that run your marketing end to end. calls, posts, dms, competitor watch. you focus on your craft. i handle the rest.</p>
-      <div class="hero-ctas">
-        <a href="#" class="btn-primary">
-          start 7 days free
-        </a>
-        <a href="#how" class="btn-secondary">see how it works</a>
-      </div>
-      <div class="hero-trust-row">
-        <span class="hero-trust-item">7 DAYS FREE</span>
-        <span class="hero-trust-item">NO CHARGE TODAY</span>
-        <span class="hero-trust-item">CANCEL ANYTIME</span>
-      </div>
-    </div>
 
-    <!-- Auto-playing capability canvas with manual tabs.
-         Each tab corresponds to a moment; clicking a tab pauses
-         auto-rotation and jumps. ▶ Resume restarts the cycle.
-         Progress bar inside the active tab fills as time elapses. -->
-    <div class="canvas" id="heroCanvas">
-      <div class="canvas-tabs" role="tablist" aria-label="agent capabilities">
-        <button type="button" role="tab" class="canvas-tab" data-tab="0" aria-selected="true">
-          <span class="canvas-tab-label">calls</span>
-          <span class="canvas-tab-progress"></span>
-        </button>
-        <button type="button" role="tab" class="canvas-tab" data-tab="1">
-          <span class="canvas-tab-label">dms</span>
-          <span class="canvas-tab-progress"></span>
-        </button>
-        <button type="button" role="tab" class="canvas-tab" data-tab="2">
-          <span class="canvas-tab-label">content</span>
-          <span class="canvas-tab-progress"></span>
-        </button>
-        <button type="button" role="tab" class="canvas-tab" data-tab="3">
-          <span class="canvas-tab-label">rivals</span>
-          <span class="canvas-tab-progress"></span>
-        </button>
-        <button type="button" role="tab" class="canvas-tab" data-tab="4">
-          <span class="canvas-tab-label">report</span>
-          <span class="canvas-tab-progress"></span>
-        </button>
-      </div>
-      <div class="canvas-step-dots">
-        <div class="canvas-step-dot" data-step="0"></div>
-      <div class="canvas-step-dot" data-step="1"></div>
-      <div class="canvas-step-dot" data-step="2"></div>
-      <div class="canvas-step-dot" data-step="3"></div>
-      <div class="canvas-step-dot" data-step="4"></div>
-    </div>
-
-    <div class="orb-stage" id="orbStage">
-      <div class="canvas-orb" id="canvasOrb"></div>
-    </div>
-
-    <!-- Moment 1: Call -->
-    <div class="canvas-card cc-call" data-moment="call">
+  <!-- Corner animations (desktop only) -->
+  <div class="corner corner-tl">
+    <div class="corner-card">
       <div class="cc-mono">
         <span class="cc-dot urgent"></span>
-        <span>INCOMING · TUE 2:14PM</span>
+        <span>CALL · ANSWERED</span>
       </div>
       <div class="cc-title">+1 (416) 555-0934</div>
-      <div class="cc-meta">a designer asking about custom dinnerware</div>
-      <div class="cc-tag alive">✓ booked thursday 2pm</div>
+      <div class="cc-meta">booked thursday 2pm</div>
     </div>
+  </div>
 
-    <!-- Moment 2: DMs -->
-    <div class="canvas-card cc-dm-card cc-dm-1" data-moment="dm">
-      <div class="cc-dm-platform">
-        <div class="cc-dm-icon">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="5"/>
-            <circle cx="12" cy="12" r="4"/>
-            <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor"/>
-          </svg>
-        </div>
-        <span class="cc-dm-name">INSTAGRAM</span>
-        <span class="cc-dm-status">✓</span>
-      </div>
-      <div class="cc-dm-text">"do you ship internationally?"</div>
-      <div class="cc-dm-from">@studioloft</div>
-    </div>
-    <div class="canvas-card cc-dm-card cc-dm-2" data-moment="dm">
-      <div class="cc-dm-platform">
-        <div class="cc-dm-icon">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95 0-5.52-4.48-10-10-10z"/>
-          </svg>
-        </div>
-        <span class="cc-dm-name">FACEBOOK</span>
-        <span class="cc-dm-status">✓</span>
-      </div>
-      <div class="cc-dm-text">"price for a set of 4?"</div>
-      <div class="cc-dm-from">hana m.</div>
-    </div>
-    <div class="canvas-card cc-dm-card cc-dm-3" data-moment="dm">
-      <div class="cc-dm-platform">
-        <div class="cc-dm-icon">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-          </svg>
-        </div>
-        <span class="cc-dm-name">WHATSAPP</span>
-        <span class="cc-dm-status">✓</span>
-      </div>
-      <div class="cc-dm-text">"can i pick up tomorrow?"</div>
-      <div class="cc-dm-from">+44 7700 900</div>
-    </div>
-    <div class="canvas-card cc-dm-summary" data-moment="dm">
-      i answered 14 dms across 3 platforms today.
-    </div>
-
-    <!-- Moment 3: Content -->
-    <div class="canvas-card cc-post" data-moment="content">
-      <div class="cc-post-img"></div>
-      <div class="cc-post-body">
-        <div class="cc-post-cap">"the way light catches glaze at golden hour ✨ wheel-thrown this morning."</div>
-        <div class="cc-post-stats">
-          <span>♡ 1,240</span>
-          <span>↑ 18%</span>
-        </div>
-      </div>
-    </div>
-    <div class="canvas-card cc-drafting" data-moment="content">
+  <div class="corner corner-tr">
+    <div class="corner-card">
       <div class="cc-mono">
         <span class="cc-dot alive"></span>
-        <span>DRAFTING IN YOUR VOICE</span>
+        <span>ECHO · PUBLISHED</span>
       </div>
-      <div class="cc-drafting-text">
-        <span>matching your tone</span><span class="cc-cursor"></span>
-      </div>
+      <div class="cc-title">"wheel-thrown this morning ✨"</div>
+      <div class="cc-meta">↑ 18% reach · instagram</div>
     </div>
-
-    <!-- Moment 4: Scout -->
-    <div class="canvas-card cc-scout" data-moment="scout">
-      <div class="cc-mono" style="color: #8a6a1e;">
-        <span class="cc-dot attn"></span>
-        <span>RIVAL MOVE · MON 9:00AM</span>
-      </div>
-      <div class="cc-title">east fork ran a wholesale promo.</div>
-      <div class="cc-meta">20% off to interior designers — worth considering for you.</div>
-    </div>
-
-    <!-- Moment 5: Dashboard -->
-    <div class="canvas-card cc-kpi cc-kpi-1" data-moment="dash">
-      <div class="cc-kpi-label">REVENUE</div>
-      <div class="cc-kpi-num">$4.2k</div>
-      <div class="cc-kpi-delta">↑ 38%</div>
-    </div>
-    <div class="canvas-card cc-kpi cc-kpi-2" data-moment="dash">
-      <div class="cc-kpi-label">REACH</div>
-      <div class="cc-kpi-num">8.4k</div>
-      <div class="cc-kpi-delta">↑ 23%</div>
-    </div>
-    <div class="canvas-card cc-kpi cc-kpi-3" data-moment="dash">
-      <div class="cc-kpi-label">CONVOS</div>
-      <div class="cc-kpi-num">21</div>
-      <div class="cc-kpi-delta">↑ 12%</div>
-    </div>
-    <div class="canvas-card cc-kpi cc-kpi-4" data-moment="dash">
-      <div class="cc-kpi-label">SAVED</div>
-      <div class="cc-kpi-num">~6h</div>
-      <div class="cc-kpi-delta">this week</div>
-    </div>
-
-    <div class="canvas-caption" id="canvasCaption">i caught a missed call.</div>
-    <button type="button" class="canvas-pause" id="canvasPause" aria-label="pause auto-rotation" title="pause">
-      <span class="canvas-pause-icon" aria-hidden="true">⏸</span>
-    </button>
   </div>
+
+  <div class="corner corner-bl">
+    <div class="corner-card">
+      <div class="cc-mono">
+        <span class="cc-dot alive"></span>
+        <span>PULSE · TRENDING</span>
+      </div>
+      <div class="cc-title">handmade ceramic mugs</div>
+      <div class="cc-meta">↑ 180% on tiktok this week</div>
+    </div>
+  </div>
+
+  <div class="corner corner-br">
+    <div class="corner-card amber">
+      <div class="cc-mono">
+        <span class="cc-dot attn"></span>
+        <span>SCOUT · RIVAL MOVE</span>
+      </div>
+      <div class="cc-title">east fork · 20% off</div>
+      <div class="cc-meta">to interior designers</div>
+    </div>
+  </div>
+
+  <div class="hero-inner">
+    <div class="orb-wrap">
+      <div class="orb-ring"></div>
+      <div class="orb-ring"></div>
+      <div class="orb-ring"></div>
+      <div class="orb-3d"></div>
+    </div>
+    <div class="wordmark">adfi</div>
+
+    <h1 class="hero-h1">Your marketing team, hired.</h1>
+    <p class="hero-sub">tell me about your business. i'll show you what i can do for it.</p>
+
+    <form class="form-wrap" id="heroForm" action="/onboarding/wow" method="get">
+      <textarea
+        id="bizDesc"
+        name="biz"
+        class="business-textarea"
+        placeholder="e.g. ceramics studio in toronto, mostly handmade dinnerware. we sell on instagram and at saturday markets."
+        required
+        minlength="10"
+      ></textarea>
+      <button type="submit" class="continue-btn">continue →</button>
+    </form>
+
+    <!-- Mobile ticker (replaces corner cards on small screens) -->
+    <div class="mobile-ticker">
+      <div class="ticker-card">
+        <span class="ticker-dot urgent"></span>
+        <span>call answered · booked thu</span>
+      </div>
+      <div class="ticker-card">
+        <span class="ticker-dot alive"></span>
+        <span>echo published · ↑ 18%</span>
+      </div>
+      <div class="ticker-card">
+        <span class="ticker-dot alive"></span>
+        <span>pulse trending · ↑ 180%</span>
+      </div>
+      <div class="ticker-card">
+        <span class="ticker-dot attn"></span>
+        <span>scout · rival move</span>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -264,65 +180,81 @@ const RAW_BODY = `\
   </div>
 </section>
 
-<!-- Meet the team -->
-<section id="team">
-  <div class="container-narrow">
-    <div class="section-label">meet the team</div>
-    <h2 class="section-title">There's not one of me. There are six.</h2>
-    <p class="section-intro">adfi is a team of specialists working under one name. you talk to one interface. behind the scenes, six agents coordinate. you never have to manage them — that's my job.</p>
+<!-- Meet the team · v2 — agent rows on left, phone mockup on right.
+     Auto-advances every 12s; click any agent to switch (auto resumes
+     after 30s of no interaction). IntersectionObserver pauses when
+     scrolled out of view. Per-agent scenes are inlined in the script. -->
+<section id="team" class="meet">
+  <div class="meet-wrap">
+    <div class="meet-eyebrow">MEET THE TEAM</div>
+    <h2>Six specialists. One colleague.</h2>
+    <p class="meet-sub">you talk to adfi. behind the scenes, six agents coordinate so you don't have to manage them. here's what each one does.</p>
 
-    <div class="team-wrap reveal">
-      <div class="team-item">
-        <span class="team-dot"></span>
-        <div class="team-body">
-          <div class="team-name">strategist</div>
-          <div class="team-role">studies your business, defines your voice, sets the weekly plan.</div>
-        </div>
+    <div class="meet-grid">
+      <div class="agent-list" id="agentList">
+        <button type="button" class="agent-row active" data-agent="signal">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">signal</span>
+          </div>
+          <div class="agent-row-desc">answers calls, replies to sms and dms, books appointments.</div>
+          <div class="agent-progress"></div>
+        </button>
+        <button type="button" class="agent-row" data-agent="echo">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">echo</span>
+          </div>
+          <div class="agent-row-desc">writes posts in your voice, publishes on the right schedule.</div>
+          <div class="agent-progress"></div>
+        </button>
+        <button type="button" class="agent-row" data-agent="scout">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">scout</span>
+          </div>
+          <div class="agent-row-desc">tracks your competitors. surfaces what's worth your attention.</div>
+          <div class="agent-progress"></div>
+        </button>
+        <button type="button" class="agent-row" data-agent="pulse">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">pulse</span>
+          </div>
+          <div class="agent-row-desc">spots trends and news that could move your business.</div>
+          <div class="agent-progress"></div>
+        </button>
+        <button type="button" class="agent-row" data-agent="strategist">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">strategist</span>
+          </div>
+          <div class="agent-row-desc">runs your weekly business review and sets the plan.</div>
+          <div class="agent-progress"></div>
+        </button>
+        <button type="button" class="agent-row" data-agent="campaigns">
+          <div class="agent-row-head">
+            <span class="agent-row-dot"></span>
+            <span class="agent-row-name">campaign manager</span>
+          </div>
+          <div class="agent-row-desc">runs your ads on meta, google, youtube, and tiktok.</div>
+          <div class="agent-progress"></div>
+        </button>
       </div>
-      <div class="team-item">
-        <span class="team-dot"></span>
-        <div class="team-body">
-          <div class="team-name">signal</div>
-          <div class="team-role">answers calls, replies to sms and dms, books appointments.</div>
-        </div>
-      </div>
-      <div class="team-item">
-        <span class="team-dot"></span>
-        <div class="team-body">
-          <div class="team-name">echo</div>
-          <div class="team-role">writes your posts, matches your voice, publishes on schedule.</div>
-        </div>
-      </div>
-      <div class="team-item">
-        <span class="team-dot"></span>
-        <div class="team-body">
-          <div class="team-name">scout</div>
-          <div class="team-role">tracks your competitors. surfaces what's working in your market.</div>
-        </div>
-      </div>
-      <div class="team-item">
-        <span class="team-dot"></span>
-        <div class="team-body">
-          <div class="team-name">pulse</div>
-          <div class="team-role">watches news and trends that matter to your business.</div>
-        </div>
-      </div>
-      <div class="team-item">
-        <span class="team-dot coming"></span>
-        <div class="team-body">
-          <div class="team-name">ads <span class="soon-pill">COMING SOON</span></div>
-          <div class="team-role">runs and optimizes your paid campaigns on meta and google.</div>
-        </div>
-      </div>
-      <div class="team-item">
-        <span class="team-dot coming"></span>
-        <div class="team-body">
-          <div class="team-name">site <span class="soon-pill">COMING SOON</span></div>
-          <div class="team-role">builds and updates your website without you touching a template.</div>
+
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-screen-inner" id="phoneInner"></div>
+          </div>
         </div>
       </div>
     </div>
-    <p class="team-note">you don't need to learn any of their names. you talk to adfi. we handle the rest internally.</p>
+
+    <div class="meet-cta-row">
+      <a href="#" class="btn-primary">hire the team free for 7 days</a>
+      <a href="#how" class="btn-secondary">see all features</a>
+    </div>
   </div>
 </section>
 

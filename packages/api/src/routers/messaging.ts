@@ -61,7 +61,12 @@ export const messagingRouter = router({
               }>,
             )
           : ctx.db.message.findMany({
-              where: { userId: ctx.user.id, createdAt: { gte: since } },
+              where: {
+                OR: [
+                  { businessId: ctx.currentBusinessId, createdAt: { gte: since } },
+                  { businessId: null, userId: ctx.user.id, createdAt: { gte: since } },
+                ],
+              },
               orderBy: { createdAt: "desc" },
               take: 250,
               // Drop the metadata JSON column + id from the wire — the
@@ -78,16 +83,31 @@ export const messagingRouter = router({
         input.filter === "texts" || input.filter === "dms"
           ? Promise.resolve([])
           : ctx.db.call.findMany({
-              where: { userId: ctx.user.id },
+              where: {
+                OR: [
+                  { businessId: ctx.currentBusinessId },
+                  { businessId: null, userId: ctx.user.id },
+                ],
+              },
               orderBy: { startedAt: "desc" },
               take: input.limit,
             }),
         ctx.db.appointment.findMany({
-          where: { userId: ctx.user.id, callId: { not: null } },
+          where: {
+            OR: [
+              { businessId: ctx.currentBusinessId, callId: { not: null } },
+              { businessId: null, userId: ctx.user.id, callId: { not: null } },
+            ],
+          },
           select: { callId: true },
         }),
         ctx.db.contact.findMany({
-          where: { userId: ctx.user.id },
+          where: {
+            OR: [
+              { businessId: ctx.currentBusinessId },
+              { businessId: null, userId: ctx.user.id },
+            ],
+          },
           select: {
             channel: true,
             externalId: true,
@@ -182,8 +202,12 @@ export const messagingRouter = router({
     .query(async ({ ctx, input }) => {
       const recent = await ctx.db.message.findMany({
         where: {
-          userId: ctx.user.id,
-          ...(input.channel && { channel: input.channel }),
+          OR: [
+            { businessId: ctx.currentBusinessId,
+              ...(input.channel && { channel: input.channel }) },
+            { businessId: null, userId: ctx.user.id,
+              ...(input.channel && { channel: input.channel }) },
+          ],
         },
         orderBy: { createdAt: "desc" },
         take: 500,
@@ -200,7 +224,12 @@ export const messagingRouter = router({
     .input(z.object({ threadId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const messages = await ctx.db.message.findMany({
-        where: { userId: ctx.user.id, threadId: input.threadId },
+        where: {
+          OR: [
+            { businessId: ctx.currentBusinessId, threadId: input.threadId },
+            { businessId: null, userId: ctx.user.id, threadId: input.threadId },
+          ],
+        },
         orderBy: { createdAt: "asc" },
       });
       if (messages.length === 0) throw OrbError.NOT_FOUND("thread");
@@ -324,6 +353,7 @@ export const messagingRouter = router({
       return ctx.db.message.create({
         data: {
           userId: ctx.user.id,
+          businessId: ctx.currentBusinessId,
           threadId: input.threadId,
           channel: last.channel,
           fromAddress: last.fromAddress,

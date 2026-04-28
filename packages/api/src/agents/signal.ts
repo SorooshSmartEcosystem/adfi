@@ -145,6 +145,14 @@ export async function processInboundSms(args: {
   }
 
   const user = phoneRecord.user;
+  // Active business for this inbound: the phone number's tagged
+  // businessId (set when the user provisions the line under a business)
+  // takes precedence; fall back to whatever business the user has
+  // active right now. Every Message + Contact + Call we write below
+  // gets stamped with this id so the inbox view of the right business
+  // surfaces them.
+  const businessId =
+    phoneRecord.businessId ?? user.currentBusinessId ?? null;
 
   // Abuse guard — see processInboundTelegram comment.
   const smsPlan = await effectivePlan(user.id);
@@ -172,6 +180,7 @@ export async function processInboundSms(args: {
     await db.message.create({
       data: {
         userId: user.id,
+        businessId,
         threadId: tid,
         channel: MessageChannel.SMS,
         fromAddress: args.from,
@@ -198,6 +207,7 @@ export async function processInboundSms(args: {
   await db.message.create({
     data: {
       userId: user.id,
+      businessId,
       threadId,
       channel: MessageChannel.SMS,
       fromAddress: args.from,
@@ -229,6 +239,7 @@ export async function processInboundSms(args: {
   await db.message.create({
     data: {
       userId: user.id,
+      businessId,
       threadId,
       channel: MessageChannel.SMS,
       fromAddress: args.from,
@@ -305,6 +316,12 @@ export async function processInboundMessenger(args: {
     return { handled: false, reason: "unknown_page" };
   }
   const user = account.user;
+  // Active business for this inbound. Prefer the ConnectedAccount's
+  // businessId (set when the user connected the page) — that's the
+  // ground truth for "which business owns this inbox." Fall back to
+  // the user's current business for accounts connected before the
+  // multi-business migration.
+  const businessId = account.businessId ?? user.currentBusinessId ?? null;
 
   const channel =
     args.channel === "INSTAGRAM_DM"
@@ -359,6 +376,7 @@ export async function processInboundMessenger(args: {
         },
         create: {
           userId: user.id,
+          businessId,
           channel,
           externalId: args.senderPsid,
           displayName: profile?.name ?? null,
@@ -400,6 +418,7 @@ export async function processInboundMessenger(args: {
     await db.message.create({
       data: {
         userId: user.id,
+        businessId,
         threadId: tid,
         channel,
         fromAddress: args.senderPsid,
@@ -452,6 +471,7 @@ export async function processInboundMessenger(args: {
   await db.message.create({
     data: {
       userId: user.id,
+      businessId,
       threadId,
       channel,
       fromAddress: args.senderPsid,
@@ -482,6 +502,7 @@ export async function processInboundMessenger(args: {
   await db.message.create({
     data: {
       userId: user.id,
+      businessId,
       threadId,
       channel,
       fromAddress: args.senderPsid,
@@ -563,6 +584,10 @@ export async function processInboundTelegram(args: {
     return { handled: false, reason: "unknown_bot" };
   }
   const user = account.user;
+  // Same active-business resolution as processInboundMessenger — the
+  // bot's ConnectedAccount.businessId tells us which business owns this
+  // inbox; fall back to user's current business for legacy connections.
+  const businessId = account.businessId ?? user.currentBusinessId ?? null;
   const channel = MessageChannel.TELEGRAM;
 
   void (async () => {
@@ -608,6 +633,7 @@ export async function processInboundTelegram(args: {
         },
         create: {
           userId: user.id,
+          businessId,
           channel,
           externalId: args.fromId,
           displayName: args.fromName,
@@ -653,6 +679,7 @@ export async function processInboundTelegram(args: {
     await db.message.create({
       data: {
         userId: user.id,
+        businessId,
         threadId,
         channel,
         fromAddress: args.fromId,
@@ -702,6 +729,7 @@ export async function processInboundTelegram(args: {
   await db.message.create({
     data: {
       userId: user.id,
+      businessId,
       threadId,
       channel,
       fromAddress: args.fromId,
@@ -772,6 +800,7 @@ export async function processInboundTelegram(args: {
   await db.message.create({
     data: {
       userId: user.id,
+      businessId,
       threadId,
       channel,
       fromAddress: args.fromId,

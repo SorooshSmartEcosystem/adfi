@@ -32,6 +32,10 @@ Format note: write changes from the user's perspective in plain English. "Users 
 - Branded 404 page and an in-app error fallback that surfaces the digest for support.
 - Favicon, apple-touch-icon, and a PWA manifest so the dashboard installs from Chrome/Safari.
 
+### Added (multi-business · 2026-04-28)
+- New `Business` data model + sidebar business-switcher dropdown. Every user now owns at least one Business (auto-bootstrapped from existing `User.businessName`/`businessLogoUrl`/etc. on first load). The sidebar's top-left chip became a clickable dropdown that lists all businesses the user owns, lets them switch with one click, and includes an "add new business" affordance gated by the plan ceiling: SOLO/TEAM = 1, STUDIO = 2, AGENCY = 8. At-limit users see the upgrade hint instead of the create button.
+- `business.list` / `business.create` / `business.switch` tRPC routes. Create enforces `BUSINESS_LIMIT[plan]` server-side so a tampered client can't outrun the plan tier.
+
 ### Changed (pricing reshape · 2026-04-28)
 - **Plan ladder rebuilt around capability gates, not credit caps.** Each upgrade now unlocks a specific new capability so the value of going up is obvious:
   - **SOLO $29/mo** (was $49) — 1 business · 60 credits · DM-only

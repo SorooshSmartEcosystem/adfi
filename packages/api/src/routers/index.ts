@@ -15,6 +15,7 @@ import { agentRouter } from "./agent";
 import { subscribersRouter } from "./subscribers";
 import { connectionsRouter } from "./connections";
 import { brandKitRouter } from "./brand-kit";
+import { businessRouter } from "./business";
 
 export const appRouter = router({
   system: systemRouter,
@@ -33,6 +34,7 @@ export const appRouter = router({
   subscribers: subscribersRouter,
   connections: connectionsRouter,
   brandKit: brandKitRouter,
+  business: businessRouter,
 });
 
 export type AppRouter = typeof appRouter;

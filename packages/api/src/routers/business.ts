@@ -1,0 +1,144 @@
+import { z } from "zod";
+import { router, authedProc } from "../trpc";
+import { OrbError } from "../errors";
+import { effectivePlan } from "../services/abuse-guard";
+import type { Plan } from "@orb/db";
+
+// Per-plan ceiling on how many active Businesses a User can own. Solo
+// and Team are intentionally single-business — STUDIO unlocks 2,
+// AGENCY unlocks 8. Trial inherits TEAM during the 7-day window so the
+// user gets the full experience but can't seed multiple businesses.
+const BUSINESS_LIMIT: Record<"TRIAL" | Plan, number> = {
+  TRIAL: 1,
+  SOLO: 1,
+  TEAM: 1,
+  STUDIO: 2,
+  AGENCY: 8,
+};
+
+// Self-heal helper: every authenticated User must have at least one
+// Business. Older accounts pre-date the 2026-04-28 migration; new
+// signups should be covered by the migration's bootstrap. Either way,
+// we never want an authed user landing on the dashboard without an
+// active Business (the sidebar would crash).
+async function ensureCurrentBusiness(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+): Promise<{ id: string }> {
+  const user = await ctx.db.user.findUnique({
+    where: { id: ctx.user.id },
+    select: {
+      id: true,
+      email: true,
+      currentBusinessId: true,
+      businessName: true,
+      businessDescription: true,
+      businessLogoUrl: true,
+      businessWebsiteUrl: true,
+    },
+  });
+  if (!user) throw OrbError.NOT_FOUND("user");
+  if (user.currentBusinessId) return { id: user.currentBusinessId };
+
+  // No current business — bootstrap one from legacy User fields.
+  const created = await ctx.db.business.create({
+    data: {
+      userId: user.id,
+      name:
+        user.businessName?.trim() ||
+        user.email?.split("@")[0] ||
+        "my business",
+      description: user.businessDescription,
+      logoUrl: user.businessLogoUrl,
+      websiteUrl: user.businessWebsiteUrl,
+    },
+  });
+  await ctx.db.user.update({
+    where: { id: user.id },
+    data: { currentBusinessId: created.id },
+  });
+  return { id: created.id };
+}
+
+export const businessRouter = router({
+  // List all of the user's businesses + the active one's id. Used by the
+  // sidebar dropdown.
+  list: authedProc.input(z.void()).query(async ({ ctx }) => {
+    const current = await ensureCurrentBusiness(ctx);
+    const businesses = await ctx.db.business.findMany({
+      where: { userId: ctx.user.id, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        logoUrl: true,
+        createdAt: true,
+      },
+    });
+    const plan = await effectivePlan(ctx.user.id);
+    return {
+      businesses,
+      currentId: current.id,
+      plan,
+      limit: BUSINESS_LIMIT[plan],
+    };
+  }),
+
+  // Create a new Business. Enforces the per-plan ceiling so AGENCY can
+  // grow up to 8, STUDIO up to 2, and SOLO/TEAM can't add a second.
+  create: authedProc
+    .input(
+      z.object({
+        name: z.string().min(1).max(80),
+        description: z.string().max(2000).optional(),
+        websiteUrl: z.string().url().max(500).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ensureCurrentBusiness(ctx);
+      const plan = await effectivePlan(ctx.user.id);
+      const limit = BUSINESS_LIMIT[plan];
+      const count = await ctx.db.business.count({
+        where: { userId: ctx.user.id, deletedAt: null },
+      });
+      if (count >= limit) {
+        throw OrbError.PLAN_LIMIT(
+          `your ${plan.toLowerCase()} plan supports ${limit} business${
+            limit === 1 ? "" : "es"
+          } — upgrade to add more`,
+        );
+      }
+      const created = await ctx.db.business.create({
+        data: {
+          userId: ctx.user.id,
+          name: input.name,
+          description: input.description ?? null,
+          websiteUrl: input.websiteUrl ?? null,
+        },
+      });
+      // Switch to the new business immediately — common case is the user
+      // just created it because they want to work on it.
+      await ctx.db.user.update({
+        where: { id: ctx.user.id },
+        data: { currentBusinessId: created.id },
+      });
+      return { id: created.id };
+    }),
+
+  // Switch the active business. Doesn't migrate any data — just flips
+  // currentBusinessId so the dashboard renders the chosen one.
+  switch: authedProc
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const target = await ctx.db.business.findFirst({
+        where: { id: input.id, userId: ctx.user.id, deletedAt: null },
+        select: { id: true },
+      });
+      if (!target) throw OrbError.NOT_FOUND("business");
+      await ctx.db.user.update({
+        where: { id: ctx.user.id },
+        data: { currentBusinessId: target.id },
+      });
+      return { ok: true as const };
+    }),
+});

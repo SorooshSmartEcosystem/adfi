@@ -17,9 +17,12 @@ export const trpcServer = cache(async () => {
 // single navigation.
 export const getDashUserAndHome = cache(async () => {
   const trpc = await trpcServer();
-  const [user, home] = await Promise.all([
+  const [user, home, businesses] = await Promise.all([
     trpc.user.me(),
     trpc.user.getHomeData(),
+    trpc.business.list(),
   ]);
-  return { user, home };
+  const active =
+    businesses.businesses.find((b) => b.id === businesses.currentId) ?? null;
+  return { user, home, businesses, active };
 });

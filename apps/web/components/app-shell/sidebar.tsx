@@ -10,6 +10,7 @@ import {
   type NavIcon,
 } from "./nav-config";
 import { NavIconGlyph } from "./nav-icons";
+import { BusinessSwitcher } from "./business-switcher";
 
 export function Sidebar({
   open,
@@ -31,26 +32,14 @@ export function Sidebar({
       <aside
         className={`fixed top-0 bottom-0 left-0 w-[260px] bg-bg border-r-hairline border-border flex flex-col p-lg z-50 overflow-y-auto transition-transform duration-200 ${open ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
-        <div className="flex items-center gap-sm pb-lg hairline-b2 mb-md px-xs">
-          {business.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={business.logoUrl}
-              alt=""
-              className="w-7 h-7 rounded-md object-cover shrink-0 bg-ink"
-            />
-          ) : (
-            <div className="w-7 h-7 rounded-md bg-ink text-white flex items-center justify-center font-mono text-xs font-medium shrink-0">
-              {business.initials}
-            </div>
-          )}
-          <div className="flex flex-col min-w-0">
-            <div className="text-sm font-medium truncate">{business.name}</div>
-            <div className="text-[11px] text-ink4 mt-[1px]">
-              {user.planLabel}
-            </div>
-          </div>
-        </div>
+        <BusinessSwitcher
+          active={{
+            name: business.name,
+            initials: business.initials,
+            logoUrl: business.logoUrl,
+          }}
+          planLabel={user.planLabel}
+        />
 
         <div className="flex flex-col gap-[2px] py-sm">
           {NAV_PRIMARY.map((n) => (

@@ -29,16 +29,20 @@ export default async function DashLayout({
   });
   if (!ctx?.strategistOutput) redirect("/onboarding");
 
-  const { user, home } = await getDashUserAndHome();
+  const { user, home, active } = await getDashUserAndHome();
 
-  // Always prefer the user-set businessName. Fall back to email
-  // username only when the field truly hasn't been set yet — never
-  // derive from businessDescription, which is freeform copy that
-  // produces ugly chips like "we help small businesses scale by".
+  // Active Business is the canonical source of truth. The legacy
+  // User.businessName/Logo fields are only used by the migration's
+  // bootstrap fallback — once business.list runs, `active` is set and
+  // we read from there. Email username is the last-ditch fallback for
+  // accounts that somehow have no Business yet.
   const businessName =
+    active?.name?.trim() ||
     user.businessName?.trim() ||
     user.email?.split("@")[0] ||
     "your business";
+  const businessLogoUrl =
+    active?.logoUrl ?? user.businessLogoUrl ?? null;
   const userName = user.email?.split("@")[0] ?? "you";
 
   return (
@@ -46,7 +50,7 @@ export default async function DashLayout({
       business={{
         name: businessName,
         initials: initialsFrom(businessName),
-        logoUrl: user.businessLogoUrl ?? null,
+        logoUrl: businessLogoUrl,
       }}
       user={{
         name: userName,

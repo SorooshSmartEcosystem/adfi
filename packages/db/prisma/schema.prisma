@@ -17,10 +17,16 @@ model User {
   id                    String    @id @default(uuid()) @db.Uuid
   phone                 String?   @unique
   email                 String?   @unique
+  // Legacy single-business fields. Kept for backward compat while the
+  // multi-business migration rolls out — the canonical source of truth
+  // for these is now Business (one User → many Businesses on STUDIO+).
+  // currentBusinessId points at the Business the dashboard / agents
+  // read from when the User has multiple.
   businessName          String?   @map("business_name")
   businessDescription   String?   @map("business_description")
   businessLogoUrl       String?   @map("business_logo_url")
   businessWebsiteUrl    String?   @map("business_website_url")
+  currentBusinessId     String?   @map("current_business_id") @db.Uuid
   goal                  Goal?
   brandVoice            Json?     @map("brand_voice")
   onboardedAt           DateTime? @map("onboarded_at")
@@ -46,8 +52,36 @@ model User {
   agentEvents           AgentEvent[]
   contacts              Contact[]
   brandKit              BrandKit?
+  businesses            Business[]
+  currentBusiness       Business? @relation("CurrentBusiness", fields: [currentBusinessId], references: [id])
 
   @@map("users")
+}
+
+// Business — one brand the User runs. Solopreneurs have one (auto-created
+// on signup). STUDIO users can have 2; AGENCY users up to 8. Each
+// Business has its own brand voice, brand kit, channels, and content —
+// all those tables will gain businessId in subsequent migrations. For
+// the initial cut, Business carries only the profile fields (name,
+// description, logo, website) so the sidebar switcher can render and
+// the user can create new businesses; per-table data isolation lands
+// next.
+model Business {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  name          String
+  description   String?
+  logoUrl       String?   @map("logo_url")
+  websiteUrl    String?   @map("website_url")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentForUsers User[] @relation("CurrentBusiness")
+
+  @@index([userId])
+  @@map("businesses")
 }
 
 enum Goal {

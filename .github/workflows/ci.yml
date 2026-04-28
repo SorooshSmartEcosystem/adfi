@@ -10,6 +10,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Prisma's `validate` / `generate` need DATABASE_URL + DIRECT_URL to be
+# *defined* in order to parse the schema's datasource block, even when
+# we're not connecting to a real database. Set placeholder values at the
+# job level so every step inherits them. The placeholders never connect
+# to anything — schema parsing only checks env() resolution, not
+# connectivity.
+env:
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+  DIRECT_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+
 jobs:
   typecheck:
     name: typecheck

@@ -49,6 +49,10 @@ UPDATE "brand_kits" bk
    AND bk.business_id IS NULL
    AND u.current_business_id IS NOT NULL;
 
+-- Drop the constraint (not just the index) — Postgres' unique CONSTRAINT
+-- is what owns the underlying index, so DROP INDEX would fail with
+-- "cannot drop index because constraint requires it".
+ALTER TABLE "brand_kits" DROP CONSTRAINT IF EXISTS "brand_kits_user_id_key";
 DROP INDEX IF EXISTS "brand_kits_user_id_key";
 CREATE UNIQUE INDEX IF NOT EXISTS "brand_kits_business_id_key"
   ON "brand_kits"("business_id")

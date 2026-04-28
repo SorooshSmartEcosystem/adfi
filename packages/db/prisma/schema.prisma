@@ -51,7 +51,7 @@ model User {
   findings              Finding[]
   agentEvents           AgentEvent[]
   contacts              Contact[]
-  brandKit              BrandKit?
+  brandKits             BrandKit[]
   businesses            Business[]
   currentBusiness       Business? @relation("CurrentBusiness", fields: [currentBusinessId], references: [id])
 
@@ -77,8 +77,22 @@ model Business {
   updatedAt     DateTime  @updatedAt @map("updated_at")
   deletedAt     DateTime? @map("deleted_at")
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currentForUsers User[] @relation("CurrentBusiness")
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentForUsers  User[]            @relation("CurrentBusiness")
+  agentContext     AgentContext?
+  brandKit         BrandKit?
+  connectedAccounts ConnectedAccount[]
+  contentDrafts    ContentDraft[]
+  contentPlans     ContentPlan[]
+  contentPosts     ContentPost[]
+  messages         Message[]
+  calls            Call[]
+  appointments     Appointment[]
+  competitors      Competitor[]
+  subscribers      Subscriber[]
+  findings         Finding[]
+  contacts         Contact[]
+  phoneNumbers     PhoneNumber[]
 
   @@index([userId])
   @@map("businesses")
@@ -133,6 +147,7 @@ enum SubscriptionStatus {
 model PhoneNumber {
   id           String              @id @default(uuid()) @db.Uuid
   userId       String              @map("user_id") @db.Uuid
+  businessId   String?             @map("business_id") @db.Uuid
   number       String              @unique
   twilioSid    String              @unique @map("twilio_sid")
   status       PhoneNumberStatus   @default(ACTIVE)
@@ -140,7 +155,9 @@ model PhoneNumber {
   createdAt    DateTime            @default(now()) @map("created_at")
 
   user         User                @relation(fields: [userId], references: [id])
+  business     Business?           @relation(fields: [businessId], references: [id], onDelete: SetNull)
 
+  @@index([businessId])
   @@map("phone_numbers")
 }
 
@@ -154,7 +171,13 @@ enum PhoneNumberStatus {
 // AgentContext — per-user memory shared across all 6 agents
 // =============================================================
 model AgentContext {
-  userId             String    @id @map("user_id") @db.Uuid
+  // Was 1:1 with User (userId @id). Now 1:1 with Business so each
+  // business has its own brand voice / strategist output. We keep
+  // userId for back-compat (queries by userId still work for
+  // single-business users) but the unique key has moved to businessId.
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  businessId         String?   @unique @map("business_id") @db.Uuid
   strategistOutput   Json?     @map("strategist_output")
   scoutWatching      Json?     @map("scout_watching")
   pulseSignals       Json?     @map("pulse_signals")
@@ -166,7 +189,9 @@ model AgentContext {
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
   user               User      @relation(fields: [userId], references: [id])
+  business           Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
+  @@unique([userId])
   @@map("agent_context")
 }
 
@@ -176,6 +201,7 @@ model AgentContext {
 model ConnectedAccount {
   id               String            @id @default(uuid()) @db.Uuid
   userId           String            @map("user_id") @db.Uuid
+  businessId       String?           @map("business_id") @db.Uuid
   provider         Provider
   externalId       String            @map("external_id")
   encryptedToken   String            @map("encrypted_token")
@@ -187,8 +213,10 @@ model ConnectedAccount {
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
   user             User              @relation(fields: [userId], references: [id])
+  business         Business?         @relation(fields: [businessId], references: [id], onDelete: SetNull)
 
   @@unique([userId, provider, externalId])
+  @@index([businessId, provider])
   @@map("connected_accounts")
 }
 
@@ -208,6 +236,7 @@ enum Provider {
 model ContentDraft {
   id                String         @id @default(uuid()) @db.Uuid
   userId            String         @map("user_id") @db.Uuid
+  businessId        String?        @map("business_id") @db.Uuid
   platform          Platform
   format            ContentFormat  @default(SINGLE_POST)
   status            DraftStatus    @default(DRAFT)
@@ -224,10 +253,12 @@ model ContentDraft {
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
   user            User              @relation(fields: [userId], references: [id])
+  business        Business?         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   posts           ContentPost[]
   planItem        ContentPlanItem?
 
   @@index([userId, status])
+  @@index([businessId, status])
   @@index([scheduledFor])
   @@map("content_drafts")
 }
@@ -248,6 +279,7 @@ enum ContentFormat {
 model ContentPlan {
   id            String              @id @default(uuid()) @db.Uuid
   userId        String              @map("user_id") @db.Uuid
+  businessId    String?             @map("business_id") @db.Uuid
   weekStart     DateTime            @map("week_start") @db.Date
   weekEnd       DateTime            @map("week_end") @db.Date
   thesis        String?             @db.Text
@@ -257,10 +289,12 @@ model ContentPlan {
   updatedAt     DateTime            @updatedAt @map("updated_at")
 
   user          User                @relation(fields: [userId], references: [id])
+  business      Business?           @relation(fields: [businessId], references: [id], onDelete: Cascade)
   items         ContentPlanItem[]
 
   @@unique([userId, weekStart])
   @@index([userId, status])
+  @@index([businessId, status])
   @@map("content_plans")
 }
 
@@ -327,6 +361,7 @@ enum DraftStatus {
 model ContentPost {
   id           String       @id @default(uuid()) @db.Uuid
   userId       String       @map("user_id") @db.Uuid
+  businessId   String?      @map("business_id") @db.Uuid
   draftId      String       @map("draft_id") @db.Uuid
   platform     Platform
   externalId   String       @map("external_id")
@@ -337,9 +372,11 @@ model ContentPost {
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
   user         User         @relation(fields: [userId], references: [id])
+  business     Business?    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   draft        ContentDraft @relation(fields: [draftId], references: [id])
 
   @@index([userId, publishedAt])
+  @@index([businessId, publishedAt])
   @@map("content_posts")
 }
 
@@ -349,6 +386,7 @@ model ContentPost {
 model Message {
   id            String          @id @default(uuid()) @db.Uuid
   userId        String          @map("user_id") @db.Uuid
+  businessId    String?         @map("business_id") @db.Uuid
   threadId      String          @map("thread_id") @db.Uuid
   channel       MessageChannel
   fromAddress   String          @map("from_address")
@@ -359,9 +397,11 @@ model Message {
   createdAt     DateTime        @default(now()) @map("created_at")
 
   user          User            @relation(fields: [userId], references: [id])
+  business      Business?       @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([userId, threadId])
   @@index([userId, createdAt])
+  @@index([businessId, createdAt])
   @@map("messages")
 }
 
@@ -384,6 +424,7 @@ enum Direction {
 model Call {
   id                String        @id @default(uuid()) @db.Uuid
   userId            String        @map("user_id") @db.Uuid
+  businessId        String?       @map("business_id") @db.Uuid
   fromNumber        String        @map("from_number")
   durationSeconds   Int           @map("duration_seconds")
   transcriptUrl     String?       @map("transcript_url")
@@ -394,9 +435,11 @@ model Call {
   createdAt         DateTime      @default(now()) @map("created_at")
 
   user              User          @relation(fields: [userId], references: [id])
+  business          Business?     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointments      Appointment[]
 
   @@index([userId, startedAt])
+  @@index([businessId, startedAt])
   @@map("calls")
 }
 
@@ -413,6 +456,7 @@ enum CallStatus {
 model Appointment {
   id                    String              @id @default(uuid()) @db.Uuid
   userId                String              @map("user_id") @db.Uuid
+  businessId            String?             @map("business_id") @db.Uuid
   callId                String?             @map("call_id") @db.Uuid
   customerName          String              @map("customer_name")
   customerPhone         String?             @map("customer_phone")
@@ -426,9 +470,11 @@ model Appointment {
   updatedAt             DateTime            @updatedAt @map("updated_at")
 
   user                  User                @relation(fields: [userId], references: [id])
+  business              Business?           @relation(fields: [businessId], references: [id], onDelete: Cascade)
   call                  Call?               @relation(fields: [callId], references: [id])
 
   @@index([userId, scheduledFor])
+  @@index([businessId, scheduledFor])
   @@map("appointments")
 }
 
@@ -445,6 +491,7 @@ enum AppointmentStatus {
 model Competitor {
   id               String    @id @default(uuid()) @db.Uuid
   userId           String    @map("user_id") @db.Uuid
+  businessId       String?   @map("business_id") @db.Uuid
   name             String
   handle           String?
   platform         Platform
@@ -454,8 +501,10 @@ model Competitor {
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   user             User      @relation(fields: [userId], references: [id])
+  business         Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([businessId])
   @@map("competitors")
 }
 
@@ -467,6 +516,7 @@ model Competitor {
 model Subscriber {
   id            String           @id @default(uuid()) @db.Uuid
   userId        String           @map("user_id") @db.Uuid
+  businessId    String?          @map("business_id") @db.Uuid
   email         String
   name          String?
   status        SubscriberStatus @default(ACTIVE)
@@ -477,9 +527,11 @@ model Subscriber {
   updatedAt     DateTime         @updatedAt @map("updated_at")
 
   user          User             @relation(fields: [userId], references: [id])
+  business      Business?        @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([userId, email])
   @@index([userId, status])
+  @@index([businessId, status])
   @@map("subscribers")
 }
 
@@ -518,6 +570,7 @@ enum SubscriberStatus {
 model Finding {
   id              String          @id @default(uuid()) @db.Uuid
   userId          String          @map("user_id") @db.Uuid
+  businessId      String?         @map("business_id") @db.Uuid
   agent           Agent
   severity        FindingSeverity
   summary         String          @db.Text
@@ -527,9 +580,11 @@ model Finding {
   createdAt       DateTime        @default(now()) @map("created_at")
 
   user            User            @relation(fields: [userId], references: [id])
+  business        Business?       @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([userId, acknowledged])
   @@index([userId, createdAt])
+  @@index([businessId, createdAt])
   @@map("findings")
 }
 
@@ -579,6 +634,7 @@ model OnboardingPreview {
 model Contact {
   id           String          @id @default(uuid()) @db.Uuid
   userId       String          @map("user_id") @db.Uuid
+  businessId   String?         @map("business_id") @db.Uuid
   channel      MessageChannel
   externalId   String          @map("external_id")
   displayName  String?         @map("display_name")
@@ -588,9 +644,11 @@ model Contact {
   updatedAt    DateTime        @updatedAt @map("updated_at")
 
   user         User            @relation(fields: [userId], references: [id])
+  business     Business?       @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([userId, channel, externalId])
   @@index([userId, lastSeenAt])
+  @@index([businessId, lastSeenAt])
   @@map("contacts")
 }
 
@@ -601,7 +659,11 @@ model Contact {
 // =============================================================
 model BrandKit {
   id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @unique @map("user_id") @db.Uuid
+  // userId is no longer unique — STUDIO/AGENCY users have multiple
+  // BrandKits, one per Business. Uniqueness moved to businessId so
+  // each Business has at most one live kit.
+  userId       String   @map("user_id") @db.Uuid
+  businessId   String?  @unique @map("business_id") @db.Uuid
   // { primary, secondary, accent, ink, surface, bg, rationale }
   palette      Json
   // { headingFont, bodyFont, weights, rationale }
@@ -630,8 +692,10 @@ model BrandKit {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   user         User     @relation(fields: [userId], references: [id])
+  business     Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
   versions     BrandKitVersion[]
 
+  @@index([userId])
   @@map("brand_kits")
 }
 

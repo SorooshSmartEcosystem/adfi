@@ -535,44 +535,55 @@ export async function generateBrandKit(args: {
     `[brandkit] logos done in ${Math.round((Date.now() - logosT) / 1000)}s, graphics in ${Math.round((Date.now() - graphicsT) / 1000)}s`,
   );
 
-  // 3. Persist
-  const existing = await db.brandKit.findUnique({
-    where: { userId: args.userId },
+  // 3. Persist. With multi-business, BrandKit is keyed by businessId
+  // (each Business has at most one live kit). Resolve the user's
+  // current business; create one only if absolutely necessary.
+  const userRow = await db.user.findUnique({
+    where: { id: args.userId },
+    select: { currentBusinessId: true },
   });
-  const kit = await db.brandKit.upsert({
-    where: { userId: args.userId },
-    create: {
-      userId: args.userId,
+  const businessId = userRow?.currentBusinessId ?? null;
+  const existing = await db.brandKit.findFirst({
+    where: businessId ? { businessId } : { userId: args.userId },
+  });
+  const kit = existing
+    ? await db.brandKit.update({
+        where: { id: existing.id },
+        data: {
+          palette: spec.palette as unknown as Prisma.InputJsonValue,
+          typography: spec.typography as unknown as Prisma.InputJsonValue,
+          logoTemplates: logos as unknown as Prisma.InputJsonValue,
+          coverSamples: [
+            graphics.graphic1,
+            graphics.graphic2,
+            graphics.graphic3,
+          ] as unknown as Prisma.InputJsonValue,
+          imageStyle: spec.imageStyle,
+          logoConcept: spec.logoConcept,
+          voiceTone: (voiceTone ?? Prisma.DbNull) as Prisma.InputJsonValue,
+          version: { increment: 1 },
+          generatedAt: new Date(),
+        },
+      })
+    : await db.brandKit.create({
+        data: {
+          userId: args.userId,
+          businessId,
       palette: spec.palette as unknown as Prisma.InputJsonValue,
       typography: spec.typography as unknown as Prisma.InputJsonValue,
       logoTemplates: logos as unknown as Prisma.InputJsonValue,
-      coverSamples: [
-        graphics.graphic1,
-        graphics.graphic2,
-        graphics.graphic3,
-      ] as unknown as Prisma.InputJsonValue,
-      imageStyle: spec.imageStyle,
-      logoConcept: spec.logoConcept,
-      voiceTone: (voiceTone ?? Prisma.DbNull) as Prisma.InputJsonValue,
-      version: 1,
-      generatedAt: new Date(),
-    },
-    update: {
-      palette: spec.palette as unknown as Prisma.InputJsonValue,
-      typography: spec.typography as unknown as Prisma.InputJsonValue,
-      logoTemplates: logos as unknown as Prisma.InputJsonValue,
-      coverSamples: [
-        graphics.graphic1,
-        graphics.graphic2,
-        graphics.graphic3,
-      ] as unknown as Prisma.InputJsonValue,
-      imageStyle: spec.imageStyle,
-      logoConcept: spec.logoConcept,
-      voiceTone: (voiceTone ?? Prisma.DbNull) as Prisma.InputJsonValue,
-      version: (existing?.version ?? 0) + 1,
-      generatedAt: new Date(),
-    },
-  });
+          coverSamples: [
+            graphics.graphic1,
+            graphics.graphic2,
+            graphics.graphic3,
+          ] as unknown as Prisma.InputJsonValue,
+          imageStyle: spec.imageStyle,
+          logoConcept: spec.logoConcept,
+          voiceTone: (voiceTone ?? Prisma.DbNull) as Prisma.InputJsonValue,
+          version: 1,
+          generatedAt: new Date(),
+        },
+      });
 
   // Snapshot this generation as a BrandKitVersion so the user can come
   // back to it later. The live BrandKit row above mirrors the same data;
@@ -633,7 +644,7 @@ export async function brandKitGenerationsRemaining(
         createdAt: { gte: since },
       },
     }),
-    db.brandKit.findUnique({
+    db.brandKit.findFirst({
       where: { userId },
       select: { logoTemplates: true },
     }),
@@ -661,8 +672,13 @@ export async function updateBrandKitImageStyle(args: {
   userId: string;
   imageStyle: string;
 }): Promise<void> {
-  await db.brandKit.update({
+  const kit = await db.brandKit.findFirst({
     where: { userId: args.userId },
+    select: { id: true },
+  });
+  if (!kit) throw new Error("no brandkit to update");
+  await db.brandKit.update({
+    where: { id: kit.id },
     data: { imageStyle: args.imageStyle },
   });
 }
@@ -673,9 +689,9 @@ export async function updateBrandKitPalette(args: {
   userId: string;
   palette: Partial<Palette>;
 }): Promise<void> {
-  const existing = await db.brandKit.findUnique({
+  const existing = await db.brandKit.findFirst({
     where: { userId: args.userId },
-    select: { palette: true },
+    select: { id: true, palette: true },
   });
   if (!existing) throw new Error("no brandkit to update");
   const merged = {
@@ -683,7 +699,7 @@ export async function updateBrandKitPalette(args: {
     ...args.palette,
   };
   await db.brandKit.update({
-    where: { userId: args.userId },
+    where: { id: existing.id },
     data: { palette: merged as unknown as Prisma.InputJsonValue },
   });
 }
@@ -696,9 +712,9 @@ export async function updateBrandKitTypography(args: {
     weights: string[];
   }>;
 }): Promise<void> {
-  const existing = await db.brandKit.findUnique({
+  const existing = await db.brandKit.findFirst({
     where: { userId: args.userId },
-    select: { typography: true },
+    select: { id: true, typography: true },
   });
   if (!existing) throw new Error("no brandkit to update");
   const merged = {
@@ -706,19 +722,19 @@ export async function updateBrandKitTypography(args: {
     ...args.typography,
   };
   await db.brandKit.update({
-    where: { userId: args.userId },
+    where: { id: existing.id },
     data: { typography: merged as unknown as Prisma.InputJsonValue },
   });
 }
 
 export async function getBrandKit(userId: string) {
-  return db.brandKit.findUnique({ where: { userId } });
+  return db.brandKit.findFirst({ where: { userId } });
 }
 
 // All historical versions of the user's brand kit, newest first. Used
 // to render the 'history' panel — every entry is restorable.
 export async function listBrandKitVersions(userId: string) {
-  const kit = await db.brandKit.findUnique({
+  const kit = await db.brandKit.findFirst({
     where: { userId },
     select: { id: true },
   });
@@ -737,7 +753,7 @@ export async function restoreBrandKitVersion(args: {
   userId: string;
   versionId: string;
 }): Promise<{ newVersion: number }> {
-  const kit = await db.brandKit.findUnique({
+  const kit = await db.brandKit.findFirst({
     where: { userId: args.userId },
     select: { id: true, version: true },
   });

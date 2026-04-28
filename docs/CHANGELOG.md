@@ -32,6 +32,9 @@ Format note: write changes from the user's perspective in plain English. "Users 
 - Branded 404 page and an in-app error fallback that surfaces the digest for support.
 - Favicon, apple-touch-icon, and a PWA manifest so the dashboard installs from Chrome/Safari.
 
+### Added (multi-business · 2026-04-28 · part 2)
+- Per-business data isolation foundation. Every per-business table (BrandKit, AgentContext, ContentDraft, ContentPlan, ContentPost, ConnectedAccount, Message, Call, Appointment, Competitor, Subscriber, Finding, Contact, PhoneNumber) now carries a nullable `business_id` FK; the migration backfills it from `users.current_business_id`. Uniqueness on BrandKit + AgentContext moved from `userId` to `businessId` so STUDIO/AGENCY users can have one of each per business. tRPC `authedProc` now resolves `ctx.currentBusinessId` once per request and self-heals any user missing a Business by creating one from their legacy profile fields. Per-router scoping (filter queries by `businessId`) lands in a follow-up commit; this commit is the schema + context plumbing.
+
 ### Added (multi-business · 2026-04-28)
 - New `Business` data model + sidebar business-switcher dropdown. Every user now owns at least one Business (auto-bootstrapped from existing `User.businessName`/`businessLogoUrl`/etc. on first load). The sidebar's top-left chip became a clickable dropdown that lists all businesses the user owns, lets them switch with one click, and includes an "add new business" affordance gated by the plan ceiling: SOLO/TEAM = 1, STUDIO = 2, AGENCY = 8. At-limit users see the upgrade hint instead of the create button.
 - `business.list` / `business.create` / `business.switch` tRPC routes. Create enforces `BUSINESS_LIMIT[plan]` server-side so a tampered client can't outrun the plan tier.

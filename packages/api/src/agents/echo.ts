@@ -481,7 +481,7 @@ export async function backfillImagesForDraft(
 
   // Pull the user's BrandKit so every image inherits the same look. If
   // they haven't generated one yet, prompts pass through unchanged.
-  const kit = await db.brandKit.findUnique({
+  const kit = await db.brandKit.findFirst({
     where: { userId },
     select: { imageStyle: true },
   });

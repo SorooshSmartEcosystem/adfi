@@ -3,6 +3,7 @@ import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { DraftCard } from "./draft-card";
 import { PlatformFilter, type PlatformValue } from "./platform-filter";
+import { ThinkingIndicator } from "../shared/thinking-indicator";
 
 type Format =
   | "AUTO"
@@ -151,6 +152,17 @@ export function DraftsPanel() {
             {generate.isPending ? "thinking..." : "write me one →"}
           </button>
         </div>
+        {generate.isPending ? (
+          <ThinkingIndicator
+            phrases={[
+              "reading your brand voice…",
+              "looking at what's worked before…",
+              "writing a draft…",
+              "drawing the image…",
+              "checking the hook lands…",
+            ]}
+          />
+        ) : null}
         {generate.error ? (
           <p className="text-sm text-urgent mt-sm">
             {generate.error.message}

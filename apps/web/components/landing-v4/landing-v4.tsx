@@ -38,14 +38,13 @@ export function LandingV4({ user }: { user?: LandingUser | null }) {
       ? `<img src="${escapeHtml(user.logoUrl)}" alt="" class="nav-user-avatar" />`
       : `<span class="nav-user-avatar nav-user-initials">${escapeHtml(initials)}</span>`;
     const pill = `<a href="/dashboard" class="nav-user">${avatar}<span class="nav-user-name">${safeName}</span></a>`;
-    // Signed-in visitors: nav CTA flips from "get the app" → "open
-    // dashboard" with /dashboard href, and a user pill renders next to
-    // it so they know which account they're in. Pricing and hire-me
-    // CTAs stay unchanged — their copy ("start free trial", "hire me")
-    // still reads sensibly for someone already authed.
+    // Signed-in visitors: nav CTA stays "get the app" → /download
+    // (the literal call to action is still about installing the
+    // mobile app, regardless of auth state). We just append a user
+    // pill so they have a one-click way back to the dashboard.
     return LANDING_BODY.replace(
       /<a href="\/download" class="nav-cta">get the app<\/a>/,
-      `<a href="/dashboard" class="nav-cta">open dashboard</a>${pill}`,
+      `<a href="/download" class="nav-cta">get the app</a>${pill}`,
     );
   }, [user]);
 

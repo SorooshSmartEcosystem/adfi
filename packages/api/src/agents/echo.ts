@@ -21,6 +21,7 @@ import {
 } from "../services/performance";
 import { CREDIT_COSTS, consumeCredits } from "../services/quota";
 import { generateImageSafe, type AspectRatio } from "../services/replicate";
+import { gatherFreshContext, shouldResearch } from "../services/research";
 import { ECHO_SYSTEM_PROMPT } from "./prompts/echo";
 
 // =============================================================
@@ -210,6 +211,38 @@ export async function runEcho(args: {
     ? performanceForPrompt(args.performance)
     : "(no performance data — use brand voice as ground truth)";
 
+  // Fact-heavy formats (long-form articles) and time-sensitive hints
+  // (mentions of news/data/markets/Q1/etc) trigger a web-search pass
+  // first. The research findings are pasted into the prompt as cited
+  // bullets so the model writes from real, fresh data instead of stale
+  // training-cutoff knowledge. Best-effort: if research fails we fall
+  // through to no-research mode rather than block the draft.
+  let researchBlock = "";
+  if (
+    !args.primaryAttempt && // skip on variant pass — it'd duplicate work
+    shouldResearch({
+      format: args.format,
+      hint: args.hint,
+      businessDescription: args.businessDescription,
+    })
+  ) {
+    const findings = await gatherFreshContext({
+      topic:
+        args.hint?.trim() ||
+        args.businessDescription?.trim() ||
+        `${args.format} for ${args.platform}`,
+      businessDescription: args.businessDescription,
+      hint: args.hint,
+      userId: args.userId,
+    });
+    if (findings) {
+      const citationList = findings.citations.length > 0
+        ? `\n\nCitations to thread into the post (use them when stating numbers):\n${findings.citations.map((c, i) => `[${i + 1}] ${c.url}`).join("\n")}`
+        : "";
+      researchBlock = `\n\nFresh research (use these facts — do not contradict them, do not invent numbers that aren't here):\n${findings.bullets}${citationList}\n`;
+    }
+  }
+
   const userMessage = `Business description:
 ${args.businessDescription || "(not set)"}
 
@@ -232,7 +265,7 @@ Platform: ${args.platform}${
           ? "\nPlatform constraint: Telegram channel post — write a tight, scannable update (max ~600 chars). Plain text, occasional emoji ok. Set `cta` to null unless the post explicitly needs one."
           : ""
   }
-${args.hint ? `\nOwner hint for this post: ${args.hint}` : ""}
+${args.hint ? `\nOwner hint for this post: ${args.hint}` : ""}${researchBlock}
 ${
   args.primaryAttempt
     ? `\nA primary version of this post already exists:\n${JSON.stringify(args.primaryAttempt, null, 2).slice(0, 1500)}\n\nWrite a DIFFERENT angle on the same brief. Different hook framework, different opening, different rhythm. Same intent + audience + pillar. The owner will pick whichever lands.`

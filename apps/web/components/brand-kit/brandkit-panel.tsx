@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import { trpc } from "../../lib/trpc";
 import { Card } from "../shared/card";
+import { ThinkingIndicator } from "../shared/thinking-indicator";
 import { buildBrandKitHtml } from "./build-html-export";
 
 // Pretty-prints a generate error. When the user has hit the monthly cap,
@@ -252,6 +253,17 @@ export function BrandKitPanel() {
         >
           {generate.isPending ? "drawing your kit..." : "generate brand kit →"}
         </button>
+        {generate.isPending ? (
+          <ThinkingIndicator
+            phrases={[
+              "studying your brand voice…",
+              "picking a palette direction…",
+              "drawing the logo system…",
+              "composing the cover graphics…",
+              "double-checking contrast…",
+            ]}
+          />
+        ) : null}
         <GenerateErrorBanner error={generate.error} plan={plan} />
       </Card>
     );

@@ -7,7 +7,9 @@ import {
   NAV_PRIMARY,
   type AppRoute,
   type NavBadges,
+  type NavIcon,
 } from "./nav-config";
+import { NavIconGlyph } from "./nav-icons";
 
 export function Sidebar({
   open,
@@ -47,6 +49,7 @@ export function Sidebar({
               key={n.id}
               href={n.href}
               label={n.label}
+              icon={n.icon}
               active={activeRoute === n.id}
               badge={n.badgeKey ? navBadges[n.badgeKey] : undefined}
               onNavigate={onNavigate}
@@ -60,6 +63,7 @@ export function Sidebar({
               key={n.id}
               href={n.href}
               label={n.label}
+              icon={n.icon}
               active={activeRoute === n.id}
               onNavigate={onNavigate}
             />
@@ -72,6 +76,7 @@ export function Sidebar({
               key={n.id}
               href={n.href}
               label={n.label}
+              icon={n.icon}
               active={activeRoute === n.id}
               onNavigate={onNavigate}
             />
@@ -121,12 +126,14 @@ function SidebarSection({
 function SidebarLink({
   href,
   label,
+  icon,
   active,
   badge,
   onNavigate,
 }: {
   href: string;
   label: string;
+  icon: NavIcon;
   active: boolean;
   badge?: number;
   onNavigate: () => void;
@@ -139,6 +146,7 @@ function SidebarLink({
         active ? "bg-ink text-white" : "text-ink2 hover:bg-surface"
       }`}
     >
+      <NavIconGlyph name={icon} />
       <span className="flex-1">{label}</span>
       {badge && badge > 0 ? (
         <span

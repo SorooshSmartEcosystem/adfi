@@ -61,7 +61,14 @@ function telegramRouteSecret(): string {
 export const connectionsRouter = router({
   list: authedProc.input(z.void()).query(async ({ ctx }) => {
     const rows = await ctx.db.connectedAccount.findMany({
-      where: { userId: ctx.user.id, disconnectedAt: null },
+      where: {
+        // Scope to active business; legacy rows (no businessId yet)
+        // still surface for the user that owns them.
+        OR: [
+          { businessId: ctx.currentBusinessId, disconnectedAt: null },
+          { businessId: null, userId: ctx.user.id, disconnectedAt: null },
+        ],
+      },
       select: {
         id: true,
         provider: true,

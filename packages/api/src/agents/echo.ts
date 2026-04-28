@@ -386,13 +386,21 @@ export async function generateDailyContent(
     );
   }
 
+  // Active business — used both to scope reads (recent posts, drafts)
+  // and to tag writes (the new ContentDraft is owned by this business).
+  // Multi-business users have one active at a time; single-business
+  // users have one Business which is auto-bootstrapped on signup.
+  const businessId = user.currentBusinessId ?? null;
+
   // Reserve credits before paying for any LLM calls.
   const cost =
     CREDIT_COSTS.ECHO_DRAFT + (withVariant ? CREDIT_COSTS.ECHO_VARIANT : 0);
   await consumeCredits(userId, cost, "echo_draft");
 
   const recentPosts = await db.contentPost.findMany({
-    where: { userId },
+    where: businessId
+      ? { businessId }
+      : { userId },
     orderBy: { publishedAt: "desc" },
     take: 10,
     select: { metrics: true, draft: { select: { content: true } } },
@@ -428,6 +436,7 @@ export async function generateDailyContent(
   const draft = await db.contentDraft.create({
     data: {
       userId,
+      businessId,
       platform,
       format: chosenFormat,
       status: DraftStatus.AWAITING_REVIEW,
@@ -891,6 +900,7 @@ export async function draftPlanItem(
     const draft = await db.contentDraft.create({
       data: {
         userId: user.id,
+        businessId: user.currentBusinessId ?? null,
         platform: item.platform,
         format: item.format,
         status: DraftStatus.AWAITING_REVIEW,

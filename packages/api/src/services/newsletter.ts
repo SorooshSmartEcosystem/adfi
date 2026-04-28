@@ -213,6 +213,7 @@ export async function testSendNewsletter(args: {
 export async function publishNewsletter(args: {
   draftId: string;
   userId: string;
+  businessId?: string | null;
 }): Promise<{
   sent: number;
   failed: number;
@@ -309,6 +310,7 @@ export async function publishNewsletter(args: {
   await db.contentPost.create({
     data: {
       userId: args.userId,
+      businessId: args.businessId ?? null,
       draftId: draft.id,
       platform: Platform.EMAIL,
       externalId,

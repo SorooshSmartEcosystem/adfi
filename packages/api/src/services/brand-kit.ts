@@ -481,6 +481,7 @@ export function applyPaletteToSvg(svg: string, palette: Palette): string {
 
 export async function generateBrandKit(args: {
   userId: string;
+  businessId?: string | null;
   refinementHint?: string;
 }): Promise<{
   kitId: string;
@@ -536,13 +537,17 @@ export async function generateBrandKit(args: {
   );
 
   // 3. Persist. With multi-business, BrandKit is keyed by businessId
-  // (each Business has at most one live kit). Resolve the user's
-  // current business; create one only if absolutely necessary.
-  const userRow = await db.user.findUnique({
-    where: { id: args.userId },
-    select: { currentBusinessId: true },
-  });
-  const businessId = userRow?.currentBusinessId ?? null;
+  // (each Business has at most one live kit). Use the businessId
+  // passed in (the active business at request time); fall back to the
+  // user's currentBusinessId for legacy callers that don't pass one.
+  let businessId = args.businessId ?? null;
+  if (!businessId) {
+    const userRow = await db.user.findUnique({
+      where: { id: args.userId },
+      select: { currentBusinessId: true },
+    });
+    businessId = userRow?.currentBusinessId ?? null;
+  }
   const existing = await db.brandKit.findFirst({
     where: businessId ? { businessId } : { userId: args.userId },
   });
@@ -670,10 +675,13 @@ export async function brandKitGenerationsRemaining(
 
 export async function updateBrandKitImageStyle(args: {
   userId: string;
+  businessId?: string | null;
   imageStyle: string;
 }): Promise<void> {
   const kit = await db.brandKit.findFirst({
-    where: { userId: args.userId },
+    where: args.businessId
+      ? { businessId: args.businessId }
+      : { userId: args.userId },
     select: { id: true },
   });
   if (!kit) throw new Error("no brandkit to update");
@@ -687,10 +695,13 @@ export async function updateBrandKitImageStyle(args: {
 // placeholders so the new palette renders live.
 export async function updateBrandKitPalette(args: {
   userId: string;
+  businessId?: string | null;
   palette: Partial<Palette>;
 }): Promise<void> {
   const existing = await db.brandKit.findFirst({
-    where: { userId: args.userId },
+    where: args.businessId
+      ? { businessId: args.businessId }
+      : { userId: args.userId },
     select: { id: true, palette: true },
   });
   if (!existing) throw new Error("no brandkit to update");
@@ -706,6 +717,7 @@ export async function updateBrandKitPalette(args: {
 
 export async function updateBrandKitTypography(args: {
   userId: string;
+  businessId?: string | null;
   typography: Partial<{
     headingFont: string;
     bodyFont: string;
@@ -713,7 +725,9 @@ export async function updateBrandKitTypography(args: {
   }>;
 }): Promise<void> {
   const existing = await db.brandKit.findFirst({
-    where: { userId: args.userId },
+    where: args.businessId
+      ? { businessId: args.businessId }
+      : { userId: args.userId },
     select: { id: true, typography: true },
   });
   if (!existing) throw new Error("no brandkit to update");
@@ -727,15 +741,29 @@ export async function updateBrandKitTypography(args: {
   });
 }
 
-export async function getBrandKit(userId: string) {
-  return db.brandKit.findFirst({ where: { userId } });
+// Prefer businessId when available — multi-business users have one
+// kit per business. Falls back to userId for legacy callers.
+export async function getBrandKit(args: {
+  userId: string;
+  businessId?: string | null;
+}) {
+  return db.brandKit.findFirst({
+    where: args.businessId
+      ? { businessId: args.businessId }
+      : { userId: args.userId },
+  });
 }
 
-// All historical versions of the user's brand kit, newest first. Used
-// to render the 'history' panel — every entry is restorable.
-export async function listBrandKitVersions(userId: string) {
+// All historical versions of the active business's brand kit, newest
+// first. Used to render the 'history' panel — every entry is restorable.
+export async function listBrandKitVersions(args: {
+  userId: string;
+  businessId?: string | null;
+}) {
   const kit = await db.brandKit.findFirst({
-    where: { userId },
+    where: args.businessId
+      ? { businessId: args.businessId }
+      : { userId: args.userId },
     select: { id: true },
   });
   if (!kit) return [];
@@ -751,10 +779,13 @@ export async function listBrandKitVersions(userId: string) {
 // the live row v6, which is itself snapshotted as a new version row).
 export async function restoreBrandKitVersion(args: {
   userId: string;
+  businessId?: string | null;
   versionId: string;
 }): Promise<{ newVersion: number }> {
   const kit = await db.brandKit.findFirst({
-    where: { userId: args.userId },
+    where: args.businessId
+      ? { businessId: args.businessId }
+      : { userId: args.userId },
     select: { id: true, version: true },
   });
   if (!kit) throw new Error("no brandkit to restore into");

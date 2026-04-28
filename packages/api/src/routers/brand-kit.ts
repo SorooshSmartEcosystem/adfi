@@ -23,7 +23,7 @@ const HEX = z
 export const brandKitRouter = router({
   getMine: authedProc.input(z.void()).query(async ({ ctx }) => {
     const [kit, plan] = await Promise.all([
-      getBrandKit(ctx.user.id),
+      getBrandKit({ userId: ctx.user.id, businessId: ctx.currentBusinessId }),
       effectivePlan(ctx.user.id),
     ]);
     const quota = await brandKitGenerationsRemaining(ctx.user.id, plan);
@@ -56,6 +56,7 @@ export const brandKitRouter = router({
       try {
         const result = await generateBrandKit({
           userId: ctx.user.id,
+          businessId: ctx.currentBusinessId,
           refinementHint: input.refinementHint,
         });
         return result;
@@ -80,7 +81,10 @@ export const brandKitRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const existing = await getBrandKit(ctx.user.id);
+      const existing = await getBrandKit({
+        userId: ctx.user.id,
+        businessId: ctx.currentBusinessId,
+      });
       if (!existing) {
         throw OrbError.VALIDATION(
           "generate a brandkit first before editing its image style",
@@ -88,6 +92,7 @@ export const brandKitRouter = router({
       }
       await updateBrandKitImageStyle({
         userId: ctx.user.id,
+        businessId: ctx.currentBusinessId,
         imageStyle: input.imageStyle,
       });
       return { ok: true as const };
@@ -107,20 +112,27 @@ export const brandKitRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const existing = await getBrandKit(ctx.user.id);
+      const existing = await getBrandKit({
+        userId: ctx.user.id,
+        businessId: ctx.currentBusinessId,
+      });
       if (!existing) {
         throw OrbError.VALIDATION("generate a brandkit first");
       }
       await updateBrandKitPalette({
         userId: ctx.user.id,
+        businessId: ctx.currentBusinessId,
         palette: input,
       });
       return { ok: true as const };
     }),
 
-  // All historical versions of the user's brand kit, newest first.
+  // All historical versions of the active business's brand kit.
   listVersions: authedProc.input(z.void()).query(async ({ ctx }) => {
-    return listBrandKitVersions(ctx.user.id);
+    return listBrandKitVersions({
+      userId: ctx.user.id,
+      businessId: ctx.currentBusinessId,
+    });
   }),
 
   // Restore a past version into the live row. Doesn't consume a
@@ -131,6 +143,7 @@ export const brandKitRouter = router({
       try {
         const result = await restoreBrandKitVersion({
           userId: ctx.user.id,
+          businessId: ctx.currentBusinessId,
           versionId: input.versionId,
         });
         return result;
@@ -152,12 +165,16 @@ export const brandKitRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const existing = await getBrandKit(ctx.user.id);
+      const existing = await getBrandKit({
+        userId: ctx.user.id,
+        businessId: ctx.currentBusinessId,
+      });
       if (!existing) {
         throw OrbError.VALIDATION("generate a brandkit first");
       }
       await updateBrandKitTypography({
         userId: ctx.user.id,
+        businessId: ctx.currentBusinessId,
         typography: input,
       });
       return { ok: true as const };

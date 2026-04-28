@@ -203,6 +203,7 @@ export async function generateWeeklyPlan(
   const plan = await db.contentPlan.create({
     data: {
       userId,
+      businessId: user.currentBusinessId ?? null,
       weekStart,
       weekEnd,
       thesis: result.thesis,

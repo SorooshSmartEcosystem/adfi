@@ -44,7 +44,15 @@ export const contentRouter = router({
     .query(async ({ ctx, input }) => {
       const drafts = await ctx.db.contentDraft.findMany({
         where: {
-          userId: ctx.user.id,
+          // Scope to the active business so STUDIO/AGENCY users see
+          // only the drafts that belong to the business they're
+          // currently looking at. Falls back to userId for any draft
+          // row that hasn't been backfilled yet (shouldn't happen
+          // post-migration but the fallback is cheap).
+          OR: [
+            { businessId: ctx.currentBusinessId },
+            { businessId: null, userId: ctx.user.id },
+          ],
           ...(input.status && { status: input.status }),
           ...(input.platform && { platform: input.platform }),
         },
@@ -267,7 +275,10 @@ export const contentRouter = router({
     .query(async ({ ctx, input }) => {
       const posts = await ctx.db.contentPost.findMany({
         where: {
-          userId: ctx.user.id,
+          OR: [
+            { businessId: ctx.currentBusinessId },
+            { businessId: null, userId: ctx.user.id },
+          ],
           ...(input.platform && { platform: input.platform }),
         },
         orderBy: { publishedAt: "desc" },
@@ -388,6 +399,7 @@ export const contentRouter = router({
           const result = await publishNewsletter({
             draftId: draft.id,
             userId: ctx.user.id,
+            businessId: ctx.currentBusinessId,
           });
           return result;
         } catch (error) {
@@ -449,6 +461,7 @@ export const contentRouter = router({
           await ctx.db.contentPost.create({
             data: {
               userId: ctx.user.id,
+              businessId: ctx.currentBusinessId,
               draftId: draft.id,
               platform: Platform.TELEGRAM,
               externalId: String(sent.messageId),
@@ -513,6 +526,7 @@ export const contentRouter = router({
       await ctx.db.contentPost.create({
         data: {
           userId: ctx.user.id,
+          businessId: ctx.currentBusinessId,
           draftId: draft.id,
           platform: draft.platform,
           externalId: input.permalink ?? `manual-${draft.id}`,

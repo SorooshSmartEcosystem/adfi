@@ -101,6 +101,14 @@ export async function GET(req: NextRequest) {
       ? new Date(Date.now() + long.expiresIn * 1000)
       : null;
 
+    // Tag the new connection with the user's currently-active business
+    // so multi-business users can isolate IG/FB connections per brand.
+    const userRow = await db.user.findUnique({
+      where: { id: user.id },
+      select: { currentBusinessId: true },
+    });
+    const businessId = userRow?.currentBusinessId ?? null;
+
     await db.connectedAccount.upsert({
       where: {
         userId_provider_externalId: {
@@ -111,6 +119,7 @@ export async function GET(req: NextRequest) {
       },
       create: {
         userId: user.id,
+        businessId,
         provider: Provider.FACEBOOK,
         externalId: page.id,
         encryptedToken: encryptToken(page.accessToken),
@@ -118,6 +127,7 @@ export async function GET(req: NextRequest) {
         expiresAt,
       },
       update: {
+        businessId,
         encryptedToken: encryptToken(page.accessToken),
         scope: "page_access_token",
         expiresAt,
@@ -143,6 +153,7 @@ export async function GET(req: NextRequest) {
         },
         create: {
           userId: user.id,
+          businessId,
           provider: Provider.INSTAGRAM,
           externalId: page.igBusinessId,
           encryptedToken: encryptToken(page.accessToken),
@@ -150,6 +161,7 @@ export async function GET(req: NextRequest) {
           expiresAt,
         },
         update: {
+          businessId,
           encryptedToken: encryptToken(page.accessToken),
           scope: "ig_via_page",
           expiresAt,

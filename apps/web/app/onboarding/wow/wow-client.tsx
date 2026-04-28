@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "../../../lib/trpc";
 import { Orb } from "../../../components/shared/orb";
 
@@ -49,6 +49,10 @@ export function WowClient() {
   const [stage, setStage] = useState<"input" | "build" | "ask">("input");
   const [text, setText] = useState("");
   const [result, setResult] = useState<PreviewResult | null>(null);
+  const searchParams = useSearchParams();
+  // Track whether we've already auto-submitted from the ?biz= param so
+  // we don't accidentally re-fire if the user navigates back.
+  const autoFiredRef = useRef(false);
 
   const preview = trpc.onboarding.previewDemo.useMutation({
     onSuccess: (data) => {
@@ -68,29 +72,44 @@ export function WowClient() {
   });
 
   // Restore an in-progress result on mount if one is still fresh.
+  // OR — if the URL carries a ?biz= param (handed off from the
+  // landing-page hero textarea), pre-fill the input and auto-submit
+  // so the visitor isn't asked to retype what they already typed.
+  // The cached preview wins over the URL param: a returning visitor
+  // who already ran a preview shouldn't re-burn LLM tokens just
+  // because they reloaded with a stale ?biz= in the URL.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PREVIEW_CACHE_KEY);
-      if (!raw) return;
-      const cached = JSON.parse(raw) as {
-        at: number;
-        text: string;
-        result: PreviewResult;
-      };
-      if (Date.now() - cached.at > PREVIEW_CACHE_TTL_MS) {
-        localStorage.removeItem(PREVIEW_CACHE_KEY);
-        return;
-      }
-      if (cached.result?.resumeToken) {
-        setText(cached.text);
-        setResult(cached.result);
-        setStage("ask");
+      if (raw) {
+        const cached = JSON.parse(raw) as {
+          at: number;
+          text: string;
+          result: PreviewResult;
+        };
+        if (Date.now() - cached.at > PREVIEW_CACHE_TTL_MS) {
+          localStorage.removeItem(PREVIEW_CACHE_KEY);
+        } else if (cached.result?.resumeToken) {
+          setText(cached.text);
+          setResult(cached.result);
+          setStage("ask");
+          return;
+        }
       }
     } catch {
       /* parse failed — ignore */
     }
+
+    // No cached preview — check the URL for a handoff from the hero.
+    const biz = searchParams?.get("biz")?.trim();
+    if (biz && biz.length >= 10 && !autoFiredRef.current) {
+      autoFiredRef.current = true;
+      setText(biz);
+      setStage("build");
+      preview.mutate({ businessDescription: biz });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   function handleStart() {
     if (text.trim().length < 10) return;

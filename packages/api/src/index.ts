@@ -95,6 +95,7 @@ export {
   setWebhook as setTelegramWebhook,
   deleteWebhook as deleteTelegramWebhook,
   sendMessage as sendTelegramMessage,
+  sendTypingAction as sendTelegramTypingAction,
   buildWebhookUrl as buildTelegramWebhookUrl,
   type TelegramBotIdentity,
   type TelegramChat,

@@ -38,16 +38,15 @@ export function LandingV4({ user }: { user?: LandingUser | null }) {
       ? `<img src="${escapeHtml(user.logoUrl)}" alt="" class="nav-user-avatar" />`
       : `<span class="nav-user-avatar nav-user-initials">${escapeHtml(initials)}</span>`;
     const pill = `<a href="/dashboard" class="nav-user">${avatar}<span class="nav-user-name">${safeName}</span></a>`;
-    // Signed-in visitors: every signup CTA on the page jumps straight
-    // to the dashboard, and we render a user pill next to the nav CTA
-    // so they can confirm which account they're in. Nav CTA label
-    // changes to "open dashboard"; other CTAs keep their copy since
-    // it still reads sensibly for an authed user.
-    return LANDING_BODY.replace(/href="\/signup"/g, 'href="/dashboard"')
-      .replace(
-        /<a href="\/dashboard" class="nav-cta">get the app<\/a>/,
-        `<a href="/dashboard" class="nav-cta">open dashboard</a>${pill}`,
-      );
+    // Signed-in visitors: nav CTA flips from "get the app" → "open
+    // dashboard" with /dashboard href, and a user pill renders next to
+    // it so they know which account they're in. Pricing and hire-me
+    // CTAs stay unchanged — their copy ("start free trial", "hire me")
+    // still reads sensibly for someone already authed.
+    return LANDING_BODY.replace(
+      /<a href="\/download" class="nav-cta">get the app<\/a>/,
+      `<a href="/dashboard" class="nav-cta">open dashboard</a>${pill}`,
+    );
   }, [user]);
 
   useEffect(() => {

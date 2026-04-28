@@ -144,6 +144,24 @@ export async function sendMessage(args: {
   return { messageId: r.message_id };
 }
 
+// Show "typing…" in the user's chat for ~5s. Telegram auto-clears it
+// when the next message lands or after 5s, whichever comes first. Use
+// it before kicking off the LLM call so the user sees activity instead
+// of dead silence. Best-effort — failure here never blocks a reply.
+export async function sendTypingAction(args: {
+  token: string;
+  chatId: string | number;
+}): Promise<void> {
+  try {
+    await call(args.token, "sendChatAction", {
+      chat_id: args.chatId,
+      action: "typing",
+    });
+  } catch (err) {
+    console.warn("[telegram] sendChatAction(typing) failed:", err);
+  }
+}
+
 // Best-effort fetch of a user's avatar URL via the Bot API. Two calls:
 // getUserProfilePhotos to find the latest photo's file_id, then getFile to
 // resolve a download path. The returned URL embeds the bot token and is

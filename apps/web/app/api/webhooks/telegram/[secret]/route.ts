@@ -4,6 +4,7 @@ import {
   decryptToken,
   processInboundTelegram,
   sendTelegramMessage,
+  sendTelegramTypingAction,
 } from "@orb/api";
 
 export const runtime = "nodejs";
@@ -67,6 +68,12 @@ export async function POST(
     msg.from.username ||
     null;
 
+  // Show "typing…" in the user's chat immediately so they see activity
+  // while signal runs the LLM. Telegram auto-clears it after 5s, and
+  // signal calls typically finish within that window. Best-effort.
+  const botToken = decryptToken(account.encryptedToken);
+  void sendTelegramTypingAction({ token: botToken, chatId: msg.chat.id });
+
   const result = await processInboundTelegram({
     botId,
     fromId: String(msg.from.id),
@@ -83,7 +90,7 @@ export async function POST(
 
   try {
     await sendTelegramMessage({
-      token: decryptToken(account.encryptedToken),
+      token: botToken,
       chatId: msg.chat.id,
       text: result.reply,
     });

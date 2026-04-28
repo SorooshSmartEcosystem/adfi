@@ -41,6 +41,7 @@ export function DraftsPanel() {
     Exclude<PlatformValue, "ALL">
   >("INSTAGRAM");
   const [filter, setFilter] = useState<PlatformValue>("ALL");
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const utils = trpc.useUtils();
 
   const platformArg =
@@ -73,43 +74,52 @@ export function DraftsPanel() {
   return (
     <>
       <div className="mb-xl">
-        <div className="text-xs text-ink4 mb-sm">
-          generate new
+        <div className="flex items-baseline justify-between mb-sm">
+          <div className="text-xs text-ink4">generate new</div>
+          <button
+            type="button"
+            onClick={() => setOptionsOpen((v) => !v)}
+            className="text-xs text-ink3 hover:text-ink font-mono"
+          >
+            {optionsOpen
+              ? "hide options"
+              : `${format === "AUTO" ? "auto" : FORMAT_OPTIONS.find((f) => f.id === format)?.label} · ${GEN_PLATFORM_OPTIONS.find((p) => p.id === genPlatform)?.label} ▾`}
+          </button>
         </div>
 
-        <div className="flex flex-wrap gap-xs mb-md">
-          {FORMAT_OPTIONS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFormat(f.id)}
-              className={`text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
-                format === f.id
-                  ? "bg-ink text-white border-ink"
-                  : "text-ink2 border-border hover:border-ink hover:text-ink"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap gap-xs mb-md">
-          {GEN_PLATFORM_OPTIONS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setGenPlatform(p.id)}
-              className={`text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
-                genPlatform === p.id
-                  ? "bg-ink text-white border-ink"
-                  : "text-ink2 border-border hover:border-ink hover:text-ink"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        {optionsOpen ? (
+          <div className="flex flex-wrap gap-xs mb-sm">
+            {FORMAT_OPTIONS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFormat(f.id)}
+                className={`text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+                  format === f.id
+                    ? "bg-ink text-white border-ink"
+                    : "text-ink2 border-border hover:border-ink hover:text-ink"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+            <span className="w-px bg-border mx-sm self-stretch" />
+            {GEN_PLATFORM_OPTIONS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setGenPlatform(p.id)}
+                className={`text-xs px-md py-[5px] rounded-full border-hairline transition-colors ${
+                  genPlatform === p.id
+                    ? "bg-ink text-white border-ink"
+                    : "text-ink2 border-border hover:border-ink hover:text-ink"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="flex items-center gap-sm">
           <input

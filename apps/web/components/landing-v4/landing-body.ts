@@ -932,10 +932,12 @@ const RAW_BODY = `\
 // Rewrite placeholder hrefs to real routes. Anchors (#how, #pricing, #faq,
 // #team) are intra-page jumps — leave as-is.
 export const LANDING_BODY = RAW_BODY
-  // Nav "get the app" CTA
+  // Nav "get the app" CTA — points to /download (App Store + Play Store
+  // links). signup/pricing CTAs further down still point to /signup
+  // because their copy is about starting a trial, not downloading the app.
   .replace(
     /<a href="#" class="nav-cta">get the app<\/a>/,
-    '<a href="/signup" class="nav-cta">get the app</a>',
+    '<a href="/download" class="nav-cta">get the app</a>',
   )
   // Hero primary CTA — points to the wow preview flow
   .replace(

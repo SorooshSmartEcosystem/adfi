@@ -1,5 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app/api/trpc/[trpc]/route.ts": { "memory": 2048, "maxDuration": 300 },
+    "app/api/cron/daily-content/route.ts": { "memory": 2048, "maxDuration": 300 },
+    "app/api/cron/daily-pulse/route.ts": { "memory": 2048, "maxDuration": 300 },
+    "app/api/cron/weekly-scout/route.ts": { "memory": 2048, "maxDuration": 300 },
+    "app/api/cron/quarterly-strategist/route.ts": { "memory": 2048, "maxDuration": 300 },
+    "app/api/upload/logo/route.ts": { "memory": 2048, "maxDuration": 300 }
+  },
   "crons": [
     {
       "path": "/api/cron/daily-content",

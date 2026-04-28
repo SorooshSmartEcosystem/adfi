@@ -1,0 +1,22 @@
+{
+  "name": "@orb/design-agent",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Design agent — produces per-business brand kits via the 6-phase pipeline (kernel, palette, logo, graphics, templates, voice). Pure-code phases (palette + templates) carry no LLM dependency.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./color": "./src/color.ts",
+    "./templates": "./src/templates.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@orb/config": "workspace:*",
+    "@types/node": "^20.17.0",
+    "typescript": "^5.6.3"
+  }
+}

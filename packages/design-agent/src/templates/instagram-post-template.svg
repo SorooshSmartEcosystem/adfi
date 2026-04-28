@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <rect width="1080" height="1080" fill="{{background}}"/>
+  <g transform="translate(80 80) scale(2)">
+    {{markInner}}
+  </g>
+  <text x="80" y="540" font-family="-apple-system, 'SF Pro Display', system-ui, sans-serif" font-size="84" font-weight="500" fill="{{ink}}" letter-spacing="-0.03em">{{headline}}</text>
+  <text x="80" y="612" font-family="-apple-system, 'SF Pro Display', system-ui, sans-serif" font-size="84" font-weight="500" fill="{{ink}}" letter-spacing="-0.03em" opacity="0.55">{{headlineLine2}}</text>
+  <line x1="80" y1="940" x2="1000" y2="940" stroke="{{border}}" stroke-width="1"/>
+  <text x="80" y="990" font-family="'SF Mono', 'JetBrains Mono', monospace" font-size="22" fill="{{ink}}" opacity="0.6">{{businessName}}</text>
+  <circle cx="990" cy="980" r="10" fill="{{accent}}"/>
+</svg>

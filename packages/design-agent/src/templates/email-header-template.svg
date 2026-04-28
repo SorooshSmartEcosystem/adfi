@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200">
+  <rect width="600" height="200" fill="{{background}}"/>
+  <line x1="0" y1="199.5" x2="600" y2="199.5" stroke="{{border}}" stroke-width="0.5"/>
+  <g transform="translate(40 50) scale(1)">
+    {{markInner}}
+  </g>
+  <text x="140" y="100" font-family="-apple-system, 'SF Pro Display', system-ui, sans-serif" font-size="28" font-weight="500" fill="{{ink}}" letter-spacing="-0.02em">{{businessName}}</text>
+  <text x="140" y="128" font-family="-apple-system, 'SF Pro Text', system-ui, sans-serif" font-size="14" fill="{{ink}}" opacity="0.65">{{tagline}}</text>
+</svg>

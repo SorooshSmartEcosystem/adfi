@@ -1,0 +1,9 @@
+{
+  "extends": "@orb/config/tsconfig/base.json",
+  "include": ["src/**/*.ts"],
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "types": ["node"]
+  }
+}

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <clipPath id="circle-mask">
+      <circle cx="200" cy="200" r="200"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#circle-mask)">
+    <rect width="400" height="400" fill="{{background}}"/>
+    <g transform="translate(80 80) scale(2.4)">
+      {{markInner}}
+    </g>
+  </g>
+  <circle cx="200" cy="200" r="199.5" fill="none" stroke="{{border}}" stroke-width="1"/>
+</svg>

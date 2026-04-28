@@ -1,20 +1,23 @@
-// Public surface for @orb/motion-reel.
+// Remotion entry — required for `remotion studio` and `renderMedia`.
+// Both look up `registerRoot()` to find the compositions tree.
 //
-// Phase 1 ships scene generators only — given (BrandTokens, content),
-// each scene returns a complete standalone HTML document that
-// auto-plays its choreography. The recording side (Puppeteer + headless
-// Chromium + WebCodecs) lands in Phase 1.5 and lives in @orb/api.
+// Also re-exports types so other workspace packages (@orb/api,
+// apps/web) can import shared shapes without a runtime dep on
+// the React side.
+
+import { registerRoot } from "remotion";
+import { Root } from "./Root";
+
+registerRoot(Root);
 
 export type {
   BrandTokens,
-  Scene,
-  SceneInput,
-  SignalSceneContent,
+  CarouselAsReelContent,
+  ListContent,
+  MotionDirective,
+  OutputFormat,
+  ProductRevealContent,
+  QuoteContent,
+  StatContent,
 } from "./types";
-
-export {
-  SCENES,
-  SCENE_IDS,
-  signalScene,
-  type SceneId,
-} from "./scenes";
+export { DIMENSIONS } from "./types";

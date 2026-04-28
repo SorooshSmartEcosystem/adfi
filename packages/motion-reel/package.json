@@ -2,20 +2,30 @@
   "name": "@orb/motion-reel",
   "version": "0.0.0",
   "private": true,
-  "description": "Motion-reel pipeline — code-as-video for Reels/Shorts/TikToks. Hand-tuned scene choreographies; brand tokens + content slots vary per business. Phase 1: scene HTML generators only (server rendering pipeline lands in Phase 1.5).",
+  "description": "Motion-reel pipeline — Remotion-based code-as-video for client content (reels / shorts / square posts). Hand-tuned motion choreographies + Echo's content + brand tokens + real photos → mp4. Same minimal motion vocabulary as the landing-page meet-the-team scenes.",
   "exports": {
     ".": "./src/index.ts",
-    "./scenes": "./src/scenes/index.ts",
+    "./root": "./src/Root.tsx",
     "./types": "./src/types.ts"
   },
   "scripts": {
-    "build": "tsc",
+    "preview": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .turbo"
+    "clean": "rm -rf out .turbo"
+  },
+  "dependencies": {
+    "remotion": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@orb/config": "workspace:*",
     "@types/node": "^20.17.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
     "typescript": "^5.6.3"
   }
 }

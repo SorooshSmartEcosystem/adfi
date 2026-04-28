@@ -1,13 +1,12 @@
 // Type system for the motion-reel pipeline.
 //
-// A "scene" is a hand-tuned choreography — fixed timing, fixed
-// animation curves, fixed structural beats. What varies per business
-// is the brand tokens (palette + mark) and the content slots
-// (customer messages, business name, stats). Same pattern as the
-// design-agent application templates: typeset, not generated.
+// Design principle (same as @orb/design-agent): the choreography is
+// hand-tuned once; brand tokens + content slots vary per business.
+// Every composition is a React component that receives BrandTokens +
+// content props and renders frames driven by Remotion's useCurrentFrame.
 
-// Brand tokens consumed by every scene. Sourced from BrandKit on the
-// server side; the scene renderer treats them as opaque hex values.
+// Brand tokens consumed by every composition. Sourced from BrandKit
+// on the server side; renderer treats them as opaque hex strings.
 export type BrandTokens = {
   bg: string;
   surface: string;
@@ -23,55 +22,102 @@ export type BrandTokens = {
   attnBorder: string;
   attnText: string;
   // Inner SVG fragment (no outer <svg> wrapper) for the business mark.
-  // Falls back to a solid orb when null.
+  // Renderer falls back to a default orb when null/undefined.
   markInner?: string;
   businessName: string;
 };
 
-// Per-scene content shapes — each scene narrows this with its own type.
-// `SceneInput<typeof signalScene>` resolves to the precise shape.
-export type SceneInput<S extends Scene<unknown>> = S extends Scene<infer I>
-  ? I
-  : never;
+// ============================================================
+// Content shapes — one per composition.
+// Every shape is a plain JSON object so it round-trips through
+// the database (Echo persists `motion: { template, slotValues }`
+// on the ContentDraft) and through the render API.
+// ============================================================
 
-export type Scene<TInput> = {
-  // Stable identifier (used as the URL slug + the storage key prefix).
-  id: string;
-  // Human label shown in admin / picker UI.
-  label: string;
-  // Total duration of the scene in seconds. The render pipeline uses
-  // this to set MediaRecorder timeslice + Puppeteer eviction.
-  durationSec: number;
-  // Output frame size. All scenes target 1080×1920 (9:16) for now —
-  // Reels / TikToks / Shorts are vertical-first.
-  width: number;
-  height: number;
-  // Render the scene as a complete standalone HTML document. Includes
-  // <html>, <head><style>, <body> + the inline JS that drives the
-  // animation off `document.startTime` (a global the recorder sets
-  // before kicking off capture).
-  html: (tokens: BrandTokens, content: TInput) => string;
+// QuoteReel: a single quote types in line-by-line over a textured
+// brand backdrop. Closing card shows business name + mark.
+// Use for: inspirational posts, value statements, opinion takes.
+export type QuoteContent = {
+  // The quote itself. ≤ 240 chars; longer gets truncated. The
+  // typewriter splits on natural pauses (comma, period, em-dash).
+  quote: string;
+  // Optional attribution under the quote. e.g. "— rosa, founder".
+  attribution?: string;
 };
 
-// Signal-scene content shape — what a "Signal handles a real customer
-// interaction" Reel needs to populate.
-export type SignalSceneContent = {
-  // Channel that signal answered through: a call, a DM, or an SMS.
-  channel: "CALL" | "DM" | "SMS";
-  // Display name for the channel (e.g. "INCOMING CALL", "INSTAGRAM DM").
-  // Falls back to the channel value when omitted.
-  channelLabel?: string;
-  // Identifier shown above the message — phone number for a call,
-  // username for a DM, etc. Phone numbers should be masked client-side
-  // (e.g. "+1 (416) ••• 0934") before passing in.
-  fromIdentifier: string;
-  // The customer's message in their words. One sentence is ideal.
-  customerMessage: string;
-  // What signal did about it, in the brand's voice.
-  // E.g. "i answered with rates", "i booked thursday at 2pm".
-  replySummary: string;
-  // Outcome line — e.g. "booked thursday · 2:00pm · est. $4-8k".
-  outcomeLine: string;
-  // Final stat shown at the end — e.g. "responded in 14s".
-  statLine: string;
+// StatReel: a big number counts up while a label sits beneath it.
+// Optional context line below grounds the number in story.
+// Use for: weekly stats, product specs, milestone announcements.
+export type StatContent = {
+  // Final number (or string with formatting). e.g. 4200 or "$4.2k"
+  // or "98%". When a number is passed, the counter eases from 0 → it.
+  value: number | string;
+  // Optional prefix/suffix used when value is numeric. e.g. "$" / "%".
+  prefix?: string;
+  suffix?: string;
+  // Short uppercase label above the number. e.g. "THIS WEEK".
+  label: string;
+  // Long-form context under the number. ≤ 140 chars.
+  context: string;
+};
+
+// ListReel: 3 sequential fade-cards, each with a number + headline +
+// short body. The classic "3 things to know about X" / "3 reasons" /
+// "3 mistakes" reel.
+export type ListContent = {
+  // Title shown briefly at the start. e.g. "3 reasons handmade > mass".
+  title: string;
+  // 2–4 list items. UI assumes 3 most of the time.
+  items: { headline: string; body: string }[];
+};
+
+// ProductReveal: hero photo (real, from Echo's image pipeline) zooms
+// in while name + tagline + price/cta type underneath. Mark holds in
+// the corner.
+// Use for: new product launches, restocks, featured items.
+export type ProductRevealContent = {
+  // Public URL of the hero photo. Renderer fetches it during render.
+  // For the dev preview, can be a localhost / data URL too.
+  heroImageUrl: string;
+  // Product name in the brand's voice. e.g. "matte black mug · 24oz"
+  name: string;
+  // Tagline / one-line description.
+  tagline?: string;
+  // Optional CTA + optional price. CTA renders as a pill; price
+  // counts up like a StatReel number.
+  priceLabel?: string; // e.g. "$48" or "free shipping today"
+  cta?: string; // e.g. "shop now"
+};
+
+// CarouselAsReel: animates through Echo's existing carousel slides.
+// Each slide gets a smooth crossfade + slot-aware text animations.
+// Use for: turning a high-performing carousel into a Reel for free.
+export type CarouselAsReelContent = {
+  // Each slide carries its own image + text content. The composition
+  // budgets ~3.5s per slide.
+  slides: {
+    imageUrl?: string; // optional — slide can be text-only
+    headline: string;
+    body?: string;
+  }[];
+};
+
+// Discriminator on the persisted `motion` field. Echo writes this to
+// ContentDraft; the render API picks the composition by `template`.
+export type MotionDirective =
+  | { template: "quote"; content: QuoteContent }
+  | { template: "stat"; content: StatContent }
+  | { template: "list"; content: ListContent }
+  | { template: "product-reveal"; content: ProductRevealContent }
+  | { template: "carousel-as-reel"; content: CarouselAsReelContent };
+
+// Output frame size. Reels and TikToks are vertical-first; we target
+// 9:16 1080×1920 by default. The renderer can rescale to 1:1 (square
+// feed posts) or 16:9 (YouTube Shorts) at composition selection time.
+export type OutputFormat = "vertical" | "square" | "horizontal";
+
+export const DIMENSIONS: Record<OutputFormat, { width: number; height: number }> = {
+  vertical: { width: 1080, height: 1920 },
+  square: { width: 1080, height: 1080 },
+  horizontal: { width: 1920, height: 1080 },
 };

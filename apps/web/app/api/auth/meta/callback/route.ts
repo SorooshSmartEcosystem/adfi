@@ -29,11 +29,23 @@ function settingsRedirect(flash?: string): URL {
 }
 
 export async function GET(req: NextRequest) {
+  // Verbose logging on every entry so a 'silent' failure is no longer
+  // silent — every branch shows up in Vercel logs with the params it
+  // saw, the cookie it expected, and the host it was reached on.
+  const params = Object.fromEntries(req.nextUrl.searchParams);
+  console.log("[meta/callback] hit:", {
+    host: req.nextUrl.host,
+    pathname: req.nextUrl.pathname,
+    params,
+    hasStateCookie: req.cookies.has(STATE_COOKIE),
+  });
+
   const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
+    console.warn("[meta/callback] no authed user — redirecting with error_unauthenticated");
     return NextResponse.redirect(settingsRedirect("error_unauthenticated"));
   }
 
@@ -42,6 +54,11 @@ export async function GET(req: NextRequest) {
   const error = req.nextUrl.searchParams.get("error");
 
   if (error || !code || !state) {
+    console.warn("[meta/callback] missing required params:", {
+      error,
+      hasCode: !!code,
+      hasState: !!state,
+    });
     return NextResponse.redirect(
       settingsRedirect(error ? "error_denied" : "error_invalid"),
     );
@@ -49,6 +66,10 @@ export async function GET(req: NextRequest) {
 
   const expected = req.cookies.get(STATE_COOKIE)?.value;
   if (!expected || expected !== state) {
+    console.warn("[meta/callback] state cookie mismatch:", {
+      hasExpected: !!expected,
+      stateMatches: expected === state,
+    });
     return NextResponse.redirect(settingsRedirect("error_state"));
   }
 

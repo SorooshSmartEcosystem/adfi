@@ -42,9 +42,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const state = randomBytes(24).toString("base64url");
-    const url = buildAuthorizeUrl({
-      redirectUri: `${base}/api/auth/meta/callback`,
-      state,
+    const redirectUri = `${base}/api/auth/meta/callback`;
+    const url = buildAuthorizeUrl({ redirectUri, state });
+    console.log("[meta/start] redirecting to dialog:", {
+      base,
+      redirectUri,
+      reqHost: req.nextUrl.host,
     });
     const res = NextResponse.redirect(url);
     res.cookies.set(STATE_COOKIE, state, {

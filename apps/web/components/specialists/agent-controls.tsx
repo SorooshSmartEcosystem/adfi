@@ -12,6 +12,13 @@ function isControllable(a: DbAgent): a is Controllable {
   return (CONTROLLABLE as DbAgent[]).includes(a);
 }
 
+function fmtRunTime(at: string): string {
+  return new Date(at)
+    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    .replace(" ", "")
+    .toLowerCase();
+}
+
 export function AgentControls({ agent }: { agent: DbAgent }) {
   const router = useRouter();
   const [flash, setFlash] = useState<string | null>(null);
@@ -26,7 +33,7 @@ export function AgentControls({ agent }: { agent: DbAgent }) {
   });
   const runNow = trpc.agent.runNow.useMutation({
     onSuccess: () => {
-      setFlash("done — latest findings below.");
+      setFlash("done — latest output below.");
       utils.agent.getSettings.invalidate();
       utils.content.listDrafts.invalidate();
       utils.insights.listFindings.invalidate();
@@ -39,33 +46,25 @@ export function AgentControls({ agent }: { agent: DbAgent }) {
     },
   });
 
-  if (!isControllable(agent)) {
-    return null;
-  }
+  if (!isControllable(agent)) return null;
 
   const paused = (settings.data?.pausedAgents ?? []).includes(agent);
   const lastRun = settings.data?.lastManualRun as
-    | {
-        agent: string;
-        at: string;
-        ok: boolean;
-        error: string | null;
-        durationMs?: number;
-      }
+    | { agent: string; at: string; ok: boolean; error: string | null }
     | null
     | undefined;
   const isThisLastRun = lastRun?.agent === agent;
   const anyPending = pause.isPending || resume.isPending || runNow.isPending;
 
   return (
-    <div className="flex items-center gap-sm flex-wrap mb-lg">
+    <div className="flex items-center gap-md mb-xl flex-wrap">
       <button
         type="button"
         onClick={() => runNow.mutate({ agent })}
         disabled={paused || anyPending}
-        className="text-xs font-medium px-md py-[7px] rounded-full bg-ink text-white disabled:opacity-40 hover:opacity-85 transition-opacity"
+        className="text-sm font-medium px-xl py-md rounded-full bg-ink text-white disabled:opacity-40 hover:bg-black active:scale-[0.97] transition-all inline-flex items-center gap-sm"
       >
-        {runNow.isPending ? "running..." : "run now →"}
+        {runNow.isPending ? "running…" : "run now →"}
       </button>
       <button
         type="button"
@@ -73,7 +72,7 @@ export function AgentControls({ agent }: { agent: DbAgent }) {
           paused ? resume.mutate({ agent }) : pause.mutate({ agent })
         }
         disabled={anyPending}
-        className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+        className="text-sm font-medium px-lg py-md rounded-full bg-white text-ink border-hairline border-border hover:border-ink transition-colors disabled:opacity-40"
       >
         {paused ? "resume" : "pause"}
       </button>
@@ -86,17 +85,12 @@ export function AgentControls({ agent }: { agent: DbAgent }) {
 
       {isThisLastRun && lastRun ? (
         <span
-          className={`text-[11px] ml-auto ${lastRun.ok ? "text-aliveDark" : "text-urgent"}`}
+          className={`font-mono text-[11px] ml-auto inline-flex items-center gap-sm ${lastRun.ok ? "text-aliveDark" : "text-urgent"}`}
         >
-          last run{" "}
-          {new Date(lastRun.at)
-            .toLocaleTimeString("en-US", {
-              hour: "numeric",
-              minute: "2-digit",
-            })
-            .replace(" ", "")
-            .toLowerCase()}{" "}
-          · {lastRun.ok ? "ok" : "failed"}
+          <span
+            className={`w-[6px] h-[6px] rounded-full ${lastRun.ok ? "bg-alive animate-status-pulse" : "bg-urgent"}`}
+          />
+          last run {fmtRunTime(lastRun.at)} · {lastRun.ok ? "ok" : "failed"}
         </span>
       ) : null}
 

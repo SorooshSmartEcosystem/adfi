@@ -5,7 +5,9 @@ export type AgentDef = {
   name: string;
   tier: AgentTier;
   role: string;
-  currently: string;
+  // Rotating micro-status phrases shown in the "currently" card on each
+  // specialist page. Cycles every 4s with a 400ms fade. 5–6 entries each.
+  phrases: string[];
   coming: boolean;
   dbAgent: "STRATEGIST" | "SCOUT" | "PULSE" | "ADS" | "ECHO" | "SIGNAL" | null;
 };
@@ -16,7 +18,14 @@ export const AGENTS: Record<string, AgentDef> = {
     name: "strategist",
     tier: "starter",
     role: "business structure · brand voice · weekly plan",
-    currently: "refreshing your brand voice based on recent posts",
+    phrases: [
+      "refreshing your brand voice from this week's posts",
+      "comparing your tone with what's converting",
+      "checking which content pillars are pulling weight",
+      "looking at what your audience actually responds to",
+      "matching your voice to upcoming content",
+      "summarizing what i learned",
+    ],
     coming: false,
     dbAgent: "STRATEGIST",
   },
@@ -25,7 +34,14 @@ export const AGENTS: Record<string, AgentDef> = {
     name: "signal",
     tier: "starter",
     role: "calls · sms · dms · appointments",
-    currently: "monitoring your adfi number for calls and texts",
+    phrases: [
+      "monitoring your business number for calls and texts",
+      "reading new dms across your channels",
+      "drafting replies in your voice",
+      "checking which leads are warm",
+      "booking appointments where i can",
+      "summarizing what came in today",
+    ],
     coming: false,
     dbAgent: "SIGNAL",
   },
@@ -34,7 +50,14 @@ export const AGENTS: Record<string, AgentDef> = {
     name: "echo",
     tier: "team",
     role: "content creation · posting · performance",
-    currently: "drafting your next 3 posts based on this week's performance",
+    phrases: [
+      "drafting your next 3 posts based on this week's performance",
+      "designing hero photos for the drafts",
+      "writing captions in your voice",
+      "checking which formats are converting for you",
+      "scheduling the week ahead",
+      "summarizing what's queued",
+    ],
     coming: false,
     dbAgent: "ECHO",
   },
@@ -43,7 +66,14 @@ export const AGENTS: Record<string, AgentDef> = {
     name: "scout",
     tier: "team",
     role: "competitor tracking · market intel",
-    currently: "running weekly competitor sweep",
+    phrases: [
+      "running this week's competitor sweep",
+      "watching what your top 3 rivals just posted",
+      "looking for pricing or offer changes",
+      "checking which of their posts are taking off",
+      "spotting gaps you could fill",
+      "summarizing what i found",
+    ],
     coming: false,
     dbAgent: "SCOUT",
   },
@@ -52,7 +82,14 @@ export const AGENTS: Record<string, AgentDef> = {
     name: "pulse",
     tier: "team",
     role: "market signals · news · trends",
-    currently: "watching signals relevant to your business",
+    phrases: [
+      "watching signals relevant to your business",
+      "scanning trending topics across tiktok and x",
+      "checking news mentions in your industry",
+      "looking for press opportunities you could pitch",
+      "matching trends to your audience",
+      "summarizing what i found",
+    ],
     coming: false,
     dbAgent: "PULSE",
   },
@@ -60,19 +97,17 @@ export const AGENTS: Record<string, AgentDef> = {
     id: "ads",
     name: "ads",
     tier: "studio",
-    role: "paid campaigns · meta + google + youtube",
-    currently: "",
+    role: "paid campaigns · facebook · google · tiktok",
+    phrases: [
+      "watching your active campaigns across facebook and google",
+      "checking which ads are pulling cheap clicks",
+      "drafting fresh creative for the next test",
+      "rebalancing budget toward what's working",
+      "spotting fatigue before it eats your budget",
+      "summarizing this week's spend",
+    ],
     coming: false,
     dbAgent: "ADS",
-  },
-  site: {
-    id: "site",
-    name: "site",
-    tier: "studio",
-    role: "website building · landing pages",
-    currently: "",
-    coming: true,
-    dbAgent: null,
   },
 };
 

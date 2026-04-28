@@ -168,3 +168,66 @@ body {
 .animate-breathe-dot {
   animation: breathe-dot 3s ease-in-out infinite;
 }
+
+/* ===== Specialist page signature orb ===== */
+@keyframes sig-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+@keyframes sig-ring-pulse {
+  0%   { transform: scale(1);   opacity: 0.5; }
+  100% { transform: scale(2.2); opacity: 0;   }
+}
+.sig-orb {
+  background: radial-gradient(circle at 30% 25%,
+    #5a5a5a 0%, #2a2a2a 35%, #0a0a0a 75%, #000 100%);
+  box-shadow:
+    inset -2px -3px 6px rgba(0, 0, 0, 0.5),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.06);
+  animation: sig-breathe 3.2s ease-in-out infinite;
+}
+.sig-orb::before {
+  content: "";
+  position: absolute;
+  top: 18%;
+  left: 22%;
+  width: 26%;
+  height: 18%;
+  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: rotate(-25deg);
+}
+.sig-ring {
+  border: 0.5px solid rgba(17, 17, 17, 0.18);
+  animation: sig-ring-pulse 3.2s ease-out infinite;
+  opacity: 0;
+  pointer-events: none;
+}
+.sig-ring-delayed {
+  animation-delay: 1.1s;
+}
+
+/* Shimmer progress bar inside the "currently" card */
+@keyframes progress-shimmer {
+  0%   { left: -30%; }
+  100% { left: 100%; }
+}
+.progress-shimmer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, #111 50%, transparent 100%);
+  animation: progress-shimmer 3s ease-in-out infinite;
+}
+
+/* Soft pulsing green dot (used for "last run · ok" status) */
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+.animate-status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}

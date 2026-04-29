@@ -11,18 +11,29 @@ export default async function AdsSpecialistPage() {
   if (!authUser) redirect("/signin");
 
   const agent = AGENTS.ads!;
-  const campaigns = await db.campaign.findMany({
-    where: { userId: authUser.id },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      platforms: true,
-      createdAt: true,
-    },
+
+  // Per-business campaigns. Campaign.businessId is non-nullable in
+  // the schema (campaigns can't exist without a Business), so no
+  // legacy null fallback is needed — just filter to the active one.
+  const userRow = await db.user.findUnique({
+    where: { id: authUser.id },
+    select: { currentBusinessId: true },
   });
+  const businessId = userRow?.currentBusinessId ?? null;
+  const campaigns = businessId
+    ? await db.campaign.findMany({
+        where: { businessId },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          platforms: true,
+          createdAt: true,
+        },
+      })
+    : [];
 
   return (
     <SpecialistPageLayout

@@ -10,10 +10,21 @@ export default async function StrategistPage() {
   if (!authUser) redirect("/signin");
 
   const agent = AGENTS.strategist!;
-  const ctxRow = await db.agentContext.findFirst({
-    where: { userId: authUser.id },
-    select: { strategistOutput: true, lastRefreshedAt: true },
+
+  // Per-business brand voice. Reads the AgentContext for the user's
+  // ACTIVE business — without this, multi-business users always see
+  // their first business's voice regardless of which they switched to.
+  const userRow = await db.user.findUnique({
+    where: { id: authUser.id },
+    select: { currentBusinessId: true },
   });
+  const ctxRow = userRow?.currentBusinessId
+    ? await db.agentContext.findUnique({
+        where: { businessId: userRow.currentBusinessId },
+        select: { strategistOutput: true, lastRefreshedAt: true },
+      })
+    : null;
+
   const brandVoice =
     (ctxRow?.strategistOutput as Record<string, unknown> | null) ?? null;
   const lastRefreshedAt = ctxRow?.lastRefreshedAt ?? null;

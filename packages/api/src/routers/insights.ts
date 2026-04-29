@@ -16,9 +16,22 @@ export const insightsRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      // Scope by the active business so STUDIO/AGENCY users see only
+      // findings for the business they're currently looking at. Falls
+      // back to userId for legacy rows that haven't been backfilled
+      // with businessId.
+      const businessId = ctx.currentBusinessId;
+      const scope = businessId
+        ? {
+            OR: [
+              { businessId },
+              { businessId: null, userId: ctx.user.id },
+            ],
+          }
+        : { userId: ctx.user.id };
       return ctx.db.finding.findMany({
         where: {
-          userId: ctx.user.id,
+          ...scope,
           ...(input.severity && { severity: input.severity }),
           ...(input.acknowledged !== undefined && {
             acknowledged: input.acknowledged,

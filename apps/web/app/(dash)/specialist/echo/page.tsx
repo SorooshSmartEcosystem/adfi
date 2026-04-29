@@ -10,8 +10,23 @@ export default async function EchoPage() {
   if (!authUser) redirect("/signin");
 
   const agent = AGENTS.echo!;
+
+  // Per-business drafts. Falls back to userId match for legacy rows
+  // that pre-date the multi-business migration's businessId backfill.
+  const userRow = await db.user.findUnique({
+    where: { id: authUser.id },
+    select: { currentBusinessId: true },
+  });
+  const businessId = userRow?.currentBusinessId ?? null;
   const drafts = await db.contentDraft.findMany({
-    where: { userId: authUser.id },
+    where: businessId
+      ? {
+          OR: [
+            { businessId },
+            { businessId: null, userId: authUser.id },
+          ],
+        }
+      : { userId: authUser.id },
     orderBy: { createdAt: "desc" },
     take: 6,
     select: {

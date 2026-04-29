@@ -208,48 +208,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Also subscribe the IG Business Account itself. Page subscription
-    // alone covers Messenger but the Instagram Messaging API delivers
-    // DM events through /{ig-business-id}/subscribed_apps — without
-    // this call, inbound Instagram DMs never reach our webhook even
-    // though the IG row exists in the db.
-    //
-    // NOTE: this requires the "Instagram Messaging" capability to be
-    // enabled on the Meta app. If it errors with code=3 ("Application
-    // does not have the capability"), the fix is in App Dashboard →
-    // Use Cases → enable "Instagram messaging" — not a code change.
-    // Best-effort: the user is still connected even if this 400s.
-    if (page.igBusinessId) {
-      let igCapabilityMissing = false;
-      for (const field of ["messages", "messaging_postbacks"] as const) {
-        if (igCapabilityMissing) break;
-        try {
-          await subscribePageWebhook({
-            pageId: page.igBusinessId,
-            pageAccessToken: page.accessToken,
-            fields: [field],
-          });
-        } catch (err) {
-          // code=3 ("Application does not have the capability") is the
-          // Instagram Messaging capability not being enabled on the
-          // Meta app. Once one field 400s with code=3 every other field
-          // will too — break the loop and log once at info-level so the
-          // signal isn't drowned in repeated warnings.
-          const msg = err instanceof Error ? err.message : String(err);
-          if (msg.includes('"code":3') || msg.includes("(#3)")) {
-            igCapabilityMissing = true;
-            console.info(
-              "[meta/callback] ig messaging capability not enabled on app — skipping ig subscribe. enable it in app dashboard → use cases.",
-            );
-          } else {
-            console.warn(
-              `meta ig webhook subscribe failed (field=${field}):`,
-              err,
-            );
-          }
-        }
-      }
-    }
+    // No IG-direct webhook subscribe call. The Meta app uses the
+    // "Instagram API with Facebook Login" use case — IG DMs flow
+    // through the Page webhook (subscribed above), not through
+    // /{ig-business-id}/subscribed_apps. That endpoint belongs to the
+    // standalone "Instagram Login" use case which we don't ship; the
+    // app-capability error code=3 was Meta correctly rejecting a call
+    // wrong for our flow.
 
     // Different flash codes for different success states so the UI can
     // surface the precise next step:

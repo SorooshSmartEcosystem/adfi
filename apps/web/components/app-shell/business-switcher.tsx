@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "../../lib/trpc";
 
@@ -40,6 +40,28 @@ export function BusinessSwitcher({
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const utils = trpc.useUtils();
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  // Close the dropdown when the user clicks anywhere outside it OR
+  // hits Escape. Without this the panel stays open after a misclick
+  // until the user finds the chevron again — sub-par UX called out
+  // in 2026-04-28 testing.
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: MouseEvent) => {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const list = trpc.business.list.useQuery(undefined, {
     enabled: open,
@@ -62,7 +84,10 @@ export function BusinessSwitcher({
   const planTier = list.data?.plan?.toLowerCase() ?? "trial";
 
   return (
-    <div className="relative pb-lg hairline-b2 mb-md px-xs">
+    <div
+      ref={wrapRef}
+      className="relative pb-lg hairline-b2 mb-md px-xs"
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

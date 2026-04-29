@@ -40,17 +40,20 @@ export default async function DashLayout({
   }
 
   // Active Business is the canonical source of truth. The legacy
-  // User.businessName/Logo fields are only used by the migration's
-  // bootstrap fallback — once business.list runs, `active` is set and
-  // we read from there. Email username is the last-ditch fallback for
-  // accounts that somehow have no Business yet.
-  const businessName =
-    active?.name?.trim() ||
-    user.businessName?.trim() ||
-    user.email?.split("@")[0] ||
-    "your business";
-  const businessLogoUrl =
-    active?.logoUrl ?? user.businessLogoUrl ?? null;
+  // User.businessName/Logo fields are ONLY used as a last-ditch
+  // fallback when there's no active Business at all (very rare —
+  // migration backfilled one for everyone). When `active` is set,
+  // its fields are authoritative — including a missing logo, which
+  // should render as initials, NOT as the user-level legacy logo
+  // (which would be a different business's brand).
+  const businessName = active
+    ? active.name.trim() || "your business"
+    : user.businessName?.trim() ||
+      user.email?.split("@")[0] ||
+      "your business";
+  const businessLogoUrl = active
+    ? active.logoUrl ?? null
+    : user.businessLogoUrl ?? null;
   const userName = user.email?.split("@")[0] ?? "you";
 
   return (

@@ -72,19 +72,25 @@ export const agentRouter = router({
       return { success: true as const };
     }),
 
+  // Pause/resume are scoped to the active business — a multi-business
+  // user pausing Echo on one business shouldn't silence Echo for
+  // their other businesses too. Falls back to "all of user's
+  // contexts" only when there's no current business set (legacy edge).
   pause: authedProc
     .input(z.object({ agent: ControllableAgent }))
     .mutation(async ({ ctx, input }) => {
-      const row = await ctx.db.agentContext.findFirst({
-        where: { userId: ctx.user.id },
-      });
+      const businessId = ctx.currentBusinessId;
+      const row = businessId
+        ? await ctx.db.agentContext.findUnique({ where: { businessId } })
+        : await ctx.db.agentContext.findFirst({
+            where: { userId: ctx.user.id },
+          });
       if (!row) throw OrbError.NOT_FOUND("agent context");
-
       const next = Array.from(
         new Set([...(row.pausedAgents ?? []), input.agent as Agent]),
       );
-      await ctx.db.agentContext.updateMany({
-        where: { userId: ctx.user.id },
+      await ctx.db.agentContext.update({
+        where: { id: row.id },
         data: { pausedAgents: next },
       });
       return { pausedAgents: next };
@@ -93,14 +99,16 @@ export const agentRouter = router({
   resume: authedProc
     .input(z.object({ agent: ControllableAgent }))
     .mutation(async ({ ctx, input }) => {
-      const row = await ctx.db.agentContext.findFirst({
-        where: { userId: ctx.user.id },
-      });
+      const businessId = ctx.currentBusinessId;
+      const row = businessId
+        ? await ctx.db.agentContext.findUnique({ where: { businessId } })
+        : await ctx.db.agentContext.findFirst({
+            where: { userId: ctx.user.id },
+          });
       if (!row) throw OrbError.NOT_FOUND("agent context");
-
       const next = (row.pausedAgents ?? []).filter((a) => a !== input.agent);
-      await ctx.db.agentContext.updateMany({
-        where: { userId: ctx.user.id },
+      await ctx.db.agentContext.update({
+        where: { id: row.id },
         data: { pausedAgents: next },
       });
       return { pausedAgents: next };
@@ -139,40 +147,77 @@ export const agentRouter = router({
             };
             break;
           case "STRATEGIST": {
-            const user = await ctx.db.user.findUnique({
-              where: { id: ctx.user.id },
-              include: { agentContexts: true },
-            });
-            if (!user) throw new Error("user not found");
-            if (!user.businessDescription || !user.goal) {
+            // Per-business strategist run. Reads the ACTIVE
+            // business's description (not the user's legacy primary
+            // description), writes back to ONLY the active business's
+            // AgentContext, and uses the active business's previous
+            // voice for refinement. Without this, switching to a
+            // farsi business and clicking "run now" would re-run
+            // strategist with the english primary description and
+            // overwrite every business's voice with the result.
+            const businessId = ctx.currentBusinessId;
+            if (!businessId) {
               throw new Error(
-                "Complete onboarding before re-running Strategist",
+                "Switch to a business before running Strategist",
               );
             }
+            const business = await ctx.db.business.findFirst({
+              where: { id: businessId, userId: ctx.user.id },
+            });
+            if (!business) throw new Error("business not found");
+            const user = await ctx.db.user.findUnique({
+              where: { id: ctx.user.id },
+              select: { goal: true },
+            });
+            // Prefer the Business.description; fall back to the
+            // user's legacy primary if the Business row was created
+            // without one (shouldn't happen for new flows).
+            const description =
+              business.description?.trim() ||
+              (
+                await ctx.db.user.findUnique({
+                  where: { id: ctx.user.id },
+                  select: { businessDescription: true },
+                })
+              )?.businessDescription;
+            if (!description) {
+              throw new Error(
+                "this business has no description — add one before running Strategist",
+              );
+            }
+            const goal = user?.goal ?? "MORE_CUSTOMERS";
             await consumeCredits(
               ctx.user.id,
               CREDIT_COSTS.STRATEGIST_REFRESH,
               "strategist_refresh",
             );
-            // Refine previous voice + react to performance — Strategist now
-            // refines instead of cold-starting on subsequent runs.
+            const existing = await ctx.db.agentContext.findUnique({
+              where: { businessId },
+              select: { strategistOutput: true },
+            });
             const { summarizePerformance } = await import(
               "../services/performance"
             );
             const performance = await summarizePerformance(ctx.user.id, 90);
             const voice = await runStrategist({
-              businessDescription: user.businessDescription,
-              goal: user.goal,
+              businessDescription: description,
+              goal,
               userId: ctx.user.id,
               previousVoice:
-                (user.agentContexts?.[0]?.strategistOutput as
+                (existing?.strategistOutput as
                   | Awaited<ReturnType<typeof runStrategist>>
                   | null) ?? null,
               performance,
             });
-            await db.agentContext.updateMany({
-              where: { userId: ctx.user.id },
-              data: {
+            await db.agentContext.upsert({
+              where: { businessId },
+              update: {
+                strategistOutput: voice as object,
+                lastRefreshedAt: new Date(),
+              },
+              create: {
+                userId: ctx.user.id,
+                businessId,
                 strategistOutput: voice as object,
                 lastRefreshedAt: new Date(),
               },
@@ -185,18 +230,24 @@ export const agentRouter = router({
         errorMessage = error instanceof Error ? error.message : String(error);
       }
 
-      await ctx.db.agentContext.updateMany({
-        where: { userId: ctx.user.id },
-        data: {
-          lastManualRun: {
-            agent: input.agent,
-            at: startedAt.toISOString(),
-            durationMs: Date.now() - startedAt.getTime(),
-            ok: errorMessage === null,
-            error: errorMessage,
-          } as object,
-        },
-      });
+      // Record lastManualRun on the active business's AgentContext
+      // only — not all of the user's businesses. The "last run at"
+      // status the specialist UI shows should reflect the business
+      // the user just clicked from, not bleed across businesses.
+      if (ctx.currentBusinessId) {
+        await ctx.db.agentContext.updateMany({
+          where: { businessId: ctx.currentBusinessId },
+          data: {
+            lastManualRun: {
+              agent: input.agent,
+              at: startedAt.toISOString(),
+              durationMs: Date.now() - startedAt.getTime(),
+              ok: errorMessage === null,
+              error: errorMessage,
+            } as object,
+          },
+        });
+      }
 
       if (errorMessage) {
         throw OrbError.EXTERNAL_API(`${input.agent} run failed: ${errorMessage}`);

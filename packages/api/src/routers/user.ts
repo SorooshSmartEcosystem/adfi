@@ -89,6 +89,20 @@ export const userRouter = router({
     const sevenDaysAgo = new Date(now - 7 * DAY_MS);
     const fourteenDaysAgo = new Date(now - 14 * DAY_MS);
 
+    // Per-business scope: every per-business table filters by the
+    // active business. Legacy rows pre-multi-business migration may
+    // still have null businessId; they fall back to the userId match
+    // so they don't disappear from the user's history.
+    const businessId = ctx.currentBusinessId;
+    const scope = businessId
+      ? {
+          OR: [
+            { businessId },
+            { businessId: null, userId: ctx.user.id },
+          ],
+        }
+      : { userId: ctx.user.id };
+
     const [
       user,
       postsLast7,
@@ -104,46 +118,46 @@ export const userRouter = router({
       ctx.db.user.findUnique({ where: { id: ctx.user.id } }),
       ctx.db.contentPost.findMany({
         where: {
-          userId: ctx.user.id,
+          ...scope,
           publishedAt: { gte: sevenDaysAgo },
         },
         select: { metrics: true },
       }),
       ctx.db.contentPost.findMany({
         where: {
-          userId: ctx.user.id,
+          ...scope,
           publishedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
         },
         select: { metrics: true },
       }),
       ctx.db.message.count({
         where: {
-          userId: ctx.user.id,
+          ...scope,
           direction: "INBOUND",
           createdAt: { gte: sevenDaysAgo },
         },
       }),
       ctx.db.call.count({
-        where: { userId: ctx.user.id, startedAt: { gte: sevenDaysAgo } },
+        where: { ...scope, startedAt: { gte: sevenDaysAgo } },
       }),
       ctx.db.appointment.findMany({
-        where: { userId: ctx.user.id, createdAt: { gte: sevenDaysAgo } },
+        where: { ...scope, createdAt: { gte: sevenDaysAgo } },
         select: { estimatedValueCents: true },
       }),
       ctx.db.finding.findFirst({
-        where: { userId: ctx.user.id, acknowledged: false },
+        where: { ...scope, acknowledged: false },
         orderBy: { createdAt: "desc" },
       }),
       ctx.db.message.count({
         where: {
-          userId: ctx.user.id,
+          ...scope,
           direction: "INBOUND",
           handledBy: null,
         },
       }),
       ctx.db.contentDraft.count({
         where: {
-          userId: ctx.user.id,
+          ...scope,
           status: { in: ["DRAFT", "AWAITING_PHOTOS", "AWAITING_REVIEW"] },
         },
       }),
@@ -216,9 +230,17 @@ export const userRouter = router({
       const start = new Date(now - input.rangeDays * DAY_MS);
       start.setUTCHours(0, 0, 0, 0);
 
+      const businessId = ctx.currentBusinessId;
       const posts = await ctx.db.contentPost.findMany({
         where: {
-          userId: ctx.user.id,
+          ...(businessId
+            ? {
+                OR: [
+                  { businessId },
+                  { businessId: null, userId: ctx.user.id },
+                ],
+              }
+            : { userId: ctx.user.id }),
           publishedAt: { gte: start },
         },
         select: { publishedAt: true, metrics: true },
@@ -247,8 +269,19 @@ export const userRouter = router({
   // five rows, sorted by lift descending. Empty when fewer than 3 posts.
   getWhatsWorking: authedProc.input(z.void()).query(async ({ ctx }) => {
     const since = new Date(Date.now() - 30 * DAY_MS);
+    const businessId = ctx.currentBusinessId;
     const posts = await ctx.db.contentPost.findMany({
-      where: { userId: ctx.user.id, publishedAt: { gte: since } },
+      where: {
+        ...(businessId
+          ? {
+              OR: [
+                { businessId },
+                { businessId: null, userId: ctx.user.id },
+              ],
+            }
+          : { userId: ctx.user.id }),
+        publishedAt: { gte: since },
+      },
       select: {
         platform: true,
         metrics: true,
@@ -305,19 +338,28 @@ export const userRouter = router({
   getRecentActivity: authedProc
     .input(z.object({ limit: z.number().min(1).max(20).default(6) }))
     .query(async ({ ctx, input }) => {
+      const businessId = ctx.currentBusinessId;
+      const scope = businessId
+        ? {
+            OR: [
+              { businessId },
+              { businessId: null, userId: ctx.user.id },
+            ],
+          }
+        : { userId: ctx.user.id };
       const [findings, posts, calls] = await Promise.all([
         ctx.db.finding.findMany({
-          where: { userId: ctx.user.id },
+          where: scope,
           orderBy: { createdAt: "desc" },
           take: input.limit,
         }),
         ctx.db.contentPost.findMany({
-          where: { userId: ctx.user.id },
+          where: scope,
           orderBy: { publishedAt: "desc" },
           take: input.limit,
         }),
         ctx.db.call.findMany({
-          where: { userId: ctx.user.id },
+          where: scope,
           orderBy: { startedAt: "desc" },
           take: input.limit,
         }),

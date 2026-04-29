@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { trpcServer } from "../../../lib/trpc-server";
 import { PageHero } from "../../../components/shared/page-hero";
 import { WeekGrid } from "../../../components/content/week-grid";
@@ -32,10 +32,7 @@ export default async function ContentPage({
 }: {
   searchParams: Promise<{ tab?: string | string[] }>;
 }) {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   const { tab: tabParam } = await searchParams;

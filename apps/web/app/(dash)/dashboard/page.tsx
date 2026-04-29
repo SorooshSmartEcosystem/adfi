@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { trpcServer, getDashUserAndHome } from "../../../lib/trpc-server";
 import { DashGreeting } from "../../../components/dashboard/dash-greeting";
 import { NeedsYouBanner } from "../../../components/dashboard/needs-you-banner";
@@ -47,10 +47,7 @@ function fmtReach(n: number): string {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   const trpc = await trpcServer();

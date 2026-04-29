@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { db } from "@orb/db";
 import Link from "next/link";
 import { AGENTS } from "../../../../components/specialists/agent-config";
@@ -7,10 +7,7 @@ import { SpecialistPageLayout } from "../../../../components/specialist/speciali
 import { EmptyCard } from "../../../../components/specialist/empty-card";
 
 export default async function AdsSpecialistPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   const agent = AGENTS.ads!;

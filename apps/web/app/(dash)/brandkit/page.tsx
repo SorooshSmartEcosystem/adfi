@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { PageHero } from "../../../components/shared/page-hero";
 import { BrandKitPanel } from "../../../components/brand-kit/brandkit-panel";
 
@@ -8,10 +8,7 @@ import { BrandKitPanel } from "../../../components/brand-kit/brandkit-panel";
 // panel reads everything via tRPC; this server component is a thin wrapper
 // for auth + page chrome.
 export default async function BrandKitPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   return (

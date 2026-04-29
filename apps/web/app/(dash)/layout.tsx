@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { db } from "@orb/db";
 import { getDashUserAndHome } from "../../lib/trpc-server";
 import { AppShell } from "../../components/app-shell/app-shell";
@@ -14,11 +14,9 @@ export default async function DashLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
+  // Reads identity from the header middleware attached after
+  // validating the session — no second Auth round-trip per navigation.
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   // Onboarding gate — without a brand voice the agents can't do anything

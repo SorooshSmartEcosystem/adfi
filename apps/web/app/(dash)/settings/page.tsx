@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { getDashUserAndHome } from "../../../lib/trpc-server";
 import { Card } from "../../../components/shared/card";
 import { Row, Section } from "../../../components/settings/section";
@@ -19,10 +19,7 @@ function formatPhone(raw: string | null | undefined): string {
 }
 
 export default async function SettingsPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   const { user, home } = await getDashUserAndHome();

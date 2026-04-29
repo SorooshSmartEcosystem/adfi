@@ -2,10 +2,53 @@ import {
   createServerClient as supaCreateServerClient,
   type CookieOptions,
 } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
+
+// Header names the middleware sets after validating the session.
+// Pages read these directly to skip a second supabase.auth.getUser()
+// network round-trip per navigation. See packages/auth/src/middleware.ts.
+const USER_ID_HEADER = "x-orb-user-id";
+const USER_EMAIL_HEADER = "x-orb-user-email";
+
+// Lightweight current-user shape — just the bits a page actually
+// needs to check `is logged in?` + `get id`. Pages that need the full
+// User row can still call createServerClient().auth.getUser() but
+// that adds the round-trip back.
+export type CurrentUser = { id: string; email: string | null };
+
+// Reads the user identity attached by middleware. Falls back to a
+// real supabase.auth.getUser() call if the header is missing — that
+// happens only when middleware was bypassed (very rare; e.g. a route
+// excluded from the matcher pattern). Fast path: ~0ms. Slow path:
+// ~150-300ms (same as before).
+//
+// **This is the function pages should call.** Replaces the pattern:
+//
+//   const supabase = await createServerClient();
+//   const { data: { user } } = await supabase.auth.getUser();
+//
+// with:
+//
+//   const user = await getCurrentUser();
+//
+// Saves one Supabase Auth round-trip per server-rendered page.
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const h = await headers();
+  const id = h.get(USER_ID_HEADER);
+  if (id) {
+    return { id, email: h.get(USER_EMAIL_HEADER) };
+  }
+  // Fallback: middleware didn't set the header. Verify directly.
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  return { id: user.id, email: user.email ?? null };
+}
 
 export async function createServerClient(): Promise<SupabaseClient> {
   const cookieStore = await cookies();

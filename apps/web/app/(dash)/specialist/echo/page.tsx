@@ -1,15 +1,12 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { db } from "@orb/db";
 import { AGENTS } from "../../../../components/specialists/agent-config";
 import { SpecialistPageLayout } from "../../../../components/specialist/specialist-page-layout";
 import { RecentDraftsGrid } from "../../../../components/specialist/recent-drafts-grid";
 
 export default async function EchoPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   const agent = AGENTS.echo!;

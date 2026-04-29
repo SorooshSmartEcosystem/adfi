@@ -1,13 +1,10 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { InboxPage } from "../../../components/inbox/inbox-page";
 import { PageHero } from "../../../components/shared/page-hero";
 
 export default async function Inbox() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   return (

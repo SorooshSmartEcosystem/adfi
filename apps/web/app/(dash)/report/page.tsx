@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { trpcServer } from "../../../lib/trpc-server";
 import { Card } from "../../../components/shared/card";
 import { StatusDot } from "../../../components/shared/status-dot";
@@ -79,10 +79,7 @@ function timeSaved({
 }
 
 export default async function ReportPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   const trpc = await trpcServer();

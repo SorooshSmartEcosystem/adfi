@@ -1,15 +1,12 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { db } from "@orb/db";
 import { AGENTS } from "../../../../components/specialists/agent-config";
 import { SpecialistPageLayout } from "../../../../components/specialist/specialist-page-layout";
 import { BrandVoicePanel } from "../../../../components/specialists/brand-voice-panel";
 
 export default async function StrategistPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   const agent = AGENTS.strategist!;

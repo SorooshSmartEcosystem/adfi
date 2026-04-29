@@ -1,15 +1,12 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@orb/auth/server";
+import { getCurrentUser } from "@orb/auth/server";
 import { trpcServer } from "../../../../lib/trpc-server";
 import { PageHero } from "../../../../components/shared/page-hero";
 import { CampaignBriefForm } from "../../../../components/campaigns/campaign-brief-form";
 import { CampaignsUpsellCard } from "../../../../components/campaigns/upsell-card";
 
 export default async function NewCampaignPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
   const trpc = await trpcServer();

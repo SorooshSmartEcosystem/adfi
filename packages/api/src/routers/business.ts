@@ -123,6 +123,13 @@ export const businessRouter = router({
         where: { id: ctx.user.id },
         data: { currentBusinessId: created.id },
       });
+      // Same cache-bust as business.switch — see comment there.
+      try {
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath("/", "layout");
+      } catch {
+        // Non-Next caller — skip.
+      }
 
       // Run Strategist on the new business so it has its own brand
       // voice from day one. Without this, the dashboard layout would
@@ -178,6 +185,13 @@ export const businessRouter = router({
 
   // Switch the active business. Doesn't migrate any data — just flips
   // currentBusinessId so the dashboard renders the chosen one.
+  //
+  // Cache-busting note: the React Query cache is invalidated on the
+  // client (utils.invalidate()), and we revalidate the entire Next.js
+  // Router Cache here so server-rendered pages re-fetch fresh per-
+  // business data on the next navigation. Without revalidatePath the
+  // user has to hard-refresh the browser to see the new business's
+  // data — Next caches RSC payloads aggressively for fast back/forward.
   switch: authedProc
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -190,6 +204,16 @@ export const businessRouter = router({
         where: { id: ctx.user.id },
         data: { currentBusinessId: target.id },
       });
+      // Bust every cached server-rendered route so the next navigation
+      // re-runs the layout + page handlers with the new businessId.
+      // Imported lazily to keep the @orb/api package usable in
+      // non-Next contexts (mobile / admin / scripts).
+      try {
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath("/", "layout");
+      } catch {
+        // Non-Next caller (e.g. test runner) — skip silently.
+      }
       return { ok: true as const };
     }),
 });

@@ -79,18 +79,18 @@ export const motionReelRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        // Forward the user's session cookie to the internal render
+        // route so it can re-verify the user. Without this the
+        // route's createServerClient() finds no session and 401s.
         const result = await renderForDraft({
           userId: ctx.user.id,
           draftId: input.draftId,
           directive: input.directive,
+          cookieHeader: ctx.headers.get("cookie") ?? "",
         });
         return result;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        // Common error in production until Phase 2.5: Chromium binary
-        // can't be found. Surface the message verbatim so it's
-        // diagnosable from the UI; user retries after we ship the
-        // @sparticuz/chromium fix.
         throw OrbError.EXTERNAL_API(`motion-reel render failed: ${msg}`);
       }
     }),

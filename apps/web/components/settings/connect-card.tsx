@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "../shared/card";
 import { trpc } from "../../lib/trpc";
 
@@ -611,8 +612,10 @@ export function ConnectionsList() {
   );
 
   return (
-    <Card padded={false}>
-      {PROVIDERS.map((p, i) => {
+    <>
+      <MetaConnectFlash />
+      <Card padded={false}>
+        {PROVIDERS.map((p, i) => {
         const isConnected = p.dbProvider
           ? connectedSet.has(p.dbProvider)
           : false;
@@ -634,10 +637,116 @@ export function ConnectionsList() {
                       })
                   : undefined
               }
-            />
-          </div>
-        );
-      })}
-    </Card>
+              />
+            </div>
+          );
+        })}
+      </Card>
+    </>
+  );
+}
+
+// Reads the `?connect=...` query param the meta oauth callback sets and
+// surfaces an actionable banner. ok_fb_only is the most important branch:
+// the user "succeeded" at OAuth but their IG isn't linked to the FB Page,
+// so without this UI they'd just see "Instagram — not connected" and
+// wonder what they did wrong.
+const FLASH: Record<
+  string,
+  { kind: "ok" | "warn" | "err"; title: string; body: string; steps?: string[] }
+> = {
+  ok: {
+    kind: "ok",
+    title: "facebook page + instagram connected",
+    body: "echo can post for you and signal will reply to dms.",
+  },
+  ok_fb_only: {
+    kind: "warn",
+    title: "facebook page connected — but instagram isn't linked",
+    body: "your instagram needs to be linked to this facebook page in meta business suite. fix that, then disconnect + reconnect here.",
+    steps: [
+      "open business.facebook.com → settings → accounts → instagram accounts",
+      "click 'add' → log in to your instagram → choose the facebook page you just connected",
+      "come back here, tap 'disconnect' on facebook page, then 'connect instagram' again",
+    ],
+  },
+  error_unauthenticated: {
+    kind: "err",
+    title: "you weren't signed in when meta redirected back",
+    body: "sign in again, then re-open the connect flow.",
+  },
+  error_denied: {
+    kind: "err",
+    title: "you cancelled meta's authorization",
+    body: "no harm done — tap connect again when you're ready.",
+  },
+  error_invalid: {
+    kind: "err",
+    title: "meta didn't return a valid code",
+    body: "try again. if it keeps failing, the meta app may need re-approval.",
+  },
+  error_state: {
+    kind: "err",
+    title: "session mismatch — try again from this device",
+    body: "this can happen if you opened the connect link on a different device or your cookies expired mid-flow.",
+  },
+  error_no_pages: {
+    kind: "err",
+    title: "your facebook account doesn't manage any pages",
+    body: "create a facebook page first, then come back. instagram requires a page to publish.",
+  },
+  error_exchange: {
+    kind: "err",
+    title: "meta rejected the connection",
+    body: "usually a permissions issue. make sure you're an admin of the page and instagram is set to a business or creator profile.",
+  },
+};
+
+function MetaConnectFlash() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const code = params.get("connect");
+  const flash = code ? FLASH[code] : null;
+
+  // Strip the query param so a refresh doesn't re-show the banner.
+  useEffect(() => {
+    if (!code) return;
+    const t = setTimeout(() => {
+      const next = new URLSearchParams(params.toString());
+      next.delete("connect");
+      const qs = next.toString();
+      router.replace(qs ? `?${qs}#channels` : "#channels", { scroll: false });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [code, params, router]);
+
+  if (!flash) return null;
+  const tone =
+    flash.kind === "ok"
+      ? "border-alive bg-alive/20 text-aliveDark"
+      : flash.kind === "warn"
+        ? "border-attentionBorder bg-attentionBg text-attentionText"
+        : "border-urgent bg-urgent/10 text-urgent";
+
+  return (
+    <div
+      className={`mb-md rounded-md border-hairline ${tone} px-md py-md`}
+      role="status"
+    >
+      <div className="text-sm font-medium" dir="auto">{flash.title}</div>
+      <p className="text-xs mt-xs leading-relaxed text-ink2" dir="auto">
+        {flash.body}
+      </p>
+      {flash.steps ? (
+        <ol className="mt-md flex flex-col gap-xs">
+          {flash.steps.map((s, i) => (
+            <li key={i} className="text-xs text-ink2 leading-relaxed flex gap-sm">
+              <span className="text-ink4 tabular-nums shrink-0">{i + 1}.</span>
+              <span dir="auto">{s}</span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </div>
   );
 }

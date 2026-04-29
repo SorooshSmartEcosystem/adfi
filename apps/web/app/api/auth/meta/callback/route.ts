@@ -92,10 +92,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(settingsRedirect("error_no_pages"));
     }
 
-    // V1 picks the first page. A real picker UI is the next step — for now
-    // the user must have only one page connected to the app, which Meta's
-    // permission model will enforce during the dialog anyway.
-    const page = pages[0]!;
+    // Page selection. Old code auto-picked pages[0] — broken when the
+    // user has multiple FB Pages and the IG-linked one isn't first.
+    // Strong-prefer any page with an instagram_business_account; only
+    // fall back to the first page if none of them have IG linked. The
+    // settings UI uses ok_fb_only to surface "you need to link IG to
+    // your Page" recovery steps in the latter case.
+    const pageWithIg = pages.find((p) => p.igBusinessId);
+    const page = pageWithIg ?? pages[0]!;
 
     const expiresAt = long.expiresIn
       ? new Date(Date.now() + long.expiresIn * 1000)
@@ -182,7 +186,14 @@ export async function GET(req: NextRequest) {
       console.warn("meta webhook subscribe failed:", err);
     }
 
-    const res = NextResponse.redirect(settingsRedirect("ok"));
+    // Different flash codes for different success states so the UI can
+    // surface the precise next step:
+    //   ok            → both FB Page + IG Business connected
+    //   ok_fb_only    → FB Page connected but no IG linked at the Page
+    //                   level. User needs to link IG in Meta Business
+    //                   Suite, then disconnect + reconnect.
+    const flash = page.igBusinessId ? "ok" : "ok_fb_only";
+    const res = NextResponse.redirect(settingsRedirect(flash));
     res.cookies.delete(STATE_COOKIE);
     return res;
   } catch (err) {

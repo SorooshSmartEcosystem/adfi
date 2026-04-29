@@ -1,7 +1,7 @@
 ---
 title: ROADMAP
 purpose: What ships next, in rough priority order. Living doc.
-last_updated: 2026-04-28 (evening)
+last_updated: 2026-04-29
 ---
 
 # ROADMAP
@@ -14,6 +14,77 @@ For what's *currently in flight*, read [`SESSION_STATE.md`](SESSION_STATE.md).
 For what's *already shipped*, read [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Now (this week)
+
+### Inbox templates + knowledge base + comment triggers (planned 2026-04-29)
+
+User-requested: "develop inbox app and add some ready replies, links and
+some context for each channel and also add list of replies if user
+comment specific word in a specific instagram post — must be very
+minimal and simple to manage." Three features, two phases.
+
+**Phase 1 — Ready replies + business knowledge base** *(estimated 2-3
+focused hours)*
+
+Pure CRUD + Signal prompt extension. No webhook work.
+
+- Schema (one migration `20260429100000_inbox_templates_and_knowledge`):
+  - `ReadyReply { id, businessId, channel?: ReplyChannel, label,
+    body, usageCount, createdAt, updatedAt }` — channel null = available
+    on every channel. enum `ReplyChannel { INSTAGRAM TELEGRAM FACEBOOK
+    SMS EMAIL }`. `@@index([businessId, channel])`.
+  - `BusinessKnowledge { id, businessId, type: KnowledgeType, title,
+    content, createdAt, updatedAt }` — enum `KnowledgeType { LINK FACT }`.
+    `@@index([businessId])`.
+  - Both per-business, FK CASCADE on Business delete.
+- API routers (registered in root):
+  - `inbox-templates.ts`: list / create / update / delete /
+    incrementUsage
+  - `knowledge.ts`: list / create / update / delete
+- Signal integration (`packages/api/src/agents/signal.ts`):
+  - Extend the user message with two blocks before the customer
+    message — "Things you can offer / explain" (BusinessKnowledge
+    items) and "Approved canned replies for this channel" (ReadyReply
+    rows scoped to inbound channel).
+  - Add one bullet to the system prompt: "if a canned reply fits
+    exactly, use it word-for-word."
+  - On reply send, fire `incrementUsage` when reply text matches
+    (substring) a known canned reply — drives sort-by-most-used in
+    the inbox picker.
+- UI (3 small touches):
+  - New page `/settings/inbox-templates` — list + edit ready replies,
+    grouped by channel, inline create/edit/delete. ~150 LOC.
+  - New page `/settings/knowledge` — list + edit business knowledge,
+    tabs for "links" vs "facts". ~150 LOC.
+  - Inbox thread view (`apps/web/components/inbox/message-thread.tsx`):
+    add a "/" keyboard shortcut + "use template" button surfacing
+    matching ready replies + relevant knowledge for the active channel.
+  - Two new entries in the existing settings nav.
+
+**Phase 2 — Instagram comment-trigger auto-replies** *(separate session,
+1-2 days incl. Meta App Review wait)*
+
+When someone comments a specific word on a specific IG post → auto-reply
+(comment back or DM). Classic ManyChat-style trigger.
+
+- Schema: `CommentTrigger { id, businessId, instagramPostId,
+  triggerWord, replyMode: 'comment' | 'dm', replyBody, isActive,
+  createdAt, updatedAt }`.
+- API router `triggers.ts`: list / create / update / delete /
+  toggleActive.
+- Webhook: extend `/api/webhooks/meta/route.ts` to handle `comments`
+  field changes (currently only handles messages). Match against
+  triggers; fire reply via Meta Graph API `/messages` endpoint.
+- UI: new page `/settings/comment-triggers` — manage triggers per
+  IG post (post picker + word + reply body + mode toggle).
+- **Meta App Review** is the real blocker: needs
+  `instagram_manage_messages` + `pages_manage_engagement` scopes.
+  Each scope requires a use-case justification + screen recording.
+  Bureaucratic risk, not technical. Not started.
+
+**Open decisions before kickoff (to confirm with user):**
+- Soft-delete (archived flag) on ReadyReply or hard delete?
+- Settings sub-pages or a new top-level `/templates` route?
+- Mobile parity in scope or web-only? (Mobile is parked overall.)
 
 ### Motion-reel package — `@orb/motion-reel`
 - **Direction confirmed 2026-04-28 evening** — code-as-video for Reels /

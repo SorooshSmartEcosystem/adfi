@@ -11,6 +11,7 @@ import {
   deleteWebhook as deleteTelegramWebhook,
   buildWebhookUrl as buildTelegramWebhookUrl,
 } from "../services/telegram";
+import { listSubscribedApps } from "../services/meta";
 
 // Calls Meta's permission-revoke endpoint so disconnecting on adfi also
 // revokes the authorization on the user's facebook account. Best-effort —
@@ -476,4 +477,76 @@ export const connectionsRouter = router({
         title: chat.title,
       };
     }),
+
+  // Read-side diagnostic for the Meta connection. Returns what Graph
+  // says is subscribed at the page + ig levels, so we can tell whether
+  // events should be flowing to /api/webhooks/meta. If subscribedApps
+  // is empty, Meta has no path to deliver events even if the page is
+  // connected — usually the App-level webhook config is missing or
+  // points at the wrong URL.
+  diagnoseMeta: authedProc.input(z.void()).query(async ({ ctx }) => {
+    const accounts = await ctx.db.connectedAccount.findMany({
+      where: {
+        userId: ctx.user.id,
+        provider: { in: [Provider.FACEBOOK, Provider.INSTAGRAM] },
+        disconnectedAt: null,
+      },
+      select: {
+        id: true,
+        provider: true,
+        externalId: true,
+        scope: true,
+        encryptedToken: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const expectedCallback =
+      (process.env.NEXT_PUBLIC_WEB_URL ??
+        `https://${process.env.VERCEL_URL ?? "www.adfi.ca"}`) +
+      "/api/webhooks/meta";
+
+    const rows = await Promise.all(
+      accounts.map(async (a) => {
+        let token: string | null = null;
+        try {
+          token = decryptToken(a.encryptedToken);
+        } catch {
+          token = null;
+        }
+        if (!token) {
+          return {
+            provider: a.provider,
+            externalId: a.externalId,
+            scope: a.scope,
+            error: "could not decrypt token",
+            subscribedApps: [],
+          };
+        }
+        try {
+          const subs = await listSubscribedApps({
+            pageId: a.externalId,
+            pageAccessToken: token,
+          });
+          return {
+            provider: a.provider,
+            externalId: a.externalId,
+            scope: a.scope,
+            error: null,
+            subscribedApps: subs,
+          };
+        } catch (err) {
+          return {
+            provider: a.provider,
+            externalId: a.externalId,
+            scope: a.scope,
+            error: err instanceof Error ? err.message : String(err),
+            subscribedApps: [],
+          };
+        }
+      }),
+    );
+
+    return { rows, expectedCallback };
+  }),
 });

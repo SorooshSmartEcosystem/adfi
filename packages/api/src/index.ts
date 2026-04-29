@@ -89,6 +89,7 @@ export {
   extendToken,
   listPages,
   subscribePageWebhook,
+  listSubscribedApps,
   sendMessengerReply,
   getMessengerProfile,
   verifyWebhookSignature,

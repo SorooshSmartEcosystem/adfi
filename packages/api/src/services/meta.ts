@@ -146,6 +146,38 @@ export async function listPages(userToken: string): Promise<MetaPage[]> {
   }));
 }
 
+// Reads the subscribed_apps state for a Page (or IG account). Returns
+// the list of apps the page is subscribed to and the fields each is
+// subscribed for. Used by the diagnostic endpoint so we can show the
+// user precisely what Meta thinks is wired up.
+export async function listSubscribedApps(args: {
+  pageId: string;
+  pageAccessToken: string;
+}): Promise<
+  Array<{ id: string; name?: string; subscribedFields: string[] }>
+> {
+  const url = new URL(`${GRAPH}/${args.pageId}/subscribed_apps`);
+  url.searchParams.set("access_token", args.pageAccessToken);
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(
+      `meta list subscribed apps ${res.status}: ${await res.text()}`,
+    );
+  }
+  const data = (await res.json()) as {
+    data: Array<{
+      id: string;
+      name?: string;
+      subscribed_fields?: string[];
+    }>;
+  };
+  return data.data.map((app) => ({
+    id: app.id,
+    name: app.name,
+    subscribedFields: app.subscribed_fields ?? [],
+  }));
+}
+
 export async function subscribePageWebhook(args: {
   pageId: string;
   pageAccessToken: string;

@@ -11,6 +11,7 @@ import {
   type PerformanceSummary,
 } from "../services/performance";
 import { STRATEGIST_SYSTEM_PROMPT } from "./prompts/strategist";
+import { detectLanguage } from "./language";
 
 // Model-side schema (what we tell Anthropic to constrain to). Generous
 // upper bounds because Opus consistently produces 6–7 items even when we
@@ -119,63 +120,7 @@ export async function runStrategist(args: {
   };
 }
 
-// Lightweight script-based language detector. We don't need a full NLP
-// library — checking which Unicode block dominates the input is enough
-// to distinguish the languages where Opus's English bias actually
-// bites (Farsi, Arabic, Hebrew, Chinese, Japanese, Korean, Cyrillic,
-// Thai, Devanagari, etc.). For Latin-script non-English (Spanish,
-// French, etc.) Opus follows the system prompt's language rule fine
-// without an extra directive — those return `en` here as a no-op.
-function detectLanguage(text: string): { code: string; label: string } {
-  const counts = {
-    arabicFarsi: 0, // ؀-ۿ — Arabic + Farsi share this block
-    hebrew: 0, // ֐-׿
-    cjkHan: 0, // 一-鿿 — Chinese + Japanese kanji + Korean hanja
-    hiragana: 0, // ぀-ゟ
-    katakana: 0, // ゠-ヿ
-    hangul: 0, // 가-힯
-    cyrillic: 0, // Ѐ-ӿ
-    thai: 0, // ฀-๿
-    devanagari: 0, // ऀ-ॿ
-    latin: 0, // basic Latin letters
-  };
-  for (const ch of text) {
-    const cp = ch.codePointAt(0);
-    if (cp === undefined) continue;
-    if (cp >= 0x0600 && cp <= 0x06ff) counts.arabicFarsi++;
-    else if (cp >= 0x0590 && cp <= 0x05ff) counts.hebrew++;
-    else if (cp >= 0x4e00 && cp <= 0x9fff) counts.cjkHan++;
-    else if (cp >= 0x3040 && cp <= 0x309f) counts.hiragana++;
-    else if (cp >= 0x30a0 && cp <= 0x30ff) counts.katakana++;
-    else if (cp >= 0xac00 && cp <= 0xd7af) counts.hangul++;
-    else if (cp >= 0x0400 && cp <= 0x04ff) counts.cyrillic++;
-    else if (cp >= 0x0e00 && cp <= 0x0e7f) counts.thai++;
-    else if (cp >= 0x0900 && cp <= 0x097f) counts.devanagari++;
-    else if ((cp >= 65 && cp <= 90) || (cp >= 97 && cp <= 122)) counts.latin++;
-  }
-  // Whichever non-Latin script has the most characters wins, IF it
-  // outnumbers Latin chars (heuristic: a Farsi description will have
-  // way more Farsi than English even with embedded English brand names).
-  type Match = { code: string; label: string; n: number };
-  const candidates: Match[] = [
-    { code: "fa-or-ar", label: "Arabic or Farsi (whichever the description uses)", n: counts.arabicFarsi },
-    { code: "he", label: "Hebrew", n: counts.hebrew },
-    { code: "zh", label: "Chinese (Simplified or Traditional, whichever the description uses)", n: counts.cjkHan },
-    { code: "ja", label: "Japanese", n: counts.hiragana + counts.katakana + counts.cjkHan },
-    { code: "ko", label: "Korean", n: counts.hangul },
-    { code: "ru-or-sr", label: "Cyrillic-script language (Russian, Serbian, Ukrainian, etc.)", n: counts.cyrillic },
-    { code: "th", label: "Thai", n: counts.thai },
-    { code: "hi", label: "Hindi or another Devanagari-script language", n: counts.devanagari },
-  ];
-  // Japanese requires hiragana or katakana to disambiguate from Chinese.
-  if (counts.hiragana === 0 && counts.katakana === 0) {
-    const ja = candidates.find((c) => c.code === "ja");
-    if (ja) ja.n = 0;
-  }
-  const winner = candidates.reduce<Match>(
-    (best, c) => (c.n > best.n ? c : best),
-    { code: "en", label: "English", n: 0 },
-  );
-  if (winner.n > counts.latin / 2) return winner;
-  return { code: "en", label: "English" };
-}
+// Language detection lives in ./language.ts so Echo can use the same
+// helper. See that file's comment for the script-based detection
+// approach + why English JSON field names trigger Opus's bias toward
+// English output.

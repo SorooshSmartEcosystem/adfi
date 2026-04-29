@@ -23,6 +23,7 @@ import { CREDIT_COSTS, consumeCredits } from "../services/quota";
 import { generateImageSafe, type AspectRatio } from "../services/replicate";
 import { gatherFreshContext, shouldResearch } from "../services/research";
 import { ECHO_SYSTEM_PROMPT } from "./prompts/echo";
+import { languageLockDirective } from "./language";
 
 // =============================================================
 // Schemas — one per ContentFormat, plus shared brief metadata.
@@ -272,7 +273,10 @@ ${
     : ""
 }
 
-Write the next post.`;
+Write the next post.${languageLockDirective(
+    `${args.businessDescription}\n${JSON.stringify(args.brandVoice ?? {})}`,
+    "every text field in the output JSON (hook, body, caption, cta, hashtags, slide titles, slide bodies, email subject, email greeting, email closing, reel beats, story frames — everything published to the user's audience)",
+  )}`;
 
   const schema = SCHEMAS[args.format as keyof typeof SCHEMAS];
   if (!schema) {
@@ -377,20 +381,45 @@ export async function generateDailyContent(
 ): Promise<string> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    include: { agentContexts: true },
+    select: {
+      id: true,
+      businessDescription: true,
+      currentBusinessId: true,
+    },
   });
   if (!user) throw new Error("User not found");
-  if (!user.agentContexts?.[0]?.strategistOutput) {
-    throw new Error(
-      "Brand voice not set — run onboarding analysis before generating content",
-    );
-  }
 
   // Active business — used both to scope reads (recent posts, drafts)
   // and to tag writes (the new ContentDraft is owned by this business).
   // Multi-business users have one active at a time; single-business
   // users have one Business which is auto-bootstrapped on signup.
   const businessId = user.currentBusinessId ?? null;
+
+  // Pull the active business's description + voice. Without this Echo
+  // would draft using the legacy primary description (English) and
+  // business 1's voice — every Farsi business's posts came out
+  // English. The active Business + its AgentContext are the source
+  // of truth post multi-business migration.
+  const business = businessId
+    ? await db.business.findFirst({
+        where: { id: businessId, userId },
+        select: { description: true },
+      })
+    : null;
+  const activeCtx = businessId
+    ? await db.agentContext.findUnique({
+        where: { businessId },
+        select: { strategistOutput: true },
+      })
+    : null;
+  if (!activeCtx?.strategistOutput) {
+    throw new Error(
+      "Brand voice not set — run onboarding analysis before generating content",
+    );
+  }
+  const businessDescription =
+    business?.description?.trim() || user.businessDescription || "";
+  const brandVoice = activeCtx.strategistOutput;
 
   // Reserve credits before paying for any LLM calls.
   const cost =
@@ -416,8 +445,8 @@ export async function generateDailyContent(
   const baseArgs = {
     format: chosenFormat,
     platform,
-    businessDescription: user.businessDescription ?? "",
-    brandVoice: user.agentContexts?.[0]?.strategistOutput,
+    businessDescription,
+    brandVoice,
     recentCaptions,
     performance,
     hint,
@@ -708,11 +737,24 @@ export async function regenerateDraftContent(
   const draft = await db.contentDraft.findUnique({
     where: { id: draftId },
     include: {
-      user: { include: { agentContexts: true } },
+      user: { select: { id: true, businessDescription: true } },
+      business: { select: { id: true, description: true } },
     },
   });
   if (!draft) throw new Error("Draft not found");
-  if (!draft.user.agentContexts?.[0]?.strategistOutput) {
+
+  // Read voice + description from the draft's BUSINESS, not the user.
+  // A user with multiple businesses can regenerate a draft on either
+  // business — we need to use that business's voice, not whichever
+  // AgentContext happened to be first in the list.
+  const draftBusinessId = draft.businessId ?? draft.business?.id;
+  const draftCtx = draftBusinessId
+    ? await db.agentContext.findUnique({
+        where: { businessId: draftBusinessId },
+        select: { strategistOutput: true },
+      })
+    : null;
+  if (!draftCtx?.strategistOutput) {
     throw new Error(
       "Brand voice not set — run onboarding analysis before regenerating",
     );
@@ -723,7 +765,9 @@ export async function regenerateDraftContent(
   const prevCaption = extractCaption(draft.content);
 
   const recentPosts = await db.contentPost.findMany({
-    where: { userId: draft.userId },
+    where: draftBusinessId
+      ? { businessId: draftBusinessId }
+      : { userId: draft.userId },
     orderBy: { publishedAt: "desc" },
     take: 10,
     select: { metrics: true, draft: { select: { content: true } } },
@@ -745,8 +789,11 @@ export async function regenerateDraftContent(
   const result = await runEcho({
     format: draft.format,
     platform: draft.platform,
-    businessDescription: draft.user.businessDescription ?? "",
-    brandVoice: draft.user.agentContexts?.[0]?.strategistOutput,
+    businessDescription:
+      draft.business?.description?.trim() ||
+      draft.user.businessDescription ||
+      "",
+    brandVoice: draftCtx.strategistOutput,
     recentCaptions,
     performance,
     hint: combinedHint || undefined,
@@ -834,21 +881,36 @@ export async function draftPlanItem(
     include: {
       plan: {
         include: {
-          user: { include: { agentContexts: true } },
+          user: { select: { id: true, businessDescription: true } },
+          business: { select: { id: true, description: true } },
         },
       },
     },
   });
   if (!item) throw new Error("Plan item not found");
   const user = item.plan.user;
-  if (!user.agentContexts?.[0]?.strategistOutput) {
+
+  // Plans always belong to a Business now. Read voice from THAT
+  // business's AgentContext — without this, drafting a plan item on
+  // business 2 would use business 1's voice (the array's first
+  // entry), and Farsi plans would draft in English.
+  const planBusinessId = item.plan.businessId ?? item.plan.business?.id;
+  const planCtx = planBusinessId
+    ? await db.agentContext.findUnique({
+        where: { businessId: planBusinessId },
+        select: { strategistOutput: true },
+      })
+    : null;
+  if (!planCtx?.strategistOutput) {
     throw new Error("Brand voice not set — run Strategist first");
   }
 
   await consumeCredits(user.id, CREDIT_COSTS.ECHO_DRAFT, "echo_plan_item");
 
   const recentPosts = await db.contentPost.findMany({
-    where: { userId: user.id },
+    where: planBusinessId
+      ? { businessId: planBusinessId }
+      : { userId: user.id },
     orderBy: { publishedAt: "desc" },
     take: 10,
     select: { metrics: true, draft: { select: { content: true } } },
@@ -873,8 +935,11 @@ export async function draftPlanItem(
   const result = await runEcho({
     format: item.format,
     platform: item.platform,
-    businessDescription: user.businessDescription ?? "",
-    brandVoice: user.agentContexts?.[0]?.strategistOutput,
+    businessDescription:
+      item.plan.business?.description?.trim() ||
+      user.businessDescription ||
+      "",
+    brandVoice: planCtx.strategistOutput,
     recentCaptions,
     performance,
     hint: richHint,
@@ -900,7 +965,9 @@ export async function draftPlanItem(
     const draft = await db.contentDraft.create({
       data: {
         userId: user.id,
-        businessId: user.currentBusinessId ?? null,
+        // Plans always belong to a Business now — use the plan's
+        // businessId so the draft stays attached to the same brand.
+        businessId: planBusinessId ?? null,
         platform: item.platform,
         format: item.format,
         status: DraftStatus.AWAITING_REVIEW,

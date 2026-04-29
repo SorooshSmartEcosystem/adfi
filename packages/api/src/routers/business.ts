@@ -2,7 +2,8 @@ import { z } from "zod";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import { effectivePlan } from "../services/abuse-guard";
-import type { Plan } from "@orb/db";
+import { runStrategist } from "../agents/strategist";
+import type { Plan, Prisma } from "@orb/db";
 
 // Per-plan ceiling on how many active Businesses a User can own. Solo
 // and Team are intentionally single-business — STUDIO unlocks 2,
@@ -122,6 +123,56 @@ export const businessRouter = router({
         where: { id: ctx.user.id },
         data: { currentBusinessId: created.id },
       });
+
+      // Run Strategist on the new business so it has its own brand
+      // voice from day one. Without this, the dashboard layout would
+      // bounce the user to /onboarding (no AgentContext for new
+      // business → no voice → can't render specialist pages without
+      // 500ing). Synchronous: the form's loading state covers the
+      // 30-60s wall time. Failure is non-fatal — we still return the
+      // created Business and let the user re-run Strategist from
+      // /specialist/strategist if needed.
+      if (input.description && input.description.trim().length >= 10) {
+        try {
+          // Reuse the user's primary goal — they already chose one
+          // during their first business's onboarding. Falls back to
+          // null if for some reason it isn't set; runStrategist
+          // tolerates that by inferring from description.
+          const userRow = await ctx.db.user.findUnique({
+            where: { id: ctx.user.id },
+            select: { goal: true },
+          });
+          const result = await runStrategist({
+            businessDescription: input.description,
+            // Reuse the goal the user picked for their primary
+            // business; runStrategist requires a value and inferring
+            // a different goal per business isn't useful here.
+            goal: userRow?.goal ?? "MORE_CUSTOMERS",
+            userId: ctx.user.id,
+          });
+          await ctx.db.agentContext.upsert({
+            where: { businessId: created.id },
+            update: {
+              strategistOutput: result as unknown as Prisma.InputJsonValue,
+              lastRefreshedAt: new Date(),
+            },
+            create: {
+              userId: ctx.user.id,
+              businessId: created.id,
+              strategistOutput: result as unknown as Prisma.InputJsonValue,
+              lastRefreshedAt: new Date(),
+            },
+          });
+        } catch (err) {
+          console.error(
+            "[business.create] strategist run failed (non-fatal):",
+            err,
+          );
+          // Swallow — business is still created, user can re-run
+          // Strategist from the specialist page.
+        }
+      }
+
       return { id: created.id };
     }),
 

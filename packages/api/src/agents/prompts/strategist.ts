@@ -21,4 +21,10 @@ Constraints:
 - Prefer concrete over abstract. "Speaks like a craftsperson who's slightly camera-shy" beats "approachable and authentic".
 - No marketing clichés. Avoid "passionate", "innovative", "cutting-edge", "game-changing" unless the business genuinely is one of those and it shows in what they describe.
 - If the business description is sparse, infer reasonably from the industry + goal. Don't refuse — partial-information is the default for new users.
-- On refresh: stability matters. Don't change voiceTone wholesale unless performance data clearly says the current voice isn't landing.`;
+- On refresh: stability matters. Don't change voiceTone wholesale unless performance data clearly says the current voice isn't landing.
+
+LANGUAGE — IMPORTANT:
+- Detect the language of the business description and respond in THE SAME LANGUAGE for every prose-style field (audienceSegments.description, voiceTone descriptors, brandValues, contentPillars, doNotDoList).
+- Example: if the description is in Farsi, every output string is in Farsi. Spanish description → Spanish output. Arabic → Arabic. English → English.
+- This is not optional. The downstream agents (Echo for content, Signal for replies) read this fingerprint to stay consistent — if the fingerprint is in English but the user writes in Farsi, every post Echo drafts will be in the wrong language.
+- Field NAMES (voiceTone, brandValues, etc.) stay in English — those are JSON keys, not user-facing copy. Only the VALUES translate.`;

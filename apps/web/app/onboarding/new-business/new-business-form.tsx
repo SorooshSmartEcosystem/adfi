@@ -99,16 +99,28 @@ export function NewBusinessForm() {
             type="submit"
             disabled={name.trim().length < 1 || create.isPending}
           >
-            {create.isPending ? "creating…" : "create business →"}
+            {create.isPending
+              ? description.trim().length >= 10
+                ? "analyzing your business…"
+                : "creating…"
+              : "create business →"}
           </PrimaryButton>
           <button
             type="button"
-            onClick={() => router.back()}
-            className="text-sm text-ink3 hover:text-ink"
+            onClick={() => router.push("/dashboard")}
+            disabled={create.isPending}
+            className="text-sm text-ink3 hover:text-ink disabled:opacity-40"
           >
             cancel
           </button>
         </div>
+        {create.isPending && description.trim().length >= 10 ? (
+          <p className="text-xs text-ink4 mt-md">
+            this takes ~30 seconds — i'm running strategist on the
+            description so the new business has its own brand voice
+            from day one. don't close the tab.
+          </p>
+        ) : null}
       </form>
     </OnboardingShell>
   );

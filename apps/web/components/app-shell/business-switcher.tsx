@@ -8,6 +8,16 @@ import { trpc } from "../../lib/trpc";
 // expands a list of all businesses owned by the user, plus an "add
 // new business" affordance gated by the plan's limit (SOLO/TEAM=1,
 // STUDIO=2, AGENCY=8).
+//
+// Switch behavior: invalidates EVERY tRPC cache so the new business's
+// content/brandkit/dashboard/inbox all refetch fresh. With staleTime
+// at 5min + refetchOnMount: false (see trpc-provider.tsx), without
+// the global invalidate the user sees the previous business's data.
+//
+// Add behavior: routes to /onboarding/new-business — a guided form
+// (name, description, website) instead of an inline name-only input.
+// New businesses without a description can't get a useful brand voice
+// run, so the inline shortcut left users with broken kits.
 
 type Business = {
   id: string;
@@ -28,8 +38,6 @@ export function BusinessSwitcher({
   planLabel: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [draftName, setDraftName] = useState("");
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -38,16 +46,13 @@ export function BusinessSwitcher({
   });
   const switchTo = trpc.business.switch.useMutation({
     onSuccess: () => {
-      utils.business.list.invalidate();
+      // Nuke every cached query so the new business's data (content,
+      // brandkit, dashboard KPIs, inbox messages, etc.) is fetched
+      // fresh from the server. Targeted invalidation per-query would
+      // be brittle — too many queries depend on the active business.
+      utils.invalidate();
       router.refresh();
-    },
-  });
-  const create = trpc.business.create.useMutation({
-    onSuccess: () => {
-      utils.business.list.invalidate();
-      setCreating(false);
-      setDraftName("");
-      router.refresh();
+      setOpen(false);
     },
   });
 
@@ -129,76 +134,36 @@ export function BusinessSwitcher({
               </div>
 
               <div className="hairline-top border-border2">
-                {creating ? (
-                  <div className="p-md flex flex-col gap-sm">
-                    <input
-                      autoFocus
-                      type="text"
-                      value={draftName}
-                      onChange={(e) => setDraftName(e.target.value)}
-                      placeholder="new business name"
-                      className="px-md py-[7px] bg-bg border-hairline border-border rounded-md text-sm focus:outline-none focus:border-ink"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && draftName.trim()) {
-                          create.mutate({ name: draftName.trim() });
-                        }
-                        if (e.key === "Escape") setCreating(false);
-                      }}
-                    />
-                    <div className="flex items-center gap-sm">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          draftName.trim() &&
-                          create.mutate({ name: draftName.trim() })
-                        }
-                        disabled={!draftName.trim() || create.isPending}
-                        className="bg-ink text-white text-xs px-md py-[5px] rounded-full disabled:opacity-40"
-                      >
-                        {create.isPending ? "creating…" : "create →"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCreating(false)}
-                        className="text-xs text-ink3"
-                      >
-                        cancel
-                      </button>
-                    </div>
-                    {create.error ? (
-                      <p className="text-xs text-urgent">
-                        {create.error.message}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => atLimit ? null : setCreating(true)}
-                    disabled={atLimit}
-                    className={`w-full flex items-center gap-sm px-md py-[8px] text-left transition-colors text-sm ${
-                      atLimit
-                        ? "text-ink4 cursor-not-allowed"
-                        : "hover:bg-surface text-ink2"
-                    }`}
-                    title={
-                      atLimit
-                        ? `your ${planTier} plan supports ${limit} business${
-                            limit === 1 ? "" : "es"
-                          } — upgrade to add more`
-                        : undefined
-                    }
-                  >
-                    <span className="w-6 h-6 rounded-md border-hairline border-border flex items-center justify-center font-mono text-[12px] shrink-0">
-                      +
-                    </span>
-                    <span className="flex-1">
-                      {atLimit
-                        ? `at limit (${businesses.length}/${limit}) · upgrade →`
-                        : "add new business"}
-                    </span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (atLimit) return;
+                    setOpen(false);
+                    router.push("/onboarding/new-business");
+                  }}
+                  disabled={atLimit}
+                  className={`w-full flex items-center gap-sm px-md py-[8px] text-left transition-colors text-sm ${
+                    atLimit
+                      ? "text-ink4 cursor-not-allowed"
+                      : "hover:bg-surface text-ink2"
+                  }`}
+                  title={
+                    atLimit
+                      ? `your ${planTier} plan supports ${limit} business${
+                          limit === 1 ? "" : "es"
+                        } — upgrade to add more`
+                      : undefined
+                  }
+                >
+                  <span className="w-6 h-6 rounded-md border-hairline border-border flex items-center justify-center font-mono text-[12px] shrink-0">
+                    +
+                  </span>
+                  <span className="flex-1">
+                    {atLimit
+                      ? `at limit (${businesses.length}/${limit}) · upgrade →`
+                      : "add new business"}
+                  </span>
+                </button>
               </div>
             </>
           )}

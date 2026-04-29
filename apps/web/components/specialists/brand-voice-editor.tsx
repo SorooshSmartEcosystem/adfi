@@ -98,7 +98,7 @@ export function BrandVoiceEditor({
   return (
     <Card padded={false}>
       <div className="px-lg py-md hairline-b2 border-border2 flex items-center justify-between">
-        <div className="font-mono text-sm text-ink4 tracking-[0.2em]">
+        <div className="font-mono text-sm text-ink4 tracking-[0.2em]" dir="auto">
           EDIT BRAND VOICE
         </div>
         <button

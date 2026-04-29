@@ -81,7 +81,7 @@ export function DraftBody({
   content: unknown;
 }) {
   if (!content || typeof content !== "object") {
-    return <p className="text-sm text-ink3">(empty)</p>;
+    return <p className="text-sm text-ink3" dir="auto">(empty)</p>;
   }
   const c = content as Record<string, unknown>;
   const brief = (c.brief as Brief | undefined) ?? null;
@@ -92,14 +92,14 @@ export function DraftBody({
       <>
         <BriefRow brief={brief} />
         <HeroImage url={hero?.url} aspect="1/1" />
-        <p className="text-md font-medium leading-relaxed mb-sm">
+        <p className="text-md font-medium leading-relaxed mb-sm" dir="auto">
           {(c.hook as string) ?? ""}
         </p>
-        <p className="text-md leading-relaxed whitespace-pre-wrap text-ink2">
+        <p className="text-md leading-relaxed whitespace-pre-wrap text-ink2" dir="auto">
           {(c.body as string) ?? ""}
         </p>
         {c.cta ? (
-          <p className="text-md text-ink mt-md font-medium">
+          <p className="text-md text-ink mt-md font-medium" dir="auto">
             {String(c.cta)}
           </p>
         ) : null}
@@ -132,7 +132,7 @@ export function DraftBody({
         </div>
         <CarouselArtboard cover={cover} body={body} closer={closer} />
         {c.caption ? (
-          <p className="text-md leading-relaxed whitespace-pre-wrap text-ink2 mt-lg">
+          <p className="text-md leading-relaxed whitespace-pre-wrap text-ink2 mt-lg" dir="auto">
             {String(c.caption)}
           </p>
         ) : null}
@@ -157,7 +157,7 @@ export function DraftBody({
         <div className="text-xs text-ink4 mb-sm">
           reel · {beats.length} beats
         </div>
-        <p className="text-md font-medium mb-md">
+        <p className="text-md font-medium mb-md" dir="auto">
           🎬 hook (0:00): {(c.hook as string) ?? ""}
         </p>
         <div className="border-l-2 border-border pl-md flex flex-col gap-md mb-md">
@@ -175,15 +175,15 @@ export function DraftBody({
                 <div className="font-mono text-xs text-aliveDark mb-xs">
                   {b.timestamp}
                 </div>
-                <div className="text-md font-medium mb-xs">
+                <div className="text-md font-medium mb-xs" dir="auto">
                   on-screen: {b.onScreenText}
                 </div>
                 {b.voiceover ? (
-                  <div className="text-sm text-ink2 mb-xs">
+                  <div className="text-sm text-ink2 mb-xs" dir="auto">
                     voiceover: {b.voiceover}
                   </div>
                 ) : null}
-                <div className="text-sm text-ink3 italic">b-roll: {b.bRoll}</div>
+                <div className="text-sm text-ink3 italic" dir="auto">b-roll: {b.bRoll}</div>
               </div>
             </div>
           ))}
@@ -194,7 +194,7 @@ export function DraftBody({
           </p>
         ) : null}
         {c.caption ? (
-          <p className="text-md text-ink2 whitespace-pre-wrap">
+          <p className="text-md text-ink2 whitespace-pre-wrap" dir="auto">
             {String(c.caption)}
           </p>
         ) : null}
@@ -218,20 +218,20 @@ export function DraftBody({
         <div className="text-xs text-ink4 mb-sm">email</div>
         <div className="bg-bg border-hairline border-border rounded-md p-md mb-md">
           <div className="text-[11px] text-ink4 mb-xs">subject</div>
-          <div className="text-md font-medium mb-md">
+          <div className="text-md font-medium mb-md" dir="auto">
             {(c.subject as string) ?? ""}
           </div>
           <div className="text-[11px] text-ink4 mb-xs">preheader</div>
-          <div className="text-sm text-ink3">
+          <div className="text-sm text-ink3" dir="auto">
             {(c.preheader as string) ?? ""}
           </div>
         </div>
         {sections.map((s, i) => (
           <div key={i} className="mb-md">
             {s.heading ? (
-              <div className="text-md font-medium mb-xs">{s.heading}</div>
+              <div className="text-md font-medium mb-xs" dir="auto">{s.heading}</div>
             ) : null}
-            <p className="text-md leading-relaxed whitespace-pre-wrap text-ink2">
+            <p className="text-md leading-relaxed whitespace-pre-wrap text-ink2" dir="auto">
               {s.body}
             </p>
           </div>
@@ -241,7 +241,7 @@ export function DraftBody({
             <div className="text-[11px] text-ink4 mb-xs">
               cta · {cta.intent}
             </div>
-            <div className="text-md font-medium">{cta.label}</div>
+            <div className="text-md font-medium" dir="auto">{cta.label}</div>
             {cta.link ? (
               <div className="font-mono text-xs text-ink4 mt-xs break-all">
                 {cta.link}
@@ -283,7 +283,7 @@ export function DraftBody({
               }}
             >
               <div className="text-[10px] opacity-70">{i + 1}/{frames.length}</div>
-              <div className="text-sm font-medium leading-tight">{f.text}</div>
+              <div className="text-sm font-medium leading-tight" dir="auto">{f.text}</div>
               <div>
                 {f.interaction !== "none" ? (
                   <div className="text-[10px] opacity-70 mb-xs">

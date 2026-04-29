@@ -169,6 +169,31 @@ body {
   animation: breathe-dot 3s ease-in-out infinite;
 }
 
+/* ===== Bidirectional text (Farsi / Arabic / Hebrew / etc.) =====
+   `dir="auto"` lets the browser pick LTR or RTL per element based
+   on the first strong character. `unicode-bidi: isolate` is added
+   so a Farsi span embedded in an English container doesn't disturb
+   the surrounding layout (and vice versa). Apply via the HTML
+   `dir="auto"` attribute on any element that renders user-generated
+   content from a potentially-RTL language: brand voice strings,
+   draft hooks/bodies/captions, message bubbles, plan slot text,
+   etc.
+
+   Also: target font fallback. Apple system / SF Pro fall through
+   to Geeza Pro on macOS for Arabic-script text. On non-Apple
+   browsers we add Tahoma + Vazir + Noto to the family stack so
+   Farsi/Arabic users on Linux/Windows/Android don't get tofu boxes
+   or Latin-only fallback that breaks character shaping. */
+[dir="auto"], [dir="rtl"] {
+  unicode-bidi: isolate;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Vazirmatn", "Vazir", "Tahoma",
+    "Noto Sans", "Noto Sans Arabic", "Noto Naskh Arabic",
+    "Geeza Pro", "Segoe UI", "Roboto",
+    Inter, system-ui, sans-serif;
+}
+
 /* ===== Specialist page signature orb ===== */
 @keyframes sig-breathe {
   0%, 100% { transform: scale(1); }

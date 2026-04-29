@@ -260,7 +260,7 @@ export function DraftCard({
               </span>
             ) : null}
           </div>
-          <div className="text-sm text-ink leading-snug truncate">
+          <div className="text-sm text-ink leading-snug truncate" dir="auto">
             {previewLine}
           </div>
         </div>
@@ -487,7 +487,7 @@ export function DraftCard({
               </a>
             </span>
           </div>
-          <p className="text-sm text-ink3 mt-xs">
+          <p className="text-sm text-ink3 mt-xs" dir="auto">
             i&apos;ll publish this automatically once the channel is linked.
           </p>
         </div>
@@ -584,7 +584,7 @@ export function DraftCard({
       ) : null}
 
       {(approve.error || reject.error || regenerate.error) && (
-        <p className="text-sm text-urgent font-mono mt-md">
+        <p className="text-sm text-urgent font-mono mt-md" dir="auto">
           {approve.error?.message ||
             reject.error?.message ||
             regenerate.error?.message}

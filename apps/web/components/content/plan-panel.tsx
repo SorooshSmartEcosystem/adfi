@@ -64,7 +64,7 @@ export function PlanPanel() {
 
   if (planQuery.isLoading) {
     return (
-      <div className="text-sm text-ink3">one second</div>
+      <div className="text-sm text-ink3" dir="auto">one second</div>
     );
   }
 
@@ -76,7 +76,7 @@ export function PlanPanel() {
         <div className="text-xs text-ink4 mb-sm">
           NO PLAN YET FOR THIS WEEK
         </div>
-        <p className="text-md leading-relaxed mb-md">
+        <p className="text-md leading-relaxed mb-md" dir="auto">
           let me look at what&apos;s working and pitch you a 3–5 post plan
           for the week. you&apos;ll approve each draft individually.
         </p>
@@ -89,7 +89,7 @@ export function PlanPanel() {
           {generate.isPending ? "thinking..." : "plan this week →"}
         </button>
         {generate.error ? (
-          <p className="text-sm text-urgent mt-sm">
+          <p className="text-sm text-urgent mt-sm" dir="auto">
             {generate.error.message}
           </p>
         ) : null}
@@ -108,7 +108,7 @@ export function PlanPanel() {
         <div className="text-xs text-ink4 mb-sm">
           THIS WEEK&apos;S THESIS
         </div>
-        <p className="text-lg leading-relaxed font-medium mb-md">
+        <p className="text-lg leading-relaxed font-medium mb-md" dir="auto">
           {plan.thesis}
         </p>
         {reasoning.biggestBet ? (
@@ -116,7 +116,7 @@ export function PlanPanel() {
             <div className="text-[11px] text-aliveDark mb-xs">
               ● BIGGEST BET
             </div>
-            <p className="text-sm text-ink2">{reasoning.biggestBet}</p>
+            <p className="text-sm text-ink2" dir="auto">{reasoning.biggestBet}</p>
           </div>
         ) : null}
         {reasoning.gapsSpotted && reasoning.gapsSpotted.length > 0 ? (
@@ -196,8 +196,8 @@ export function PlanPanel() {
                 </div>
               </button>
 
-              <div className="text-md font-medium mb-xs">{item.angle}</div>
-              <p className="text-sm text-ink3 mb-sm italic">
+              <div className="text-md font-medium mb-xs" dir="auto">{item.angle}</div>
+              <p className="text-sm text-ink3 mb-sm italic" dir="auto">
                 hook idea: &ldquo;{item.hookIdea}&rdquo;
               </p>
 
@@ -206,7 +206,7 @@ export function PlanPanel() {
                   <div className="text-[11px] text-ink4 mb-xs">
                     WHY THIS SLOT
                   </div>
-                  <p className="text-sm text-ink2 mb-md">{item.reasoning}</p>
+                  <p className="text-sm text-ink2 mb-md" dir="auto">{item.reasoning}</p>
                   <div className="flex items-center gap-sm flex-wrap">
                     {!isDrafted && !isSkipped ? (
                       <>

@@ -53,11 +53,19 @@ export function BrandVoiceView({
         </div>
       </div>
 
+      {/*
+        dir="auto" on every user-generated text container.
+        Browser's bidi algorithm picks LTR or RTL per element based
+        on the first strong character, so a Farsi voice fingerprint
+        renders RTL while English ones stay LTR. Mixed strings (Farsi
+        with embedded English brand names) also lay out correctly.
+      */}
+
       <Card className="mb-md">
         <div className="font-mono text-[10px] text-aliveDark tracking-[0.2em] mb-sm">
           ● HOW YOU SOUND
         </div>
-        <p className="text-md leading-relaxed">
+        <p className="text-md leading-relaxed" dir="auto">
           {(voice.voiceTone ?? []).join(" · ")}
         </p>
       </Card>
@@ -70,6 +78,7 @@ export function BrandVoiceView({
           {(voice.brandValues ?? []).map((v) => (
             <li
               key={v}
+              dir="auto"
               className="text-sm bg-surface px-md py-[5px] rounded-full"
             >
               {v}
@@ -84,7 +93,7 @@ export function BrandVoiceView({
         </div>
         <ul className="flex flex-col gap-sm">
           {(voice.audienceSegments ?? []).map((seg) => (
-            <li key={seg.name}>
+            <li key={seg.name} dir="auto">
               <span className="text-md font-medium">{seg.name}</span>
               <span className="text-md text-ink3"> — {seg.description}</span>
             </li>
@@ -98,7 +107,7 @@ export function BrandVoiceView({
         </div>
         <ul className="flex flex-col gap-xs">
           {(voice.contentPillars ?? []).map((p) => (
-            <li key={p} className="text-md leading-relaxed">
+            <li key={p} className="text-md leading-relaxed" dir="auto">
               · {p}
             </li>
           ))}
@@ -111,7 +120,7 @@ export function BrandVoiceView({
         </div>
         <ul className="flex flex-col gap-xs">
           {(voice.doNotDoList ?? []).map((d) => (
-            <li key={d} className="text-md text-ink3 leading-relaxed">
+            <li key={d} className="text-md text-ink3 leading-relaxed" dir="auto">
               · {d}
             </li>
           ))}

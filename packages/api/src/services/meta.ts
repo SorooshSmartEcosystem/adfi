@@ -42,16 +42,20 @@ function appSecret(): string {
 // Toggle the new-name permissions ON in the dashboard, but request the
 // legacy names here. (When Meta finishes the migration we flip back.)
 //
-// We do NOT request `pages_messaging` or `pages_manage_metadata` — those
-// belong to the deprecated standalone Messenger Platform use case which
-// isn't exposed for new apps; IG DMs work through
-// `instagram_manage_messages` and Page webhooks subscribe with the page
-// access token directly (no app-level scope needed).
+// `pages_messaging` is REQUIRED for Messenger webhook events to be
+// delivered to our /api/webhooks/meta endpoint. Without it the page
+// subscribed_apps call accepts the `messages` field but Meta drops the
+// events at delivery time once the app is in Live mode. (A previous
+// version of this comment claimed pages_messaging was deprecated —
+// that was wrong; the deprecated thing is `pages_messaging_subscriptions`,
+// which we don't request.)
+//
 // `instagram_content_publish` + `ads_management` get added back after
 // App Review approves them.
 export const META_OAUTH_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
+  "pages_messaging",
   "instagram_basic",
   "instagram_manage_messages",
   "business_management",

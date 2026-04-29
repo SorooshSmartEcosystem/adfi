@@ -16,22 +16,19 @@ export const insightsRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Scope by the active business so STUDIO/AGENCY users see only
-      // findings for the business they're currently looking at. Falls
-      // back to userId for legacy rows that haven't been backfilled
-      // with businessId.
+      // Strict per-business scope. The earlier "OR { businessId:
+      // null, userId: X }" fallback was meant to keep legacy
+      // unmigrated rows visible, but it leaks pre-multi-business
+      // findings into EVERY business view because those rows have
+      // null businessId and match every active user. After the
+      // multi-business migration, rows without a businessId are
+      // orphans — better to not show them than to spam them across
+      // every business's pulse / signal / scout pages.
       const businessId = ctx.currentBusinessId;
-      const scope = businessId
-        ? {
-            OR: [
-              { businessId },
-              { businessId: null, userId: ctx.user.id },
-            ],
-          }
-        : { userId: ctx.user.id };
+      if (!businessId) return [];
       return ctx.db.finding.findMany({
         where: {
-          ...scope,
+          businessId,
           ...(input.severity && { severity: input.severity }),
           ...(input.acknowledged !== undefined && {
             acknowledged: input.acknowledged,

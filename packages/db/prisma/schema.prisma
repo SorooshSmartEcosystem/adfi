@@ -307,9 +307,10 @@ model ContentPlan {
   business      Business?           @relation(fields: [businessId], references: [id], onDelete: Cascade)
   items         ContentPlanItem[]
 
-  @@unique([userId, weekStart])
+  @@unique([businessId, weekStart])
   @@index([userId, status])
   @@index([businessId, status])
+  @@index([userId, weekStart])
   @@map("content_plans")
 }
 

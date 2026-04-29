@@ -303,8 +303,23 @@ export const contentRouter = router({
 
   getCurrentPlan: authedProc.input(z.void()).query(async ({ ctx }) => {
     const weekStart = startOfWeek(new Date());
-    const plan = await ctx.db.contentPlan.findUnique({
-      where: { userId_weekStart: { userId: ctx.user.id, weekStart } },
+    // Per-business plan. Without scoping by businessId, multi-business
+    // users always see business 1's plan because the only existing
+    // plan in the DB is the first one created. Falls back to userId
+    // for legacy plans missing businessId.
+    const businessId = ctx.currentBusinessId;
+    const plan = await ctx.db.contentPlan.findFirst({
+      where: {
+        weekStart,
+        ...(businessId
+          ? {
+              OR: [
+                { businessId },
+                { businessId: null, userId: ctx.user.id },
+              ],
+            }
+          : { userId: ctx.user.id }),
+      },
       include: {
         items: {
           orderBy: { scheduledFor: "asc" },

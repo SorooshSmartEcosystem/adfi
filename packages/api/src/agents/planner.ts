@@ -148,10 +148,33 @@ export async function generateWeeklyPlan(
 ): Promise<{ planId: string; itemsCreated: number }> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    include: { agentContexts: true },
+    select: {
+      id: true,
+      businessDescription: true,
+      currentBusinessId: true,
+    },
   });
   if (!user) throw new Error("User not found");
-  if (!user.agentContexts?.[0]?.strategistOutput) {
+
+  // Per-business plan — read the ACTIVE business's voice + description,
+  // not the user's first-business defaults. Without this, a Farsi
+  // business would have a plan generated from the English voice + the
+  // English primary description = English plan with business 1's themes.
+  const businessId = user.currentBusinessId;
+  if (!businessId) {
+    throw new Error(
+      "No active business — can't generate a plan without one",
+    );
+  }
+  const business = await db.business.findFirst({
+    where: { id: businessId, userId },
+  });
+  if (!business) throw new Error("Active business not found");
+  const ctx = await db.agentContext.findUnique({
+    where: { businessId },
+    select: { strategistOutput: true },
+  });
+  if (!ctx?.strategistOutput) {
     throw new Error("Brand voice not set — run Strategist first");
   }
 
@@ -163,10 +186,14 @@ export async function generateWeeklyPlan(
 
   const performance = await summarizePerformance(userId, 90);
 
-  // Previous plan (the most recent ACTIVE one whose week_start is before this one).
+  // Previous plan, scoped to THIS business (not whichever the user
+  // happened to plan for last across all businesses).
   const previousPlan = await db.contentPlan.findFirst({
     where: {
-      userId,
+      OR: [
+        { businessId },
+        { businessId: null, userId },
+      ],
       weekStart: { lt: weekStart },
     },
     orderBy: { weekStart: "desc" },
@@ -180,9 +207,16 @@ export async function generateWeeklyPlan(
       }
     : null;
 
+  // Use Business.description (the per-business description, set via
+  // the new-business form) before falling back to user's legacy
+  // primary description — last-resort for users who haven't filled
+  // in the per-business field yet.
+  const businessDescription =
+    business.description?.trim() || user.businessDescription || "";
+
   const result = await runPlanner({
-    businessDescription: user.businessDescription ?? "",
-    brandVoice: user.agentContexts?.[0]?.strategistOutput,
+    businessDescription,
+    brandVoice: ctx.strategistOutput,
     performance,
     weekStart,
     weekEnd,
@@ -190,10 +224,11 @@ export async function generateWeeklyPlan(
     userId,
   });
 
-  // Archive any existing plan for this user/week (defensive — there's a
-  // unique constraint, so if one exists we replace it cleanly).
-  const existing = await db.contentPlan.findUnique({
-    where: { userId_weekStart: { userId, weekStart } },
+  // Archive any existing plan for THIS business + week. The
+  // userId_weekStart composite unique still exists in the schema for
+  // legacy plans, so check both keys before creating.
+  const existing = await db.contentPlan.findFirst({
+    where: { businessId, weekStart },
   });
   if (existing) {
     await db.contentPlanItem.deleteMany({ where: { planId: existing.id } });

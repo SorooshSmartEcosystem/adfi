@@ -185,16 +185,27 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 3. subscribe the page to webhook events. Best-effort — if this fails
-    // the user is still connected; we just won't get inbound messenger.
-    try {
-      await subscribePageWebhook({
-        pageId: page.id,
-        pageAccessToken: page.accessToken,
-        fields: ["messages", "messaging_postbacks", "feed"],
-      });
-    } catch (err) {
-      console.warn("meta page webhook subscribe failed:", err);
+    // 3. subscribe the page to webhook events. Each field is gated by a
+    // different permission, so we attempt them one-by-one — one
+    // permission failure shouldn't block the others. In particular:
+    //   - `messages` / `messaging_postbacks` need `pages_messaging`
+    //   - `feed` needs `pages_manage_metadata` (we don't request this;
+    //     the page-wall stream isn't part of v1 product)
+    // Subscribing per-field also means a single 403 surfaces a precise
+    // log line instead of "everything failed because feed required X".
+    for (const field of ["messages", "messaging_postbacks"] as const) {
+      try {
+        await subscribePageWebhook({
+          pageId: page.id,
+          pageAccessToken: page.accessToken,
+          fields: [field],
+        });
+      } catch (err) {
+        console.warn(
+          `meta page webhook subscribe failed (field=${field}):`,
+          err,
+        );
+      }
     }
 
     // Also subscribe the IG Business Account itself. Page subscription
@@ -202,15 +213,26 @@ export async function GET(req: NextRequest) {
     // DM events through /{ig-business-id}/subscribed_apps — without
     // this call, inbound Instagram DMs never reach our webhook even
     // though the IG row exists in the db.
+    //
+    // NOTE: this requires the "Instagram Messaging" capability to be
+    // enabled on the Meta app. If it errors with code=3 ("Application
+    // does not have the capability"), the fix is in App Dashboard →
+    // Use Cases → enable "Instagram messaging" — not a code change.
+    // Best-effort: the user is still connected even if this 400s.
     if (page.igBusinessId) {
-      try {
-        await subscribePageWebhook({
-          pageId: page.igBusinessId,
-          pageAccessToken: page.accessToken,
-          fields: ["messages", "messaging_postbacks", "message_reactions"],
-        });
-      } catch (err) {
-        console.warn("meta ig webhook subscribe failed:", err);
+      for (const field of ["messages", "messaging_postbacks"] as const) {
+        try {
+          await subscribePageWebhook({
+            pageId: page.igBusinessId,
+            pageAccessToken: page.accessToken,
+            fields: [field],
+          });
+        } catch (err) {
+          console.warn(
+            `meta ig webhook subscribe failed (field=${field}):`,
+            err,
+          );
+        }
       }
     }
 

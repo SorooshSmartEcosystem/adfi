@@ -220,7 +220,9 @@ export async function GET(req: NextRequest) {
     // Use Cases → enable "Instagram messaging" — not a code change.
     // Best-effort: the user is still connected even if this 400s.
     if (page.igBusinessId) {
+      let igCapabilityMissing = false;
       for (const field of ["messages", "messaging_postbacks"] as const) {
+        if (igCapabilityMissing) break;
         try {
           await subscribePageWebhook({
             pageId: page.igBusinessId,
@@ -228,10 +230,23 @@ export async function GET(req: NextRequest) {
             fields: [field],
           });
         } catch (err) {
-          console.warn(
-            `meta ig webhook subscribe failed (field=${field}):`,
-            err,
-          );
+          // code=3 ("Application does not have the capability") is the
+          // Instagram Messaging capability not being enabled on the
+          // Meta app. Once one field 400s with code=3 every other field
+          // will too — break the loop and log once at info-level so the
+          // signal isn't drowned in repeated warnings.
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes('"code":3') || msg.includes("(#3)")) {
+            igCapabilityMissing = true;
+            console.info(
+              "[meta/callback] ig messaging capability not enabled on app — skipping ig subscribe. enable it in app dashboard → use cases.",
+            );
+          } else {
+            console.warn(
+              `meta ig webhook subscribe failed (field=${field}):`,
+              err,
+            );
+          }
         }
       }
     }

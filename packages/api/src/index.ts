@@ -92,6 +92,7 @@ export {
   sendMessengerReply,
   getMessengerProfile,
   verifyWebhookSignature,
+  verifySignedRequest,
   type MetaPage,
 } from "./services/meta";
 

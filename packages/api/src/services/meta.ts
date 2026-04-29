@@ -225,6 +225,52 @@ export async function sendMessengerReply(args: {
   }
 }
 
+// Decodes Meta's `signed_request` parameter (sent on data deletion
+// callbacks and a few legacy OAuth flows). Format:
+//   <base64url-hmac>.<base64url-json-payload>
+// HMAC is SHA256 of the encoded payload signed with the app secret.
+// Returns the decoded payload only if the signature verifies.
+export function verifySignedRequest(
+  signedRequest: string,
+): { user_id?: string; algorithm?: string; issued_at?: number } | null {
+  const dot = signedRequest.indexOf(".");
+  if (dot < 0) return null;
+  const encodedSig = signedRequest.slice(0, dot);
+  const encodedPayload = signedRequest.slice(dot + 1);
+
+  // base64url → standard base64
+  const fromB64Url = (s: string): Buffer => {
+    const pad = s.length % 4;
+    const padded = pad === 0 ? s : s + "=".repeat(4 - pad);
+    return Buffer.from(padded.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  };
+
+  let providedSig: Buffer;
+  try {
+    providedSig = fromB64Url(encodedSig);
+  } catch {
+    return null;
+  }
+
+  const expectedSig = createHmac("sha256", appSecret())
+    .update(encodedPayload)
+    .digest();
+
+  if (
+    providedSig.length !== expectedSig.length ||
+    !timingSafeEqual(providedSig, expectedSig)
+  ) {
+    return null;
+  }
+
+  try {
+    const json = fromB64Url(encodedPayload).toString("utf8");
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 // Verifies the X-Hub-Signature-256 header on inbound webhook POSTs so we
 // only process events Meta actually signed with our app secret.
 export function verifyWebhookSignature(args: {

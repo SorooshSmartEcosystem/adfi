@@ -153,7 +153,11 @@ export function DraftCard({
   // expanding to other shapes (stat / list / product reveal) lands as
   // those compositions ship.
   const renderMotion = trpc.motionReel.renderForDraft.useMutation({
-    onSuccess: () => utils.content.listDrafts.invalidate(),
+    // Invalidate on settle (success OR error) so the panel picks up
+    // the persisted motion state regardless of outcome — status='failed'
+    // with the error message lives on the draft after a render error,
+    // and listDrafts needs to refetch to surface it.
+    onSettled: () => utils.content.listDrafts.invalidate(),
   });
   const [editOpen, setEditOpen] = useState(false);
 
@@ -182,16 +186,32 @@ export function DraftCard({
   // Drives the "make a video" button + the inline mp4 player.
   const motion = (draft.motion ?? null) as MotionState | null;
   const motionStatus = motion?.status ?? null;
-  // Quote-template eligibility: needs a string hook (single post / reel
-  // script) to fill the quote slot. Other formats wait for their own
-  // template wiring (carousel-as-reel, etc.).
-  const motionHook =
-    typeof (visibleContent as { hook?: unknown })?.hook === "string"
-      ? ((visibleContent as { hook: string }).hook).trim()
-      : null;
-  const motionEligible =
-    !!motionHook &&
-    (draft.format === "SINGLE_POST" || draft.format === "REEL_SCRIPT");
+  // Flag-gated: motion-reel rendering needs @sparticuz/chromium wired
+  // into Remotion's renderer for production (Phase 2.5). Until that
+  // ships, default to OFF and only enable on dev or where the env
+  // flag is set. Prevents users hitting "Cannot find package" /
+  // "Chromium not found" errors on prod while we tune the binary path.
+  const motionEnabled =
+    process.env.NEXT_PUBLIC_MOTION_REEL_ENABLED === "true" ||
+    process.env.NODE_ENV !== "production";
+  // Quote-template eligibility: any draft that has a string we can use
+  // as the quote line. Falls through formats in priority order:
+  //   single post / reel  → hook
+  //   newsletter          → subject
+  //   carousel            → coverSlide.title
+  //   stories             → frames[0].text
+  const motionHook = (() => {
+    const c = (visibleContent ?? {}) as Record<string, unknown>;
+    if (typeof c.hook === "string" && c.hook.trim()) return c.hook.trim();
+    if (typeof c.subject === "string" && c.subject.trim()) return c.subject.trim();
+    const cover = c.coverSlide as { title?: string } | undefined;
+    if (cover?.title?.trim()) return cover.title.trim();
+    const frames = c.frames as { text?: string }[] | undefined;
+    const first = frames?.[0]?.text;
+    if (first?.trim()) return first.trim();
+    return null;
+  })();
+  const motionEligible = !!motionHook;
   const triggerMotion = () => {
     if (!motionHook) return;
     renderMotion.mutate({
@@ -313,14 +333,14 @@ export function DraftCard({
         <DraftBody format={draft.format ?? "SINGLE_POST"} content={visibleContent} />
       )}
 
-      {/* Motion-reel section. Three states:
+      {/* Motion-reel section. Hidden entirely when motionEnabled is
+          false (production until Phase 2.5 ships @sparticuz/chromium).
+          When enabled, four states:
             • ready  → inline mp4 player + "regenerate" link
             • rendering / pending → spinner + status
             • failed → error + retry
-          When motion has never been kicked off and the draft is
-          eligible (has a hook), the "make a video" CTA renders inside
-          the action row below. */}
-      {motionStatus === "ready" && motion?.mp4Url ? (
+            • idle (no motion yet) → "make a video" CTA */}
+      {!motionEnabled ? null : motionStatus === "ready" && motion?.mp4Url ? (
         <div className="mb-md max-w-[300px]">
           <video
             src={motion.mp4Url}
@@ -366,6 +386,21 @@ export function DraftCard({
           >
             try again
           </button>
+        </div>
+      ) : motionEligible ? (
+        <div className="mb-md flex items-center gap-sm flex-wrap">
+          <button
+            type="button"
+            onClick={triggerMotion}
+            disabled={renderMotion.isPending}
+            className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40 inline-flex items-center gap-sm"
+            title="generates a 9-second mp4 reel of this draft"
+          >
+            ▶ make a video
+          </button>
+          <span className="text-[11px] text-ink4">
+            renders a motion version of this post · ~15-30s
+          </span>
         </div>
       ) : null}
 
@@ -506,19 +541,6 @@ export function DraftCard({
           >
             {regenImages.isPending ? "rerolling images..." : "reroll images"}
           </button>
-          {motionEligible && motionStatus !== "ready" ? (
-            <button
-              type="button"
-              onClick={triggerMotion}
-              disabled={pending || renderMotion.isPending || motionStatus === "rendering"}
-              className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
-              title="generates a 9-second mp4 of this draft as a motion reel"
-            >
-              {renderMotion.isPending || motionStatus === "rendering"
-                ? "rendering video..."
-                : "make a video"}
-            </button>
-          ) : null}
           {draft.platform === "EMAIL" ? (
             <button
               type="button"

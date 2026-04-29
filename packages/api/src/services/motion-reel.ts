@@ -20,14 +20,18 @@
 import { db, type Prisma } from "@orb/db";
 import { createServiceRoleClient } from "@orb/auth/server";
 
-// Remotion is loaded via opaque dynamic require that webpack can't
-// trace. @remotion/bundler transitively pulls in @rspack with native
-// .node binaries Webpack chokes on; even `await import("@remotion/...")`
-// gets resolved by webpack's static analyzer and trips the error. The
-// `Function('return import(...)')` wrapper hides the call from the
-// bundler entirely — Node executes it at runtime, webpack never sees it.
-const dynImport = <T = unknown>(spec: string): Promise<T> =>
-  Function("spec", "return import(spec)")(spec) as Promise<T>;
+// Remotion is loaded via opaque CommonJS require that webpack can't
+// trace. Two reasons:
+//   1. @remotion/bundler transitively pulls in @rspack with native .node
+//      binaries Webpack chokes on at build time. Hiding the load behind
+//      `Function('return require')(spec)` keeps it out of the bundle graph.
+//   2. @remotion/renderer's package.json declares only `"main"` (no
+//      `"exports"`), so Node's ESM resolver fails on `import()` of the
+//      bare specifier. CommonJS `require` resolves it cleanly.
+const dynRequire = <T = unknown>(spec: string): T => {
+  const r = Function("return require")() as NodeRequire;
+  return r(spec) as T;
+};
 import { readFile, unlink } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
@@ -48,18 +52,17 @@ let cachedBundleUrl: string | null = null;
 async function getServeUrl(): Promise<string> {
   if (cachedBundleUrl) return cachedBundleUrl;
 
-  // Webpack-opaque import — see dynImport comment above.
-  const { bundle } = await dynImport<typeof import("@remotion/bundler")>(
+  // Webpack-opaque CommonJS require — see dynRequire comment above.
+  const { bundle } = dynRequire<typeof import("@remotion/bundler")>(
     "@remotion/bundler",
   );
 
-  // Resolve the @orb/motion-reel package's index.ts. We can't use
-  // require.resolve in ESM, so walk from this file → ../../../motion-reel.
-  const here = typeof __dirname !== "undefined"
-    ? __dirname
-    : dirname(fileURLToPath(import.meta.url));
-  // packages/api/src/services → packages/motion-reel/src/index.ts
-  const entryPath = join(here, "..", "..", "..", "motion-reel", "src", "index.ts");
+  // Resolve the @orb/motion-reel entry. __dirname-walking doesn't work
+  // because Next.js runs the compiled service from .next/server/...,
+  // not the original packages/api/src/services/. Node's resolver finds
+  // workspace packages by their declared exports path.
+  const r = Function("return require")() as NodeRequire;
+  const entryPath = r.resolve("@orb/motion-reel");
 
   const url = await bundle({
     entryPoint: entryPath,
@@ -180,9 +183,9 @@ export async function renderForDraft(args: {
       throw new Error(`unknown motion template: ${args.directive.template}`);
     }
 
-    // Webpack-opaque import — see dynImport comment above.
+    // Webpack-opaque CommonJS require — see dynRequire comment above.
     const { renderMedia, selectComposition } =
-      await dynImport<typeof import("@remotion/renderer")>("@remotion/renderer");
+      dynRequire<typeof import("@remotion/renderer")>("@remotion/renderer");
 
     const serveUrl = await getServeUrl();
     const composition = await selectComposition({
@@ -232,6 +235,13 @@ export async function renderForDraft(args: {
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    // Loud server-side log so dev can see the actual failure cause —
+    // tRPC's error wrapping otherwise hides the underlying Remotion /
+    // bundler error from the client console.
+    console.error(
+      `[motion-reel] render failed for draft ${args.draftId}: ${msg}\n${stack ?? ""}`,
+    );
     await persistMotionState(args.draftId, {
       template: args.directive.template,
       slotValues: args.directive.content as Record<string, unknown>,

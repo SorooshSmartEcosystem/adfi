@@ -154,12 +154,21 @@ importers:
       '@orb/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@orb/motion-reel':
+        specifier: workspace:*
+        version: link:../../packages/motion-reel
       '@orb/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
+      '@remotion/bundler':
+        specifier: ^4.0.0
+        version: 4.0.454(@swc/helpers@0.5.15)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@remotion/renderer':
+        specifier: ^4.0.0
+        version: 4.0.454(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@stripe/stripe-js':
         specifier: ^9.3.1
         version: 9.3.1
@@ -11377,7 +11386,7 @@ snapshots:
       ansi-escapes: 4.3.2
       supports-hyperlinks: 2.3.0
 
-  terser-webpack-plugin@5.5.0(esbuild@0.25.0)(webpack@5.105.0):
+  terser-webpack-plugin@5.5.0(esbuild@0.25.0)(webpack@5.105.0(esbuild@0.25.0)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
@@ -11615,7 +11624,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.3
-      terser-webpack-plugin: 5.5.0(esbuild@0.25.0)(webpack@5.105.0)
+      terser-webpack-plugin: 5.5.0(esbuild@0.25.0)(webpack@5.105.0(esbuild@0.25.0))
       watchpack: 2.5.1
       webpack-sources: 3.4.0
     transitivePeerDependencies:

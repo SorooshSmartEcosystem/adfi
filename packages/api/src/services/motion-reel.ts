@@ -20,18 +20,20 @@
 import { db, type Prisma } from "@orb/db";
 import { createServiceRoleClient } from "@orb/auth/server";
 
-// Remotion is loaded via opaque CommonJS require that webpack can't
-// trace. Two reasons:
-//   1. @remotion/bundler transitively pulls in @rspack with native .node
-//      binaries Webpack chokes on at build time. Hiding the load behind
-//      `Function('return require')(spec)` keeps it out of the bundle graph.
-//   2. @remotion/renderer's package.json declares only `"main"` (no
-//      `"exports"`), so Node's ESM resolver fails on `import()` of the
-//      bare specifier. CommonJS `require` resolves it cleanly.
-const dynRequire = <T = unknown>(spec: string): T => {
-  const r = Function("return require")() as NodeRequire;
-  return r(spec) as T;
-};
+// Remotion is loaded via dynamic imports with webpackIgnore so:
+//   1. Webpack doesn't try to bundle @remotion/bundler (which pulls
+//      in @rspack's native .node binaries it can't parse). The
+//      magic comment tells webpack to leave the import alone — it
+//      stays as a runtime import.
+//   2. Vercel's outputFileTracing CAN see the import statement and
+//      includes the package files in the Lambda bundle. (Our previous
+//      Function('return require') trick hid the call entirely; the
+//      tracer never saw it, package files weren't deployed.)
+//   3. Next.js's serverExternalPackages config keeps these out of
+//      the server bundle while preserving runtime resolution.
+//
+// At runtime Node resolves the bare specifier through node_modules
+// like any normal import.
 import { readFile, unlink } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
@@ -52,22 +54,23 @@ let cachedBundleUrl: string | null = null;
 async function getServeUrl(): Promise<string> {
   if (cachedBundleUrl) return cachedBundleUrl;
 
-  // Webpack-opaque CommonJS require — see dynRequire comment above.
-  const { bundle } = dynRequire<typeof import("@remotion/bundler")>(
-    "@remotion/bundler",
+  // webpackIgnore — see top-of-file comment. Static analysis sees
+  // the import (so Vercel traces it) but webpack doesn't try to
+  // bundle it (so @rspack's native binaries don't blow up the build).
+  const { bundle } = await import(
+    /* webpackIgnore: true */ "@remotion/bundler"
   );
 
-  // Resolve the @orb/motion-reel entry. __dirname-walking doesn't work
-  // because Next.js runs the compiled service from .next/server/...,
-  // not the original packages/api/src/services/. Node's resolver finds
-  // workspace packages by their declared exports path.
-  const r = Function("return require")() as NodeRequire;
-  const entryPath = r.resolve("@orb/motion-reel");
+  // Resolve the @orb/motion-reel entry. Use createRequire for
+  // resolution (workspace package; no node_modules indirection).
+  const { createRequire } = await import(
+    /* webpackIgnore: true */ "node:module"
+  );
+  const require = createRequire(import.meta.url);
+  const entryPath = require.resolve("@orb/motion-reel");
 
   const url = await bundle({
     entryPoint: entryPath,
-    // No webpack overrides for now. Remotion's defaults handle .tsx +
-    // jsx automatically.
   });
   cachedBundleUrl = url;
   return url;
@@ -183,9 +186,10 @@ export async function renderForDraft(args: {
       throw new Error(`unknown motion template: ${args.directive.template}`);
     }
 
-    // Webpack-opaque CommonJS require — see dynRequire comment above.
-    const { renderMedia, selectComposition } =
-      dynRequire<typeof import("@remotion/renderer")>("@remotion/renderer");
+    // webpackIgnore — see top-of-file comment.
+    const { renderMedia, selectComposition } = await import(
+      /* webpackIgnore: true */ "@remotion/renderer"
+    );
 
     // Detect serverless runtime. Vercel sets process.env.VERCEL=1; AWS
     // Lambda sets AWS_LAMBDA_FUNCTION_NAME. On either, Remotion's
@@ -200,14 +204,18 @@ export async function renderForDraft(args: {
     );
     let executablePath: string | undefined;
     if (isServerless) {
-      type SparticuzModule = {
-        default: {
-          executablePath: () => Promise<string>;
-          args: string[];
-        };
+      const sparticuz = await import(
+        /* webpackIgnore: true */ "@sparticuz/chromium"
+      );
+      // Module exports vary by ESM/CJS shape across versions. Both
+      // `default.executablePath` and `executablePath` are observed.
+      const sp = sparticuz as {
+        default?: { executablePath: () => Promise<string> };
+        executablePath?: () => Promise<string>;
       };
-      const sparticuz = dynRequire<SparticuzModule>("@sparticuz/chromium");
-      executablePath = await sparticuz.default.executablePath();
+      const fn = sp.default?.executablePath ?? sp.executablePath;
+      if (!fn) throw new Error("@sparticuz/chromium has no executablePath export");
+      executablePath = await fn();
     }
 
     const serveUrl = await getServeUrl();

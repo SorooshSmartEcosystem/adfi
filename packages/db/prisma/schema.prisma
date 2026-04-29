@@ -37,7 +37,7 @@ model User {
 
   subscriptions         Subscription[]
   phoneNumbers          PhoneNumber[]
-  agentContext          AgentContext?
+  agentContexts         AgentContext[]
   connectedAccounts     ConnectedAccount[]
   contentDrafts         ContentDraft[]
   contentPlans          ContentPlan[]
@@ -174,10 +174,13 @@ enum PhoneNumberStatus {
 // AgentContext — per-user memory shared across all 6 agents
 // =============================================================
 model AgentContext {
-  // Was 1:1 with User (userId @id). Now 1:1 with Business so each
-  // business has its own brand voice / strategist output. We keep
-  // userId for back-compat (queries by userId still work for
-  // single-business users) but the unique key has moved to businessId.
+  // 1:1 with Business — each business has its own brand voice /
+  // strategist output / paused-agents config. STUDIO/AGENCY users
+  // who own multiple businesses get one AgentContext row per
+  // Business; SOLO/TEAM users still have exactly one because they
+  // can only own one Business. The userId column is kept for
+  // ownership reference only — queries that need "all of this user's
+  // contexts" use the (userId) index.
   id                 String    @id @default(uuid()) @db.Uuid
   userId             String    @map("user_id") @db.Uuid
   businessId         String?   @unique @map("business_id") @db.Uuid
@@ -194,7 +197,7 @@ model AgentContext {
   user               User      @relation(fields: [userId], references: [id])
   business           Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  @@unique([userId])
+  @@index([userId])
   @@map("agent_context")
 }
 

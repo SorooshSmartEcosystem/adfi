@@ -10,7 +10,7 @@ export default async function StrategistPage() {
   if (!authUser) redirect("/signin");
 
   const agent = AGENTS.strategist!;
-  const ctxRow = await db.agentContext.findUnique({
+  const ctxRow = await db.agentContext.findFirst({
     where: { userId: authUser.id },
     select: { strategistOutput: true, lastRefreshedAt: true },
   });

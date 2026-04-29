@@ -596,7 +596,7 @@ export async function generateBrandKit(args: {
 }> {
   const user = await db.user.findUnique({
     where: { id: args.userId },
-    include: { agentContext: true },
+    include: { agentContexts: true },
   });
   if (!user) throw new Error("user not found");
 
@@ -605,7 +605,7 @@ export async function generateBrandKit(args: {
     user.businessDescription?.split(/[.\n]/)[0]?.slice(0, 40)?.trim() ||
     "the business";
   const description = user.businessDescription ?? "";
-  const voiceTone = user.agentContext?.strategistOutput ?? null;
+  const voiceTone = user.agentContexts?.[0]?.strategistOutput ?? null;
 
   const t0 = Date.now();
   console.log(`[brandkit] starting generation for user=${args.userId}`);

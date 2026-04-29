@@ -59,7 +59,7 @@ export const adminRouter = router({
         include: {
           subscriptions: true,
           phoneNumbers: true,
-          agentContext: true,
+          agentContexts: true,
         },
       });
       if (!user) throw OrbError.NOT_FOUND("user");

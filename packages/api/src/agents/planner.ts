@@ -148,10 +148,10 @@ export async function generateWeeklyPlan(
 ): Promise<{ planId: string; itemsCreated: number }> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    include: { agentContext: true },
+    include: { agentContexts: true },
   });
   if (!user) throw new Error("User not found");
-  if (!user.agentContext?.strategistOutput) {
+  if (!user.agentContexts?.[0]?.strategistOutput) {
     throw new Error("Brand voice not set — run Strategist first");
   }
 
@@ -182,7 +182,7 @@ export async function generateWeeklyPlan(
 
   const result = await runPlanner({
     businessDescription: user.businessDescription ?? "",
-    brandVoice: user.agentContext.strategistOutput,
+    brandVoice: user.agentContexts?.[0]?.strategistOutput,
     performance,
     weekStart,
     weekEnd,

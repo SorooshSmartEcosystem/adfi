@@ -17,7 +17,7 @@ export const agentRouter = router({
   // Returns paused state + last-run metadata so /specialist/[id] can show
   // correct status + disable run-now while a run is in progress.
   getSettings: authedProc.input(z.void()).query(async ({ ctx }) => {
-    const ctxRow = await ctx.db.agentContext.findUnique({
+    const ctxRow = await ctx.db.agentContext.findFirst({
       where: { userId: ctx.user.id },
       select: { pausedAgents: true, lastManualRun: true, lastRefreshedAt: true },
     });
@@ -31,7 +31,7 @@ export const agentRouter = router({
   // Used by /specialist/strategist on web + mobile to render the actual
   // brand voice (the artifact) instead of the empty findings list.
   getStrategistVoice: authedProc.input(z.void()).query(async ({ ctx }) => {
-    const ctxRow = await ctx.db.agentContext.findUnique({
+    const ctxRow = await ctx.db.agentContext.findFirst({
       where: { userId: ctx.user.id },
       select: { strategistOutput: true, lastRefreshedAt: true },
     });
@@ -62,7 +62,7 @@ export const agentRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.agentContext.update({
+      await ctx.db.agentContext.updateMany({
         where: { userId: ctx.user.id },
         data: {
           strategistOutput: input,
@@ -75,7 +75,7 @@ export const agentRouter = router({
   pause: authedProc
     .input(z.object({ agent: ControllableAgent }))
     .mutation(async ({ ctx, input }) => {
-      const row = await ctx.db.agentContext.findUnique({
+      const row = await ctx.db.agentContext.findFirst({
         where: { userId: ctx.user.id },
       });
       if (!row) throw OrbError.NOT_FOUND("agent context");
@@ -83,7 +83,7 @@ export const agentRouter = router({
       const next = Array.from(
         new Set([...(row.pausedAgents ?? []), input.agent as Agent]),
       );
-      await ctx.db.agentContext.update({
+      await ctx.db.agentContext.updateMany({
         where: { userId: ctx.user.id },
         data: { pausedAgents: next },
       });
@@ -93,13 +93,13 @@ export const agentRouter = router({
   resume: authedProc
     .input(z.object({ agent: ControllableAgent }))
     .mutation(async ({ ctx, input }) => {
-      const row = await ctx.db.agentContext.findUnique({
+      const row = await ctx.db.agentContext.findFirst({
         where: { userId: ctx.user.id },
       });
       if (!row) throw OrbError.NOT_FOUND("agent context");
 
       const next = (row.pausedAgents ?? []).filter((a) => a !== input.agent);
-      await ctx.db.agentContext.update({
+      await ctx.db.agentContext.updateMany({
         where: { userId: ctx.user.id },
         data: { pausedAgents: next },
       });
@@ -141,7 +141,7 @@ export const agentRouter = router({
           case "STRATEGIST": {
             const user = await ctx.db.user.findUnique({
               where: { id: ctx.user.id },
-              include: { agentContext: true },
+              include: { agentContexts: true },
             });
             if (!user) throw new Error("user not found");
             if (!user.businessDescription || !user.goal) {
@@ -165,12 +165,12 @@ export const agentRouter = router({
               goal: user.goal,
               userId: ctx.user.id,
               previousVoice:
-                (user.agentContext?.strategistOutput as
+                (user.agentContexts?.[0]?.strategistOutput as
                   | Awaited<ReturnType<typeof runStrategist>>
                   | null) ?? null,
               performance,
             });
-            await db.agentContext.update({
+            await db.agentContext.updateMany({
               where: { userId: ctx.user.id },
               data: {
                 strategistOutput: voice as object,
@@ -185,7 +185,7 @@ export const agentRouter = router({
         errorMessage = error instanceof Error ? error.message : String(error);
       }
 
-      await ctx.db.agentContext.update({
+      await ctx.db.agentContext.updateMany({
         where: { userId: ctx.user.id },
         data: {
           lastManualRun: {

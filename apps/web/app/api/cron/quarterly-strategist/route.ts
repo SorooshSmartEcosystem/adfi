@@ -42,13 +42,15 @@ export async function GET(request: Request) {
         some: { status: { in: ["TRIALING", "ACTIVE"] } },
       },
       OR: [
-        { agentContext: { lastRefreshedAt: null } },
-        { agentContext: { lastRefreshedAt: { lt: cutoff } } },
+        // At least one business has never refreshed.
+        { agentContexts: { some: { lastRefreshedAt: null } } },
+        // Or hasn't refreshed within the cutoff window.
+        { agentContexts: { some: { lastRefreshedAt: { lt: cutoff } } } },
       ],
-      // Skip users whose Strategist voice was paused.
-      NOT: { agentContext: { pausedAgents: { has: Agent.STRATEGIST } } },
+      // Skip users whose Strategist voice was paused on every business.
+      NOT: { agentContexts: { every: { pausedAgents: { has: Agent.STRATEGIST } } } },
     },
-    include: { agentContext: true },
+    include: { agentContexts: true },
     take: 50, // bound the batch so we don't blow up the function
   });
 
@@ -60,7 +62,7 @@ export async function GET(request: Request) {
     try {
       const performance = await summarizePerformance(user.id, 90);
       const previousVoice =
-        (user.agentContext?.strategistOutput as BrandVoice | null) ?? null;
+        (user.agentContexts?.[0]?.strategistOutput as BrandVoice | null) ?? null;
       const voice = await runStrategist({
         businessDescription: user.businessDescription!,
         goal: user.goal!,
@@ -68,7 +70,11 @@ export async function GET(request: Request) {
         previousVoice,
         performance,
       });
-      await db.agentContext.update({
+      // Refresh every AgentContext owned by this user — single-
+      // business users have one row, multi-business users have one
+      // per business and they all get the refreshed voice. Per-
+      // business voice differentiation is parked work.
+      await db.agentContext.updateMany({
         where: { userId: user.id },
         data: {
           strategistOutput: voice as object,
@@ -82,7 +88,7 @@ export async function GET(request: Request) {
           eventType: "strategist_quarterly_refresh",
           payload: {
             previousRefresh:
-              user.agentContext?.lastRefreshedAt?.toISOString() ?? null,
+              user.agentContexts?.[0]?.lastRefreshedAt?.toISOString() ?? null,
           },
         },
       });

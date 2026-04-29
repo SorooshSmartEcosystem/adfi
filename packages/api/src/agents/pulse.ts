@@ -140,10 +140,10 @@ export async function generatePulseSignals(
 ): Promise<{ findingsCreated: number; newsItems: number }> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    include: { agentContext: true },
+    include: { agentContexts: true },
   });
   if (!user) throw new Error("User not found");
-  if (!user.agentContext?.strategistOutput) {
+  if (!user.agentContexts?.[0]?.strategistOutput) {
     throw new Error("Brand voice not set — run Strategist first");
   }
 
@@ -151,7 +151,7 @@ export async function generatePulseSignals(
 
   const queries = deriveQueries({
     businessDescription: user.businessDescription ?? "",
-    brandVoice: user.agentContext.strategistOutput,
+    brandVoice: user.agentContexts?.[0]?.strategistOutput,
   });
 
   const newsFeed = await fetchNewsForQueries(queries, 5, 25).catch((err) => {
@@ -163,7 +163,7 @@ export async function generatePulseSignals(
 
   const result = await runPulse({
     businessDescription: user.businessDescription ?? "",
-    brandVoice: user.agentContext.strategistOutput,
+    brandVoice: user.agentContexts?.[0]?.strategistOutput,
     newsFeed,
     currentDate: new Date(),
     userId,
@@ -189,7 +189,12 @@ export async function generatePulseSignals(
     });
   }
 
-  await db.agentContext.update({
+  // Multi-business: write to every AgentContext owned by this user
+  // (in practice, single-business users have 1; STUDIO/AGENCY users
+  // have 1 per business). Per-business iteration of pulse is parked
+  // work — for now all of a user's businesses share the same signal
+  // feed.
+  await db.agentContext.updateMany({
     where: { userId },
     data: {
       pulseSignals: {

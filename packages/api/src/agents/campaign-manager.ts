@@ -104,7 +104,7 @@ export async function runCampaignManager(args: {
   const [user, recentPosts, recentFindings] = await Promise.all([
     db.user.findUnique({
       where: { id: args.userId },
-      include: { agentContext: true },
+      include: { agentContexts: true },
     }),
     db.contentPost.findMany({
       where: { businessId: args.businessId },
@@ -125,7 +125,7 @@ export async function runCampaignManager(args: {
   ]);
   if (!user) throw new Error("User not found");
 
-  const brandVoice = user.agentContext?.strategistOutput ?? null;
+  const brandVoice = user.agentContexts?.[0]?.strategistOutput ?? null;
   const businessDescription = user.businessDescription ?? "(not set)";
 
   const userMessage = `Owner's brief:

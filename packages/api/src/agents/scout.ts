@@ -128,12 +128,12 @@ export async function generateCompetitorIntel(
   const user = await db.user.findUnique({
     where: { id: userId },
     include: {
-      agentContext: true,
+      agentContexts: true,
       competitors: true,
     },
   });
   if (!user) throw new Error("User not found");
-  if (!user.agentContext?.strategistOutput) {
+  if (!user.agentContexts?.[0]?.strategistOutput) {
     throw new Error("Brand voice not set — run Strategist first");
   }
   if (user.competitors.length === 0) {
@@ -163,7 +163,7 @@ export async function generateCompetitorIntel(
 
   const result = await runScout({
     businessDescription: user.businessDescription ?? "",
-    brandVoice: user.agentContext.strategistOutput,
+    brandVoice: user.agentContexts?.[0]?.strategistOutput,
     competitors: withFeeds,
     userId,
   });

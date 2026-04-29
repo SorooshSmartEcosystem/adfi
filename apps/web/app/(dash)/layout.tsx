@@ -19,15 +19,25 @@ export default async function DashLayout({
   const authUser = await getCurrentUser();
   if (!authUser) redirect("/signin");
 
-  // Onboarding gate — without a brand voice the agents can't do anything
-  // meaningful and several specialist pages 500. Bounce to onboarding.
+  // Pull user + active business in one shot. getDashUserAndHome is
+  // request-cached so calling it again from the page handler is free.
+  const { user, home, active } = await getDashUserAndHome();
+
+  // Onboarding gate — bounce when the user has no business yet, OR
+  // when the active business has no brand voice yet. AgentContext is
+  // per-Business now (was per-User), so each business needs its own
+  // strategist run before agents can do anything meaningful for it.
+  if (!active) redirect("/onboarding");
   const ctx = await db.agentContext.findUnique({
-    where: { userId: authUser.id },
+    where: { businessId: active.id },
     select: { strategistOutput: true },
   });
-  if (!ctx?.strategistOutput) redirect("/onboarding");
-
-  const { user, home, active } = await getDashUserAndHome();
+  if (!ctx?.strategistOutput) {
+    // Brand-new business that hasn't gone through Strategist yet.
+    // The new-business onboarding flow runs Strategist on creation;
+    // legacy first-time signups go through /onboarding's full flow.
+    redirect("/onboarding");
+  }
 
   // Active Business is the canonical source of truth. The legacy
   // User.businessName/Logo fields are only used by the migration's

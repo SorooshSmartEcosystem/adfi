@@ -144,7 +144,7 @@ export async function processInboundSms(args: {
   const phoneRecord = await db.phoneNumber.findFirst({
     where: { number: args.to, status: PhoneNumberStatus.ACTIVE },
     include: {
-      user: { include: { agentContext: true } },
+      user: { include: { agentContexts: true } },
       business: true,
     },
   });
@@ -238,7 +238,7 @@ export async function processInboundSms(args: {
   });
 
   const result = await runSignal({
-    brandVoice: user.agentContext?.strategistOutput ?? {},
+    brandVoice: user.agentContexts?.[0]?.strategistOutput ?? {},
     businessName: phoneRecord.business?.name ?? user.businessName,
     businessDescription: user.businessDescription ?? "",
     threadHistory: history,
@@ -319,7 +319,7 @@ export async function processInboundMessenger(args: {
   const account = await db.connectedAccount.findFirst({
     where: { externalId: args.pageId, disconnectedAt: null },
     include: {
-      user: { include: { agentContext: true } },
+      user: { include: { agentContexts: true } },
       business: true,
     },
   });
@@ -503,7 +503,7 @@ export async function processInboundMessenger(args: {
   });
 
   const result = await runSignal({
-    brandVoice: user.agentContext?.strategistOutput ?? {},
+    brandVoice: user.agentContexts?.[0]?.strategistOutput ?? {},
     businessName: account.business?.name ?? user.businessName,
     businessDescription: user.businessDescription ?? "",
     threadHistory: history,
@@ -589,7 +589,7 @@ export async function processInboundTelegram(args: {
       disconnectedAt: null,
     },
     include: {
-      user: { include: { agentContext: true } },
+      user: { include: { agentContexts: true } },
       business: true,
     },
   });
@@ -765,7 +765,7 @@ export async function processInboundTelegram(args: {
   // If the user hasn't completed onboarding (no strategistOutput) signal
   // can't reply in their voice — surface this as a Finding rather than
   // silently failing.
-  if (!user.agentContext?.strategistOutput) {
+  if (!user.agentContexts?.[0]?.strategistOutput) {
     await db.finding.create({
       data: {
         userId: user.id,
@@ -785,7 +785,7 @@ export async function processInboundTelegram(args: {
   let result: SignalOutput;
   try {
     result = await runSignal({
-      brandVoice: user.agentContext.strategistOutput,
+      brandVoice: user.agentContexts?.[0]?.strategistOutput,
       businessName: account.business?.name ?? user.businessName,
       businessDescription: user.businessDescription ?? "",
       threadHistory: history,

@@ -377,10 +377,10 @@ export async function generateDailyContent(
 ): Promise<string> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    include: { agentContext: true },
+    include: { agentContexts: true },
   });
   if (!user) throw new Error("User not found");
-  if (!user.agentContext?.strategistOutput) {
+  if (!user.agentContexts?.[0]?.strategistOutput) {
     throw new Error(
       "Brand voice not set — run onboarding analysis before generating content",
     );
@@ -417,7 +417,7 @@ export async function generateDailyContent(
     format: chosenFormat,
     platform,
     businessDescription: user.businessDescription ?? "",
-    brandVoice: user.agentContext.strategistOutput,
+    brandVoice: user.agentContexts?.[0]?.strategistOutput,
     recentCaptions,
     performance,
     hint,
@@ -708,11 +708,11 @@ export async function regenerateDraftContent(
   const draft = await db.contentDraft.findUnique({
     where: { id: draftId },
     include: {
-      user: { include: { agentContext: true } },
+      user: { include: { agentContexts: true } },
     },
   });
   if (!draft) throw new Error("Draft not found");
-  if (!draft.user.agentContext?.strategistOutput) {
+  if (!draft.user.agentContexts?.[0]?.strategistOutput) {
     throw new Error(
       "Brand voice not set — run onboarding analysis before regenerating",
     );
@@ -746,7 +746,7 @@ export async function regenerateDraftContent(
     format: draft.format,
     platform: draft.platform,
     businessDescription: draft.user.businessDescription ?? "",
-    brandVoice: draft.user.agentContext.strategistOutput,
+    brandVoice: draft.user.agentContexts?.[0]?.strategistOutput,
     recentCaptions,
     performance,
     hint: combinedHint || undefined,
@@ -834,14 +834,14 @@ export async function draftPlanItem(
     include: {
       plan: {
         include: {
-          user: { include: { agentContext: true } },
+          user: { include: { agentContexts: true } },
         },
       },
     },
   });
   if (!item) throw new Error("Plan item not found");
   const user = item.plan.user;
-  if (!user.agentContext?.strategistOutput) {
+  if (!user.agentContexts?.[0]?.strategistOutput) {
     throw new Error("Brand voice not set — run Strategist first");
   }
 
@@ -874,7 +874,7 @@ export async function draftPlanItem(
     format: item.format,
     platform: item.platform,
     businessDescription: user.businessDescription ?? "",
-    brandVoice: user.agentContext.strategistOutput,
+    brandVoice: user.agentContexts?.[0]?.strategistOutput,
     recentCaptions,
     performance,
     hint: richHint,

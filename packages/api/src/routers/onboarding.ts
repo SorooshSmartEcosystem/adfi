@@ -106,18 +106,49 @@ export const onboardingRouter = router({
 
     const brandVoice = result as unknown as Prisma.InputJsonValue;
 
-    await ctx.db.agentContext.upsert({
-      where: { userId: ctx.user.id },
-      update: {
-        strategistOutput: brandVoice,
-        lastRefreshedAt: new Date(),
-      },
-      create: {
-        userId: ctx.user.id,
-        strategistOutput: brandVoice,
-        lastRefreshedAt: new Date(),
-      },
-    });
+    // Write to the active business's AgentContext. Multi-business
+    // means we no longer have a single AgentContext per user — each
+    // Business has its own. ctx.currentBusinessId is resolved by the
+    // tRPC middleware once per request.
+    const businessId = ctx.currentBusinessId;
+    if (businessId) {
+      await ctx.db.agentContext.upsert({
+        where: { businessId },
+        update: {
+          strategistOutput: brandVoice,
+          lastRefreshedAt: new Date(),
+        },
+        create: {
+          userId: ctx.user.id,
+          businessId,
+          strategistOutput: brandVoice,
+          lastRefreshedAt: new Date(),
+        },
+      });
+    } else {
+      // No business yet — bootstrap path (fresh signup before
+      // business.create has run). Fall back to userId-only upsert,
+      // which writes to whichever AgentContext exists or creates a
+      // new one without a businessId. ensureCurrentBusiness will
+      // attach a businessId on next access.
+      const existing = await ctx.db.agentContext.findFirst({
+        where: { userId: ctx.user.id },
+      });
+      if (existing) {
+        await ctx.db.agentContext.update({
+          where: { id: existing.id },
+          data: { strategistOutput: brandVoice, lastRefreshedAt: new Date() },
+        });
+      } else {
+        await ctx.db.agentContext.create({
+          data: {
+            userId: ctx.user.id,
+            strategistOutput: brandVoice,
+            lastRefreshedAt: new Date(),
+          },
+        });
+      }
+    }
 
     const event = await ctx.db.agentEvent.create({
       data: {

@@ -22,14 +22,17 @@ export async function runAgentForAllEligibleUsers(
   const users = await db.user.findMany({
     where: {
       deletedAt: null,
-      agentContext: { strategistOutput: { not: { equals: null } } },
+      // At least one of the user's businesses has run Strategist.
+      agentContexts: {
+        some: { strategistOutput: { not: { equals: null } } },
+      },
       subscriptions: {
         some: { status: { in: ["TRIALING", "ACTIVE"] } },
       },
     },
     select: {
       id: true,
-      agentContext: { select: { pausedAgents: true } },
+      agentContexts: { select: { pausedAgents: true } },
     },
   });
 
@@ -43,7 +46,7 @@ export async function runAgentForAllEligibleUsers(
   };
 
   for (const user of users) {
-    if (user.agentContext?.pausedAgents?.includes(agent)) {
+    if (user.agentContexts?.[0]?.pausedAgents?.includes(agent)) {
       result.skippedPaused++;
       continue;
     }

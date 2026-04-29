@@ -6,16 +6,17 @@ import { trpc } from "../../lib/trpc";
 type Mode = "view" | "edit";
 
 export function BusinessProfileCard() {
-  const meQuery = trpc.user.me.useQuery();
+  const businessQuery = trpc.business.getActive.useQuery();
   const utils = trpc.useUtils();
-  const update = trpc.user.updateProfile.useMutation({
+  const [mode, setMode] = useState<Mode>("view");
+  const update = trpc.business.updateActive.useMutation({
     onSuccess: () => {
-      utils.user.me.invalidate();
+      utils.business.getActive.invalidate();
+      utils.business.list.invalidate();
       setMode("view");
     },
   });
 
-  const [mode, setMode] = useState<Mode>("view");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
@@ -25,12 +26,12 @@ export function BusinessProfileCard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!meQuery.data) return;
-    setName(meQuery.data.businessName ?? "");
-    setDescription(meQuery.data.businessDescription ?? "");
-    setWebsite(meQuery.data.businessWebsiteUrl ?? "");
-    setLogoUrl(meQuery.data.businessLogoUrl ?? null);
-  }, [meQuery.data]);
+    if (!businessQuery.data) return;
+    setName(businessQuery.data.name ?? "");
+    setDescription(businessQuery.data.description ?? "");
+    setWebsite(businessQuery.data.websiteUrl ?? "");
+    setLogoUrl(businessQuery.data.logoUrl ?? null);
+  }, [businessQuery.data]);
 
   async function handleFile(file: File) {
     setUploading(true);
@@ -54,14 +55,14 @@ export function BusinessProfileCard() {
 
   function handleSave() {
     update.mutate({
-      businessName: name.trim() || undefined,
-      businessDescription: description.trim() || undefined,
-      businessWebsiteUrl: website.trim() ? website.trim() : null,
-      businessLogoUrl: logoUrl,
+      name: name.trim() || undefined,
+      description: description.trim() ? description.trim() : null,
+      websiteUrl: website.trim() ? website.trim() : null,
+      logoUrl,
     });
   }
 
-  if (meQuery.isLoading) {
+  if (businessQuery.isLoading) {
     return (
       <Card>
         <p className="font-mono text-sm text-ink3">one second</p>

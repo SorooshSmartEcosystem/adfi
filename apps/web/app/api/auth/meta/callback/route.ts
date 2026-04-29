@@ -194,7 +194,24 @@ export async function GET(req: NextRequest) {
         fields: ["messages", "messaging_postbacks", "feed"],
       });
     } catch (err) {
-      console.warn("meta webhook subscribe failed:", err);
+      console.warn("meta page webhook subscribe failed:", err);
+    }
+
+    // Also subscribe the IG Business Account itself. Page subscription
+    // alone covers Messenger but the Instagram Messaging API delivers
+    // DM events through /{ig-business-id}/subscribed_apps — without
+    // this call, inbound Instagram DMs never reach our webhook even
+    // though the IG row exists in the db.
+    if (page.igBusinessId) {
+      try {
+        await subscribePageWebhook({
+          pageId: page.igBusinessId,
+          pageAccessToken: page.accessToken,
+          fields: ["messages", "messaging_postbacks", "message_reactions"],
+        });
+      } catch (err) {
+        console.warn("meta ig webhook subscribe failed:", err);
+      }
     }
 
     // Different flash codes for different success states so the UI can

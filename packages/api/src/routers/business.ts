@@ -183,6 +183,83 @@ export const businessRouter = router({
       return { id: created.id };
     }),
 
+  // Read the active business's profile fields. The settings card uses
+  // this so editing description/logo/website applies to the *current*
+  // business, not to a hidden user-level field that leaks across all
+  // of the user's businesses.
+  getActive: authedProc.input(z.void()).query(async ({ ctx }) => {
+    const current = await ensureCurrentBusiness(ctx);
+    const row = await ctx.db.business.findUnique({
+      where: { id: current.id },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        logoUrl: true,
+        websiteUrl: true,
+      },
+    });
+    if (!row) throw OrbError.NOT_FOUND("business");
+    return row;
+  }),
+
+  // Update the active business's profile. Mirrors user.updateProfile
+  // but writes the per-business row instead of the user-level legacy
+  // fields. Cache-busts the layout so the sidebar avatar + name pick
+  // up the new logo without a hard refresh.
+  updateActive: authedProc
+    .input(
+      z.object({
+        name: z.string().min(1).max(80).optional(),
+        description: z.string().max(2000).nullable().optional(),
+        logoUrl: z.string().url().max(500).nullable().optional(),
+        websiteUrl: z
+          .string()
+          .max(500)
+          .nullable()
+          .optional()
+          .transform((v) => {
+            if (v === undefined || v === null) return v;
+            const trimmed = v.trim();
+            if (!trimmed) return null;
+            return /^https?:\/\//i.test(trimmed)
+              ? trimmed
+              : `https://${trimmed}`;
+          })
+          .pipe(z.string().url().max(500).nullable().optional()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const current = await ensureCurrentBusiness(ctx);
+      const row = await ctx.db.business.update({
+        where: { id: current.id },
+        data: {
+          ...(input.name !== undefined && { name: input.name }),
+          ...(input.description !== undefined && {
+            description: input.description,
+          }),
+          ...(input.logoUrl !== undefined && { logoUrl: input.logoUrl }),
+          ...(input.websiteUrl !== undefined && {
+            websiteUrl: input.websiteUrl,
+          }),
+        },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          logoUrl: true,
+          websiteUrl: true,
+        },
+      });
+      try {
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath("/", "layout");
+      } catch {
+        // Non-Next caller — skip.
+      }
+      return row;
+    }),
+
   // Switch the active business. Doesn't migrate any data — just flips
   // currentBusinessId so the dashboard renders the chosen one.
   //

@@ -187,11 +187,37 @@ export async function renderForDraft(args: {
     const { renderMedia, selectComposition } =
       dynRequire<typeof import("@remotion/renderer")>("@remotion/renderer");
 
+    // Detect serverless runtime. Vercel sets process.env.VERCEL=1; AWS
+    // Lambda sets AWS_LAMBDA_FUNCTION_NAME. On either, Remotion's
+    // auto-download Headless Shell isn't available, so we hand it the
+    // @sparticuz/chromium binary path. On local dev neither is set
+    // and Remotion uses its own auto-downloaded binary in
+    // ~/.cache/remotion (already proven to work).
+    const isServerless = !!(
+      process.env.VERCEL ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.AWS_EXECUTION_ENV
+    );
+    let executablePath: string | undefined;
+    if (isServerless) {
+      type SparticuzModule = {
+        default: {
+          executablePath: () => Promise<string>;
+          args: string[];
+        };
+      };
+      const sparticuz = dynRequire<SparticuzModule>("@sparticuz/chromium");
+      executablePath = await sparticuz.default.executablePath();
+    }
+
     const serveUrl = await getServeUrl();
     const composition = await selectComposition({
       serveUrl,
       id: compositionId,
       inputProps: { tokens, content: args.directive.content },
+      // On Lambda we have to supply the binary; locally Remotion
+      // resolves its own.
+      ...(executablePath ? { puppeteerInstance: undefined } : {}),
     });
 
     // Render to a temp file, then upload + clean up.
@@ -208,6 +234,18 @@ export async function renderForDraft(args: {
       // Reasonable defaults. Tune later if quality needs adjustment.
       crf: 22,
       pixelFormat: "yuv420p",
+      // Chromium options. On serverless we hand it @sparticuz/chromium's
+      // binary path explicitly; locally we leave undefined so Remotion's
+      // auto-download takes over.
+      ...(executablePath
+        ? {
+            chromiumOptions: {
+              gl: "swangle",
+            },
+            chromeMode: "chrome-for-testing" as const,
+            browserExecutable: executablePath,
+          }
+        : {}),
     });
 
     const mp4Url = await uploadToStorage({

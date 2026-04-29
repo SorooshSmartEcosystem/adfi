@@ -65,23 +65,31 @@ const nextConfig = {
   // webpack's bundle analyzer. Without these patterns the Lambda function
   // would deploy without the actual JS files for @remotion/renderer etc.
   outputFileTracingIncludes: {
+    // Apply to every route (the more-specific motion-reel route also
+    // matches, but using "/**/*" guarantees nothing is missed for
+    // shared chunks).
     "/**/*": [
       "node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
       "node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/**/*",
       "node_modules/.pnpm/@prisma+engines@*/node_modules/@prisma/engines/**/*",
-      // Remotion runtime deps (loaded via opaque require — see motion-reel.ts).
-      "node_modules/.pnpm/@remotion+renderer@*/node_modules/@remotion/renderer/**/*",
-      "node_modules/.pnpm/@remotion+bundler@*/node_modules/@remotion/bundler/**/*",
-      "node_modules/.pnpm/@remotion+compositor-linux-x64-gnu@*/node_modules/@remotion/compositor-linux-x64-gnu/**/*",
-      "node_modules/.pnpm/@remotion+compositor-linux-x64-musl@*/node_modules/@remotion/compositor-linux-x64-musl/**/*",
-      "node_modules/.pnpm/@rspack+core@*/node_modules/@rspack/core/**/*",
-      "node_modules/.pnpm/@rspack+binding-linux-x64-gnu@*/node_modules/@rspack/binding-linux-x64-gnu/**/*",
-      "node_modules/.pnpm/@rspack+binding@*/node_modules/@rspack/binding/**/*",
-      // Serverless Chromium binary + its launcher.
-      "node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/**/*",
+      // Remotion + sparticuz runtime deps. Three-pronged trace:
+      //   1. The .pnpm store entries (where pnpm actually puts the files)
+      //   2. Symlinks under apps/web/node_modules (what Node walks looking
+      //      for `node_modules/<pkg>` from .next/server/...)
+      //   3. The full @remotion/* and @rspack/* and @sparticuz/* trees
+      //      to capture anything we forgot
+      "node_modules/.pnpm/@remotion+**/**/*",
+      "node_modules/.pnpm/@rspack+**/**/*",
+      "node_modules/.pnpm/@sparticuz+**/**/*",
+      "node_modules/.pnpm/remotion@**/**/*",
+      "apps/web/node_modules/@remotion/**/*",
+      "apps/web/node_modules/@rspack/**/*",
+      "apps/web/node_modules/@sparticuz/**/*",
+      "apps/web/node_modules/remotion/**/*",
       // The @orb/motion-reel package's source — Remotion's bundler reads
       // it directly at runtime to compile the compositions.
       "packages/motion-reel/**/*",
+      "apps/web/node_modules/@orb/motion-reel/**/*",
     ],
   },
 };

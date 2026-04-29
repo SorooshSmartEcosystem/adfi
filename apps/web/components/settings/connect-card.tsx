@@ -234,20 +234,26 @@ export function ConnectCard({
           {provider.status === "manual" ? (
             <div className="mt-lg pt-md border-t-hairline border-border2">
               {connected ? (
-                <div className="flex items-center gap-sm flex-wrap">
-                  <span className="text-xs text-aliveDark">✓ connected</span>
-                  {provider.dbProvider === "TELEGRAM" ? (
-                    <TelegramRefreshButton />
-                  ) : null}
-                  {onDisconnect ? (
-                    <button
-                      type="button"
-                      onClick={onDisconnect}
-                      className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-urgent hover:text-urgent transition-colors"
-                    >
-                      disconnect
-                    </button>
-                  ) : null}
+                <div className="flex flex-col gap-sm">
+                  <div className="flex items-center gap-sm flex-wrap">
+                    <span className="text-xs text-aliveDark">✓ connected</span>
+                    {provider.dbProvider === "TELEGRAM" ? (
+                      <TelegramRefreshButton />
+                    ) : null}
+                    {provider.dbProvider === "FACEBOOK" ||
+                    provider.dbProvider === "INSTAGRAM" ? (
+                      <MetaDiagnoseButton />
+                    ) : null}
+                    {onDisconnect ? (
+                      <button
+                        type="button"
+                        onClick={onDisconnect}
+                        className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-urgent hover:text-urgent transition-colors"
+                      >
+                        disconnect
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               ) : provider.customForm === "telegram-bot" ? (
                 <TelegramBotForm />
@@ -597,6 +603,87 @@ function TelegramChannelForm() {
         ) : null}
       </div>
     </form>
+  );
+}
+
+// Read-side diagnostic for Meta connections. Calls Graph through our
+// tRPC route to surface what subscribed_apps actually contains. Lazy
+// query — only fires when the user clicks. Renders inline below the
+// connect/disconnect controls. The Telegram diagnose has its own
+// component for parity reasons; both share this shape.
+function MetaDiagnoseButton() {
+  const [open, setOpen] = useState(false);
+  const q = trpc.connections.diagnoseMeta.useQuery(undefined, {
+    enabled: open,
+    refetchOnWindowFocus: false,
+  });
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors"
+      >
+        {open ? "hide diagnostics" : "diagnose"}
+      </button>
+      {open ? (
+        <div className="basis-full w-full max-w-full mt-md flex flex-col gap-md text-xs bg-surface rounded-md p-md overflow-hidden">
+          {q.isLoading ? (
+            <div className="text-[11px] text-ink4">one second</div>
+          ) : !q.data ? (
+            <div className="text-[11px] text-urgent">
+              {q.error?.message ?? "couldn't load — check vercel logs"}
+            </div>
+          ) : (
+            <>
+              <div className="text-[11px] text-ink4">
+                expected callback url
+              </div>
+              <div className="font-mono text-[11px] break-all text-ink2">
+                {q.data.expectedCallback}
+              </div>
+              {q.data.rows.length === 0 ? (
+                <div className="text-[11px] text-ink4">
+                  no connected meta accounts
+                </div>
+              ) : (
+                q.data.rows.map((r) => (
+                  <div
+                    key={`${r.provider}-${r.externalId}`}
+                    className="flex flex-col gap-xs pt-md border-t-hairline border-border2"
+                  >
+                    <div className="font-mono text-[11px] text-ink2">
+                      {r.provider} · {r.externalId} · scope={r.scope ?? "—"}
+                    </div>
+                    {r.error ? (
+                      <div className="text-[11px] text-urgent break-words">
+                        graph error: {r.error}
+                      </div>
+                    ) : r.subscribedApps.length === 0 ? (
+                      <div className="text-[11px] text-urgent">
+                        no app subscribed — meta has no callback path for this
+                        page. reconnect to re-run subscribed_apps, or check
+                        pages_messaging permission.
+                      </div>
+                    ) : (
+                      r.subscribedApps.map((app, i) => (
+                        <div key={i} className="text-[11px] text-ink2">
+                          <span className="text-aliveDark">✓ subscribed:</span>{" "}
+                          {app.name ?? `app#${app.id}`} —{" "}
+                          {app.subscribedFields.length === 0
+                            ? "no fields (silent permission failure)"
+                            : app.subscribedFields.join(", ")}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ))
+              )}
+            </>
+          )}
+        </div>
+      ) : null}
+    </>
   );
 }
 

@@ -21,10 +21,10 @@ export function CallDetail({ callId }: { callId: string }) {
   const query = trpc.calls.get.useQuery({ id: callId });
 
   if (query.isLoading) {
-    return <div className="p-xl text-sm text-ink3">one second</div>;
+    return <div className="p-xl text-sm text-ink3" dir="auto">one second</div>;
   }
   if (!query.data) {
-    return <div className="p-xl text-sm text-ink3">call not found.</div>;
+    return <div className="p-xl text-sm text-ink3" dir="auto">call not found.</div>;
   }
 
   const call = query.data;
@@ -38,7 +38,7 @@ export function CallDetail({ callId }: { callId: string }) {
     <>
       <div className="flex items-start justify-between gap-md mb-lg">
         <div className="min-w-0">
-          <div className="text-base font-medium truncate">{call.fromNumber}</div>
+          <div className="text-base font-medium truncate" dir="auto">{call.fromNumber}</div>
           <div className="text-xs text-ink4 mt-[2px]">
             call · {timeLabel(call.startedAt)}
           </div>
@@ -46,13 +46,13 @@ export function CallDetail({ callId }: { callId: string }) {
       </div>
 
       <div className="bg-surface rounded-[14px] p-lg mb-md">
-        <div className="text-sm font-medium mb-sm">
+        <div className="text-sm font-medium mb-sm" dir="auto">
           {STATUS_LEAD[call.recoveredStatus] ?? "call."}
         </div>
         {intent.summary ? (
-          <p className="text-sm text-ink2 leading-[1.6]">{intent.summary}</p>
+          <p className="text-sm text-ink2 leading-[1.6]" dir="auto">{intent.summary}</p>
         ) : (
-          <p className="text-sm text-ink3 leading-[1.6]">
+          <p className="text-sm text-ink3 leading-[1.6]" dir="auto">
             no transcript yet — check back once i finish processing.
           </p>
         )}
@@ -68,7 +68,7 @@ export function CallDetail({ callId }: { callId: string }) {
               </span>
             ) : null}
           </div>
-          <p className="text-sm font-medium leading-[1.5]">
+          <p className="text-sm font-medium leading-[1.5]" dir="auto">
             {appt.scheduledFor
               .toLocaleString("en-US", {
                 weekday: "long",

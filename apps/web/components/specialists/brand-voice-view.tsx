@@ -31,10 +31,10 @@ export function BrandVoiceView({
   if (!voice) {
     return (
       <Card>
-        <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm">
+        <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-sm" dir="auto">
           NO VOICE YET
         </div>
-        <p className="text-md text-ink3 leading-relaxed">
+        <p className="text-md text-ink3 leading-relaxed" dir="auto">
           finish onboarding (business description + goal) and i&apos;ll
           generate your brand voice here.
         </p>
@@ -45,10 +45,10 @@ export function BrandVoiceView({
   return (
     <>
       <div className="flex items-center justify-between mb-md">
-        <div className="font-mono text-sm text-ink4 tracking-[0.2em]">
+        <div className="font-mono text-sm text-ink4 tracking-[0.2em]" dir="auto">
           BRAND VOICE FINGERPRINT
         </div>
-        <div className="font-mono text-xs text-ink4">
+        <div className="font-mono text-xs text-ink4" dir="auto">
           refreshed {timeAgo(lastRefreshedAt)}
         </div>
       </div>
@@ -62,7 +62,7 @@ export function BrandVoiceView({
       */}
 
       <Card className="mb-md">
-        <div className="font-mono text-[10px] text-aliveDark tracking-[0.2em] mb-sm">
+        <div className="font-mono text-[10px] text-aliveDark tracking-[0.2em] mb-sm" dir="auto">
           ● HOW YOU SOUND
         </div>
         <p className="text-md leading-relaxed" dir="auto">
@@ -71,7 +71,7 @@ export function BrandVoiceView({
       </Card>
 
       <Card className="mb-md">
-        <div className="font-mono text-[10px] text-aliveDark tracking-[0.2em] mb-sm">
+        <div className="font-mono text-[10px] text-aliveDark tracking-[0.2em] mb-sm" dir="auto">
           ● VALUES
         </div>
         <ul className="flex flex-wrap gap-xs">
@@ -88,21 +88,21 @@ export function BrandVoiceView({
       </Card>
 
       <Card className="mb-md">
-        <div className="font-mono text-[10px] text-attentionText tracking-[0.2em] mb-sm">
+        <div className="font-mono text-[10px] text-attentionText tracking-[0.2em] mb-sm" dir="auto">
           ● AUDIENCE
         </div>
         <ul className="flex flex-col gap-sm">
           {(voice.audienceSegments ?? []).map((seg) => (
             <li key={seg.name} dir="auto">
-              <span className="text-md font-medium">{seg.name}</span>
-              <span className="text-md text-ink3"> — {seg.description}</span>
+              <span className="text-md font-medium" dir="auto">{seg.name}</span>
+              <span className="text-md text-ink3" dir="auto"> — {seg.description}</span>
             </li>
           ))}
         </ul>
       </Card>
 
       <Card className="mb-md">
-        <div className="font-mono text-[10px] text-ink4 tracking-[0.2em] mb-sm">
+        <div className="font-mono text-[10px] text-ink4 tracking-[0.2em] mb-sm" dir="auto">
           ● CONTENT PILLARS
         </div>
         <ul className="flex flex-col gap-xs">
@@ -115,7 +115,7 @@ export function BrandVoiceView({
       </Card>
 
       <Card className="mb-md">
-        <div className="font-mono text-[10px] text-urgent tracking-[0.2em] mb-sm">
+        <div className="font-mono text-[10px] text-urgent tracking-[0.2em] mb-sm" dir="auto">
           ● THINGS I&apos;LL AVOID
         </div>
         <ul className="flex flex-col gap-xs">

@@ -10,11 +10,11 @@ export function MetricTiles({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-lg mb-2xl">
       {items.map((m) => (
         <Card key={m.label}>
-          <div className="font-mono text-sm text-ink4 mb-sm tracking-[0.2em]">
+          <div className="font-mono text-sm text-ink4 mb-sm tracking-[0.2em]" dir="auto">
             {m.label}
           </div>
-          <div className="text-3xl font-medium tracking-tight">{m.value}</div>
-          <div className="text-sm text-ink3 mt-sm">{m.caption}</div>
+          <div className="text-3xl font-medium tracking-tight" dir="auto">{m.value}</div>
+          <div className="text-sm text-ink3 mt-sm" dir="auto">{m.caption}</div>
         </Card>
       ))}
     </div>

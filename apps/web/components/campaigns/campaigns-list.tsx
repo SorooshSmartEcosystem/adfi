@@ -24,14 +24,14 @@ function fmtBudget(cents: number): string {
 export function CampaignsList() {
   const list = trpc.campaigns.list.useQuery();
 
-  if (list.isLoading) return <p className="text-sm text-ink3">one second</p>;
+  if (list.isLoading) return <p className="text-sm text-ink3" dir="auto">one second</p>;
   if (!list.data) return null;
 
   if (list.data.campaigns.length === 0) {
     return (
       <Card>
-        <div className="text-md font-medium mb-sm">no campaigns yet</div>
-        <p className="text-sm text-ink3 leading-relaxed mb-md">
+        <div className="text-md font-medium mb-sm" dir="auto">no campaigns yet</div>
+        <p className="text-sm text-ink3 leading-relaxed mb-md" dir="auto">
           tell me what to promote, the budget, and the platforms — i'll
           draft a complete campaign across meta, google, and youtube.
           you click approve once and i handle every platform.
@@ -83,7 +83,7 @@ export function CampaignsList() {
                   {fmtBudget(spent)} of {fmtBudget(totalBudget)}
                 </span>
               </div>
-              <div className="text-md font-medium leading-snug truncate">
+              <div className="text-md font-medium leading-snug truncate" dir="auto">
                 {c.name}
               </div>
               <div className="mt-sm h-[3px] bg-bg rounded-full overflow-hidden">

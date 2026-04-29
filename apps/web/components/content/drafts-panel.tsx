@@ -164,7 +164,7 @@ export function DraftsPanel() {
           />
         ) : null}
         {generate.error ? (
-          <p className="text-sm text-urgent mt-sm">
+          <p className="text-sm text-urgent mt-sm" dir="auto">
             {generate.error.message}
           </p>
         ) : null}
@@ -181,15 +181,15 @@ export function DraftsPanel() {
           needs your eyes · {awaitingItems.length}
         </div>
         {isLoading ? (
-          <p className="text-sm text-ink3">one second</p>
+          <p className="text-sm text-ink3" dir="auto">one second</p>
         ) : awaitingItems.length === 0 ? (
           <div className="bg-surface rounded-md p-lg">
-            <p className="text-md leading-relaxed mb-sm">
+            <p className="text-md leading-relaxed mb-sm" dir="auto">
               {filter === "ALL"
                 ? "inbox zero — nothing waiting for review."
                 : `nothing waiting on ${filter.toLowerCase().replace(/_/g, " ")}.`}
             </p>
-            <p className="text-sm text-ink3 leading-relaxed">
+            <p className="text-sm text-ink3 leading-relaxed" dir="auto">
               echo drafts on the weekly cadence, or you can pick a format chip
               above and hit &apos;write me one&apos; for an on-demand draft.
               tip: pick the format that hasn&apos;t shipped recently to keep

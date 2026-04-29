@@ -34,7 +34,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
     onSuccess: () => utils.campaigns.get.invalidate({ id: campaignId }),
   });
 
-  if (q.isLoading) return <p className="text-sm text-ink3">one second</p>;
+  if (q.isLoading) return <p className="text-sm text-ink3" dir="auto">one second</p>;
   if (!q.data) return null;
 
   const c = q.data;
@@ -65,14 +65,14 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
     <div className="flex flex-col gap-lg">
       <Card>
         <div className="flex items-baseline justify-between flex-wrap gap-sm mb-sm">
-          <h2 className="text-xl font-medium tracking-tight">{c.name}</h2>
-          <span className="text-xs text-ink4 font-mono">
+          <h2 className="text-xl font-medium tracking-tight" dir="auto">{c.name}</h2>
+          <span className="text-xs text-ink4 font-mono" dir="auto">
             {fmtMoney(sched.totalBudgetCents ?? 0)} ·{" "}
             {c.platforms.length > 0 ? c.platforms.map((p) => PLATFORM_LABEL[p]).join(" · ") : "no platforms"}
           </span>
         </div>
         {reasoning.summary ? (
-          <p className="text-sm text-ink2 leading-relaxed">
+          <p className="text-sm text-ink2 leading-relaxed" dir="auto">
             {reasoning.summary}
           </p>
         ) : null}
@@ -87,7 +87,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       {/* Audience */}
       <Card>
         <div className="text-xs text-ink4 mb-sm">audience</div>
-        <p className="text-sm text-ink2 leading-relaxed mb-sm">
+        <p className="text-sm text-ink2 leading-relaxed mb-sm" dir="auto">
           {audience.rationale}
         </p>
         <div className="flex flex-wrap gap-sm text-xs">
@@ -129,14 +129,14 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               );
             })}
             {platformBudget ? (
-              <span className="ml-auto text-[11px] text-ink4 font-mono">
+              <span className="ml-auto text-[11px] text-ink4 font-mono" dir="auto">
                 {fmtMoney(platformBudget)} on this platform
               </span>
             ) : null}
           </div>
 
           {visibleAds.length === 0 ? (
-            <p className="text-sm text-ink3">no creative variants yet</p>
+            <p className="text-sm text-ink3" dir="auto">no creative variants yet</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
               {visibleAds.map((ad) => {
@@ -154,26 +154,26 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                         className="w-full aspect-[4/5] object-cover bg-bg"
                       />
                     ) : ad.format === "IMAGE" ? (
-                      <div className="w-full aspect-[4/5] bg-bg flex items-center justify-center text-xs text-ink4 font-mono">
+                      <div className="w-full aspect-[4/5] bg-bg flex items-center justify-center text-xs text-ink4 font-mono" dir="auto">
                         drawing image…
                       </div>
                     ) : null}
                     <div className="p-md">
-                      <div className="text-[10px] font-mono uppercase tracking-[0.1em] text-ink4 mb-xs">
+                      <div className="text-[10px] font-mono uppercase tracking-[0.1em] text-ink4 mb-xs" dir="auto">
                         {ad.angle}
                       </div>
                       {ad.format === "IMAGE" ? (
                         <>
-                          <div className="text-sm font-medium leading-snug mb-xs">
+                          <div className="text-sm font-medium leading-snug mb-xs" dir="auto">
                             {String(cr.headline ?? "")}
                           </div>
-                          <div className="text-sm text-ink2 leading-relaxed line-clamp-3">
+                          <div className="text-sm text-ink2 leading-relaxed line-clamp-3" dir="auto">
                             {String(cr.body ?? "")}
                           </div>
                         </>
                       ) : ad.format === "VIDEO_SCRIPT" ? (
                         <>
-                          <div className="text-sm font-medium leading-snug mb-xs">
+                          <div className="text-sm font-medium leading-snug mb-xs" dir="auto">
                             {String(cr.hook ?? "")}
                           </div>
                           {Array.isArray(cr.shotList) ? (
@@ -187,7 +187,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                       ) : ad.format === "TEXT" ? (
                         <>
                           {Array.isArray(cr.headlines) ? (
-                            <div className="text-sm font-medium mb-xs">
+                            <div className="text-sm font-medium mb-xs" dir="auto">
                               {(cr.headlines as string[]).slice(0, 2).join(" · ")}
                             </div>
                           ) : null}

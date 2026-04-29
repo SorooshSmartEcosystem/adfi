@@ -170,22 +170,55 @@ body {
 }
 
 /* ===== Bidirectional text (Farsi / Arabic / Hebrew / etc.) =====
-   `dir="auto"` lets the browser pick LTR or RTL per element based
-   on the first strong character. `unicode-bidi: isolate` is added
-   so a Farsi span embedded in an English container doesn't disturb
-   the surrounding layout (and vice versa). Apply via the HTML
-   `dir="auto"` attribute on any element that renders user-generated
-   content from a potentially-RTL language: brand voice strings,
-   draft hooks/bodies/captions, message bubbles, plan slot text,
-   etc.
 
-   Also: target font fallback. Apple system / SF Pro fall through
-   to Geeza Pro on macOS for Arabic-script text. On non-Apple
-   browsers we add Tahoma + Vazir + Noto to the family stack so
-   Farsi/Arabic users on Linux/Windows/Android don't get tofu boxes
-   or Latin-only fallback that breaks character shaping. */
+   `unicode-bidi: plaintext` is the CSS equivalent of the HTML
+   `dir="auto"` attribute. Per the W3C bidi spec, a plaintext
+   element's direction is computed from the first strong character
+   in its content — Farsi paragraph → RTL, English paragraph → LTR,
+   mixed → first-strong-char wins per element.
+
+   Applied to every leaf text element that commonly holds user
+   content. Anything inside is auto-bidi'd without needing per-
+   element dir="auto" attributes scattered through the JSX. The
+   element-level `dir="auto"` we sprinkled earlier is redundant
+   when this rule applies, but it's not harmful — `dir="auto"`
+   wins over a parent's plaintext setting.
+
+   Font fallback: Apple system / SF Pro fall through to Geeza Pro
+   on macOS naturally. On Linux/Windows/Android we add Vazirmatn /
+   Vazir / Tahoma / Noto Sans Arabic / Noto Naskh Arabic so Farsi
+   users don't get tofu boxes or Latin-only Cyrillic-shaped
+   fallbacks. The font-family is scoped to text-bearing elements so
+   we don't override the SF Pro feel on chrome. */
+p,
+li,
+h1, h2, h3, h4, h5, h6,
+blockquote,
+figcaption,
+td, th,
+dt, dd,
+label,
+input,
+textarea,
+[contenteditable] {
+  unicode-bidi: plaintext;
+}
+
 [dir="auto"], [dir="rtl"] {
   unicode-bidi: isolate;
+}
+
+p,
+li,
+h1, h2, h3, h4, h5, h6,
+blockquote,
+figcaption,
+td, th,
+dt, dd,
+label,
+input,
+textarea,
+[dir="auto"], [dir="rtl"] {
   font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Vazirmatn", "Vazir", "Tahoma",

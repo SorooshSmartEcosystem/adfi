@@ -164,7 +164,7 @@ export default async function ContentPage({
           <div className="mb-xl">
             <PlanPanel />
           </div>
-          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-md mt-2xl">
+          <div className="font-mono text-sm text-ink4 tracking-[0.2em] mb-md mt-2xl" dir="auto">
             CALENDAR · {rangeLabel}
           </div>
           <div className="mb-xl">

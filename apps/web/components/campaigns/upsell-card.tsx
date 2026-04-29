@@ -8,13 +8,13 @@ import Link from "next/link";
 export function CampaignsUpsellCard() {
   return (
     <div className="bg-white border-hairline border-border rounded-[20px] p-xl text-center max-w-[520px] mx-auto">
-      <div className="text-[11px] font-mono uppercase tracking-[0.15em] text-ink4 mb-md">
+      <div className="text-[11px] font-mono uppercase tracking-[0.15em] text-ink4 mb-md" dir="auto">
         STUDIO FEATURE
       </div>
-      <h2 className="text-2xl font-medium tracking-tight mb-md">
+      <h2 className="text-2xl font-medium tracking-tight mb-md" dir="auto">
         run paid ads, hands-off.
       </h2>
-      <p className="text-sm text-ink3 leading-relaxed mb-xl">
+      <p className="text-sm text-ink3 leading-relaxed mb-xl" dir="auto">
         plan, run, and optimize paid campaigns across meta, google,
         youtube, and tiktok — all from one brief. one approval click,
         i handle the rest. starting at $199/mo on studio.

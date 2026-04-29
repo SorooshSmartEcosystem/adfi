@@ -27,7 +27,7 @@ export function WhatsWorking({
           className="flex items-center justify-between px-[22px] py-md border-b-hairline border-border2 last:border-b-0"
         >
           <span className="text-xs text-ink4 w-6 shrink-0">{i + 1}.</span>
-          <span className="text-sm flex-1">{it.label}</span>
+          <span className="text-sm flex-1" dir="auto">{it.label}</span>
           <span
             className={`text-xs shrink-0 ${
               it.delta.startsWith("-") ? "text-ink4" : "text-aliveDark"

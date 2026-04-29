@@ -54,12 +54,12 @@ export function MessageThread({ threadId }: { threadId: string }) {
   }, [messageCount, threadId]);
 
   if (query.isLoading) {
-    return <div className="p-xl text-sm text-ink3">one second</div>;
+    return <div className="p-xl text-sm text-ink3" dir="auto">one second</div>;
   }
 
   if (!query.data || query.data.messages.length === 0) {
     return (
-      <div className="p-xl text-sm text-ink3">this thread is empty.</div>
+      <div className="p-xl text-sm text-ink3" dir="auto">this thread is empty.</div>
     );
   }
 
@@ -87,12 +87,12 @@ export function MessageThread({ threadId }: { threadId: string }) {
               className="w-10 h-10 rounded-full bg-surface object-cover shrink-0"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-sm font-medium shrink-0">
+            <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-sm font-medium shrink-0" dir="auto">
               {initials}
             </div>
           )}
           <div className="min-w-0">
-            <div className="text-base font-medium truncate">{headerName}</div>
+            <div className="text-base font-medium truncate" dir="auto">{headerName}</div>
             <div className="text-xs text-ink4 mt-[2px]">
               {channelLabel(first.channel)} · {timeLabel(first.createdAt)}
             </div>
@@ -135,7 +135,7 @@ export function MessageThread({ threadId }: { threadId: string }) {
                     : "bg-surface rounded-[16px_16px_16px_4px]"
                 }`}
               >
-                <div className="text-md whitespace-pre-wrap leading-[1.5]">
+                <div className="text-md whitespace-pre-wrap leading-[1.5]" dir="auto">
                   {m.body}
                 </div>
                 <div
@@ -150,7 +150,7 @@ export function MessageThread({ threadId }: { threadId: string }) {
       </div>
 
       {userHandling ? (
-        <div className="text-[11px] text-ink4 mt-md shrink-0 leading-relaxed">
+        <div className="text-[11px] text-ink4 mt-md shrink-0 leading-relaxed" dir="auto">
           you&apos;re handling this thread — signal won&apos;t auto-reply.
           tap &apos;let signal handle&apos; above to hand it back.
         </div>
@@ -172,7 +172,7 @@ export function MessageThread({ threadId }: { threadId: string }) {
           type="submit"
           disabled={sendReply.isPending || !reply.trim()}
           className="px-lg py-[10px] bg-ink text-white rounded-full text-sm font-medium disabled:opacity-40"
-        >
+        dir="auto">
           {sendReply.isPending ? "sending..." : "send"}
         </button>
       </form>

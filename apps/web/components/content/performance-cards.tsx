@@ -27,7 +27,7 @@ export function PerformanceCards({
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-md font-medium">{bestPost.title}</div>
+                <div className="text-md font-medium" dir="auto">{bestPost.title}</div>
                 <div className="text-xs text-ink4 mt-xs">
                   {bestPost.publishedAt
                     .toLocaleDateString("en-US", {
@@ -39,7 +39,7 @@ export function PerformanceCards({
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-lg font-medium">
+                <div className="text-lg font-medium" dir="auto">
                   {bestPost.reach >= 1000
                     ? `${(bestPost.reach / 1000).toFixed(1).replace(/\.0$/, "")}k`
                     : bestPost.reach}
@@ -49,7 +49,7 @@ export function PerformanceCards({
             </div>
           </>
         ) : (
-          <p className="text-sm text-ink3">
+          <p className="text-sm text-ink3" dir="auto">
             nothing published yet — your first post will show up here.
           </p>
         )}
@@ -58,7 +58,7 @@ export function PerformanceCards({
       <Card>
         <div className="text-xs text-ink4 mb-sm">what&apos;s working</div>
         {insights.length === 0 ? (
-          <p className="text-sm text-ink3">
+          <p className="text-sm text-ink3" dir="auto">
             i&apos;ll surface what&apos;s working once you&apos;ve published a
             few posts.
           </p>
@@ -66,7 +66,7 @@ export function PerformanceCards({
           <div className="flex flex-col gap-sm">
             {insights.map((i) => (
               <div key={i.label} className="flex items-center justify-between">
-                <span className="text-sm">{i.label}</span>
+                <span className="text-sm" dir="auto">{i.label}</span>
                 <span
                   className={`text-sm ${i.deltaPct >= 0 ? "text-aliveDark" : "text-ink4"}`}
                 >

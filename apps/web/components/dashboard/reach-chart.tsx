@@ -44,7 +44,7 @@ export function ReachChart({
           <div
             className="font-medium leading-none mb-[6px]"
             style={{ fontSize: "36px", letterSpacing: "-0.025em" }}
-          >
+          dir="auto">
             {fmtReach(totalReach)}
           </div>
           <div className="text-xs text-ink3">

@@ -53,7 +53,7 @@ export default async function AdsSpecialistPage() {
       ) : (
         <>
           <div className="flex items-center justify-between mb-md mt-sm">
-            <h2 className="text-md font-medium">recent campaigns</h2>
+            <h2 className="text-md font-medium" dir="auto">recent campaigns</h2>
             <Link
               href="/campaigns"
               className="font-mono text-[11px] text-ink2 hover:text-ink"
@@ -72,11 +72,11 @@ export default async function AdsSpecialistPage() {
                     : ""
                 }`}
               >
-                <div className="font-mono text-[11px] text-ink4 mb-xs tracking-wider">
+                <div className="font-mono text-[11px] text-ink4 mb-xs tracking-wider" dir="auto">
                   {c.status.toLowerCase()} ·{" "}
                   {c.platforms.join(", ").toLowerCase() || "no platform"}
                 </div>
-                <div className="text-sm font-medium leading-snug">{c.name}</div>
+                <div className="text-sm font-medium leading-snug" dir="auto">{c.name}</div>
               </Link>
             ))}
           </div>

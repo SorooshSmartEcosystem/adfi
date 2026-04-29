@@ -83,7 +83,7 @@ function ChannelCard({ channel }: { channel: Channel }) {
           <div className="w-7 h-7 rounded-[7px] bg-surface flex items-center justify-center text-ink shrink-0">
             {ICONS[channel.name] ?? ICONS.Email}
           </div>
-          <div className="text-xs font-medium flex-1 truncate">
+          <div className="text-xs font-medium flex-1 truncate" dir="auto">
             {channel.name}
           </div>
           <span
@@ -100,7 +100,7 @@ function ChannelCard({ channel }: { channel: Channel }) {
             <div
               className="font-medium leading-none mb-[6px]"
               style={{ fontSize: "22px", letterSpacing: "-0.02em" }}
-            >
+            dir="auto">
               {channel.num}
             </div>
             <div className="text-xs text-ink4">

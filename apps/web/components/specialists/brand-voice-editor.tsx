@@ -26,7 +26,7 @@ function StringList({
 }) {
   return (
     <div className="flex flex-col gap-xs">
-      <div className="font-mono text-[10px] text-ink4 tracking-[0.2em] mb-xs">
+      <div className="font-mono text-[10px] text-ink4 tracking-[0.2em] mb-xs" dir="auto">
         {label}
       </div>
       {items.map((v, i) => (
@@ -105,7 +105,7 @@ export function BrandVoiceEditor({
           type="button"
           onClick={onClose}
           className="font-mono text-xs text-ink4 hover:text-ink"
-        >
+        dir="auto">
           cancel
         </button>
       </div>
@@ -125,7 +125,7 @@ export function BrandVoiceEditor({
         />
 
         <div className="flex flex-col gap-xs">
-          <div className="font-mono text-[10px] text-ink4 tracking-[0.2em] mb-xs">
+          <div className="font-mono text-[10px] text-ink4 tracking-[0.2em] mb-xs" dir="auto">
             AUDIENCE
           </div>
           {voice.audienceSegments.map((seg, i) => (
@@ -201,7 +201,7 @@ export function BrandVoiceEditor({
         />
 
         {update.error ? (
-          <p className="font-mono text-xs text-urgent">
+          <p className="font-mono text-xs text-urgent" dir="auto">
             {update.error.message}
           </p>
         ) : null}
@@ -220,7 +220,7 @@ export function BrandVoiceEditor({
             onClick={onClose}
             disabled={update.isPending}
             className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
-          >
+          dir="auto">
             discard
           </button>
         </div>

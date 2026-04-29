@@ -18,7 +18,7 @@ export function EngagementBars({
   return (
     <div className="bg-white border-hairline border-border rounded-[16px] p-[28px] mb-[48px]">
       <div className="mb-[28px]">
-        <div className="text-sm font-medium mb-[4px]">engagement by day</div>
+        <div className="text-sm font-medium mb-[4px]" dir="auto">engagement by day</div>
         {subtitle ? (
           <div className="text-xs text-ink3">{subtitle}</div>
         ) : null}

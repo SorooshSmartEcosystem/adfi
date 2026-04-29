@@ -93,16 +93,16 @@ export function InboxView({
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {query.isLoading ? (
-          <div className="px-lg py-xl text-sm text-ink3">one second</div>
+          <div className="px-lg py-xl text-sm text-ink3" dir="auto">one second</div>
         ) : filtered.length === 0 ? (
           <div className="px-lg py-xl">
-            <p className="text-md leading-[1.6] text-ink2 mb-md">
+            <p className="text-md leading-[1.6] text-ink2 mb-md" dir="auto">
               {search.trim()
                 ? "no threads match that search."
                 : EMPTY_COPY[filter].headline}
             </p>
             {!search.trim() && EMPTY_COPY[filter].body ? (
-              <p className="text-sm text-ink3 leading-[1.6]">
+              <p className="text-sm text-ink3 leading-[1.6]" dir="auto">
                 {EMPTY_COPY[filter].body}
               </p>
             ) : null}

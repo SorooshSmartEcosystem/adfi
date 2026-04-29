@@ -72,20 +72,20 @@ export function ThreadRow({
             className="w-8 h-8 rounded-full bg-surface shrink-0 mt-[2px] object-cover"
           />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-[11px] font-medium shrink-0 mt-[2px]">
+          <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-[11px] font-medium shrink-0 mt-[2px]" dir="auto">
             {initialsOf(item.displayName ?? item.fromAddress)}
           </div>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-md mb-[2px]">
-            <div className="text-sm font-medium truncate">
+            <div className="text-sm font-medium truncate" dir="auto">
               {item.displayName ?? item.fromAddress}
             </div>
             <div className="text-xs text-ink4 shrink-0">
               {timeLabel(item.at)}
             </div>
           </div>
-          <div className="text-xs text-ink3 truncate mb-[4px]">
+          <div className="text-xs text-ink3 truncate mb-[4px]" dir="auto">
             {item.preview}
           </div>
           <div className="text-[11px] text-ink4">

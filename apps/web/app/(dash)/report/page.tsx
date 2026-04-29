@@ -111,19 +111,19 @@ export default async function ReportPage() {
           <div className="text-xs text-ink4 mb-sm">
             revenue impact
           </div>
-          <div className="text-3xl font-medium tracking-tight">
+          <div className="text-3xl font-medium tracking-tight" dir="auto">
             {formatCurrency(report.revenueImpactCents)}
           </div>
-          <div className="text-sm text-ink3 mt-sm">
+          <div className="text-sm text-ink3 mt-sm" dir="auto">
             est. from appointments i booked
           </div>
         </Card>
         <Card>
           <div className="text-xs text-ink4 mb-sm">reach</div>
-          <div className="text-3xl font-medium tracking-tight">
+          <div className="text-3xl font-medium tracking-tight" dir="auto">
             {formatReach(report.reach)}
           </div>
-          <div className="text-sm text-ink3 mt-sm">
+          <div className="text-sm text-ink3 mt-sm" dir="auto">
             {report.reachDeltaPct === null ? (
               "first week of tracking"
             ) : (
@@ -147,10 +147,10 @@ export default async function ReportPage() {
           <div className="text-xs text-ink4 mb-sm">
             time you saved
           </div>
-          <div className="text-3xl font-medium tracking-tight">
+          <div className="text-3xl font-medium tracking-tight" dir="auto">
             {timeSaved(report)}
           </div>
-          <div className="text-sm text-ink3 mt-sm">
+          <div className="text-sm text-ink3 mt-sm" dir="auto">
             vs doing it all yourself
           </div>
         </Card>
@@ -160,7 +160,7 @@ export default async function ReportPage() {
         <div className="text-xs text-ink4 mb-md">
           this week&apos;s story
         </div>
-        <p className="text-lg leading-relaxed">{storyFrom(report)}</p>
+        <p className="text-lg leading-relaxed" dir="auto">{storyFrom(report)}</p>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-lg">
@@ -172,7 +172,7 @@ export default async function ReportPage() {
             {didItems.map((item) => (
               <div key={item} className="flex items-center gap-sm">
                 <StatusDot tone="alive" />
-                <span className="text-md">{item}</span>
+                <span className="text-md" dir="auto">{item}</span>
               </div>
             ))}
           </div>
@@ -182,7 +182,7 @@ export default async function ReportPage() {
             what i noticed
           </div>
           {report.findings.length === 0 ? (
-            <p className="text-sm text-ink3">
+            <p className="text-sm text-ink3" dir="auto">
               nothing notable yet — i&apos;ll surface patterns as they appear.
             </p>
           ) : (
@@ -194,7 +194,7 @@ export default async function ReportPage() {
                       f.severity === "NEEDS_ATTENTION" ? "attn" : "alive"
                     }
                   />
-                  <span className="text-md">{f.summary}</span>
+                  <span className="text-md" dir="auto">{f.summary}</span>
                 </div>
               ))}
             </div>

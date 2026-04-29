@@ -22,7 +22,7 @@ export function InboxPage() {
       <InboxView onSelect={setSelection} activeId={selection?.id} />
       <Card className="flex flex-col min-h-0 overflow-hidden">
         {selection === null ? (
-          <div className="text-sm text-ink3 py-lg">
+          <div className="text-sm text-ink3 py-lg" dir="auto">
             pick a conversation to see what i said.
           </div>
         ) : selection.kind === "thread" ? (

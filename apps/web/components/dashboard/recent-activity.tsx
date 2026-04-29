@@ -35,7 +35,7 @@ export function RecentActivity({ items }: { items: ActivityItem[] }) {
   if (items.length === 0) {
     return (
       <div className="bg-white border-hairline border-border rounded-[16px] px-[22px] py-lg mb-[48px]">
-        <p className="text-sm text-ink3 leading-[1.6] mb-md">
+        <p className="text-sm text-ink3 leading-[1.6] mb-md" dir="auto">
           your agents are warming up. activity shows up here as it happens.
         </p>
       </div>
@@ -50,7 +50,7 @@ export function RecentActivity({ items }: { items: ActivityItem[] }) {
           className="px-[22px] py-[18px] border-b-hairline border-border2 last:border-b-0 transition-colors hover:bg-surface2"
         >
           <div className="flex items-center gap-md mb-[6px]">
-            <div className="text-sm font-medium flex-1 min-w-0">
+            <div className="text-sm font-medium flex-1 min-w-0" dir="auto">
               {item.title}
             </div>
             <div className="text-xs text-ink4 shrink-0">

@@ -16,14 +16,14 @@ export function NeedsYouBanner({
       className="flex items-center gap-md bg-attentionBg border-hairline border-attentionBorder rounded-[16px] px-[22px] py-[20px] mb-[48px] transition-transform hover:-translate-y-[1px]"
     >
       <div className="flex-1 min-w-0">
-        <div className="text-base font-medium leading-[1.4] mb-[4px]">
+        <div className="text-base font-medium leading-[1.4] mb-[4px]" dir="auto">
           {title}
         </div>
         {subtitle ? (
           <div className="text-xs text-attentionText">{subtitle}</div>
         ) : null}
       </div>
-      <span className="text-attentionText text-lg shrink-0" aria-hidden>
+      <span className="text-attentionText text-lg shrink-0" aria-hidden dir="auto">
         →
       </span>
     </Link>

@@ -41,7 +41,7 @@ export default async function SettingsPage() {
           <Row
             label="your adfi number"
             value={
-              <span className="font-mono">
+              <span className="font-mono" dir="auto">
                 {formatPhone(home.phoneStatus.active ? home.phoneStatus.number : null)}
               </span>
             }
@@ -63,7 +63,7 @@ export default async function SettingsPage() {
       </Section>
 
       <Section label="CONNECT YOUR CHANNELS" anchor="channels">
-        <p className="text-sm text-ink3 mb-md max-w-[480px]">
+        <p className="text-sm text-ink3 mb-md max-w-[480px]" dir="auto">
           tap a row to see exactly what to do. instagram and linkedin connect
           buttons activate as soon as their oauth flows ship.
         </p>
@@ -74,8 +74,8 @@ export default async function SettingsPage() {
         <Card>
           <div className="flex items-center justify-between gap-md">
             <div>
-              <div className="text-md font-medium mb-xs">delete account</div>
-              <div className="text-sm text-ink3">
+              <div className="text-md font-medium mb-xs" dir="auto">delete account</div>
+              <div className="text-sm text-ink3" dir="auto">
                 this cannot be undone. you&apos;ll have 30 days to change your
                 mind.
               </div>
@@ -84,7 +84,7 @@ export default async function SettingsPage() {
               <button
                 type="button"
                 className="font-mono text-xs text-urgent border-hairline border-urgent rounded-full px-md py-[5px]"
-              >
+              dir="auto">
                 delete
               </button>
             </form>

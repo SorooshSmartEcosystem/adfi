@@ -31,8 +31,8 @@ function GenerateErrorBanner({
     const isTrial = plan === "TRIAL";
     return (
       <div className="mt-md p-md rounded-[12px] border-hairline border-border bg-surface">
-        <div className="text-sm font-medium mb-xs">monthly limit reached.</div>
-        <p className="text-sm text-ink3 leading-relaxed mb-md">
+        <div className="text-sm font-medium mb-xs" dir="auto">monthly limit reached.</div>
+        <p className="text-sm text-ink3 leading-relaxed mb-md" dir="auto">
           {error.message}
         </p>
         {isTrial ? (
@@ -53,12 +53,12 @@ function GenerateErrorBanner({
           </button>
         )}
         {portal.error ? (
-          <p className="text-sm text-urgent mt-sm">{portal.error.message}</p>
+          <p className="text-sm text-urgent mt-sm" dir="auto">{portal.error.message}</p>
         ) : null}
       </div>
     );
   }
-  return <p className="text-sm text-urgent mt-md">{error.message}</p>;
+  return <p className="text-sm text-urgent mt-md" dir="auto">{error.message}</p>;
 }
 
 type Palette = {
@@ -226,7 +226,7 @@ export function BrandKitPanel() {
   const [styleDraft, setStyleDraft] = useState("");
 
   if (query.isLoading) {
-    return <p className="text-sm text-ink3">one second</p>;
+    return <p className="text-sm text-ink3" dir="auto">one second</p>;
   }
   if (!query.data) return null;
 
@@ -252,8 +252,8 @@ export function BrandKitPanel() {
     if (!planAllowsBrandKit) {
       return (
         <Card>
-          <div className="text-md font-medium mb-sm">brand kit · paid feature</div>
-          <p className="text-sm text-ink3 leading-relaxed mb-md">
+          <div className="text-md font-medium mb-sm" dir="auto">brand kit · paid feature</div>
+          <p className="text-sm text-ink3 leading-relaxed mb-md" dir="auto">
             a palette, typography pairing, five hand-tuned svg logo variants,
             and three brand cover graphics — all crafted to your voice and
             usable across echo, signal, and your weekly report. each
@@ -270,8 +270,8 @@ export function BrandKitPanel() {
     }
     return (
       <Card>
-        <div className="text-md font-medium mb-sm">no brand kit yet</div>
-        <p className="text-sm text-ink3 leading-relaxed mb-md">
+        <div className="text-md font-medium mb-sm" dir="auto">no brand kit yet</div>
+        <p className="text-sm text-ink3 leading-relaxed mb-md" dir="auto">
           generate a palette, typography pairing, five hand-tuned svg logo
           variants, and three brand cover graphics — all crafted to your
           voice. every asset is editable. echo will use this look on every
@@ -473,7 +473,7 @@ function SizeShowcase({ logo, palette }: { logo: string; palette: Palette }) {
               className="[&>svg]:w-full [&>svg]:h-full"
               dangerouslySetInnerHTML={{ __html: cleanSvg(rendered) }}
             />
-            <div className="font-mono text-[10px] text-ink4">{s.label}</div>
+            <div className="font-mono text-[10px] text-ink4" dir="auto">{s.label}</div>
           </div>
         ))}
       </div>
@@ -520,7 +520,7 @@ function UsageSection({
             <span
               className="text-2xl font-medium tracking-tight"
               style={{ color: palette.ink }}
-            >
+            dir="auto">
               brand
             </span>
           </div>
@@ -579,7 +579,7 @@ function UsageCard({
         >
           {tone === "do" ? "✓ DO" : "✗ DON'T"}
         </div>
-        <p className="text-sm text-ink2 leading-relaxed">{tip}</p>
+        <p className="text-sm text-ink2 leading-relaxed" dir="auto">{tip}</p>
       </div>
     </div>
   );
@@ -612,7 +612,7 @@ function MockupCard({
         />
       </div>
       <div className="px-lg py-md">
-        <div className="text-xs font-medium">{label}</div>
+        <div className="text-xs font-medium" dir="auto">{label}</div>
         <div className="text-[11px] text-ink4">{caption}</div>
       </div>
     </div>
@@ -716,13 +716,13 @@ function MockupsSection({
               <span
                 className="text-xs truncate"
                 style={{ color: palette.ink, fontFamily: "system-ui" }}
-              >
+              dir="auto">
                 yourbrand.com
               </span>
             </div>
           </div>
           <div className="px-lg py-md">
-            <div className="text-xs font-medium">favicon · 16px</div>
+            <div className="text-xs font-medium" dir="auto">favicon · 16px</div>
             <div className="text-[11px] text-ink4">browser tab</div>
           </div>
         </div>
@@ -744,7 +744,7 @@ function MockupsSection({
             </div>
           </div>
           <div className="px-lg py-md">
-            <div className="text-xs font-medium">social avatar</div>
+            <div className="text-xs font-medium" dir="auto">social avatar</div>
             <div className="text-[11px] text-ink4">instagram, linkedin, x</div>
           </div>
         </div>
@@ -770,7 +770,7 @@ function MockupsSection({
             </div>
           </div>
           <div className="px-lg py-md">
-            <div className="text-xs font-medium">business card</div>
+            <div className="text-xs font-medium" dir="auto">business card</div>
             <div className="text-[11px] text-ink4">85x54mm · landscape</div>
           </div>
         </div>
@@ -790,11 +790,11 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-lg">
-      <div className="font-mono text-[11px] text-ink4 tracking-[0.1em] mb-xs">
+      <div className="font-mono text-[11px] text-ink4 tracking-[0.1em] mb-xs" dir="auto">
         {num}
       </div>
-      <h2 className="text-2xl font-medium tracking-tight mb-xs">{title}</h2>
-      <p className="text-sm text-ink3 max-w-[560px] leading-relaxed">{sub}</p>
+      <h2 className="text-2xl font-medium tracking-tight mb-xs" dir="auto">{title}</h2>
+      <p className="text-sm text-ink3 max-w-[560px] leading-relaxed" dir="auto">{sub}</p>
     </div>
   );
 }
@@ -804,7 +804,7 @@ function ControlsBar(p: BookProps) {
     <Card>
       <div className="flex items-baseline justify-between flex-wrap gap-sm mb-md">
         <div>
-          <div className="text-md font-medium">version {p.kit.version}</div>
+          <div className="text-md font-medium" dir="auto">version {p.kit.version}</div>
           <div className="text-xs text-ink4">
             generated{" "}
             {new Date(p.kit.generatedAt).toLocaleDateString("en-US", {
@@ -913,8 +913,8 @@ function LogoCard({
       </div>
       <div className="px-lg py-md flex items-center justify-between gap-sm">
         <div className="min-w-0">
-          <div className="text-sm font-medium">{label}</div>
-          <div className="text-xs text-ink4 truncate">{desc}</div>
+          <div className="text-sm font-medium" dir="auto">{label}</div>
+          <div className="text-xs text-ink4 truncate" dir="auto">{desc}</div>
         </div>
         <button
           type="button"
@@ -991,7 +991,7 @@ function Swatch({
         <div className="h-[80px]" style={{ background: hex }} />
       </label>
       <div className="px-md py-sm">
-        <div className="text-xs font-medium">{label}</div>
+        <div className="text-xs font-medium" dir="auto">{label}</div>
         <div className="text-[10px] text-ink4 mb-xs">{role}</div>
         <div className="flex items-center gap-xs">
           <input
@@ -1129,10 +1129,10 @@ function FontPicker({
           fontWeight: weight,
           letterSpacing: "-0.02em",
         }}
-      >
+      dir="auto">
         {sample}
       </div>
-      <div className="font-mono text-[11px] text-ink4 mt-md">{value}</div>
+      <div className="font-mono text-[11px] text-ink4 mt-md" dir="auto">{value}</div>
     </div>
   );
 }
@@ -1226,8 +1226,8 @@ function VoiceSection({ voice }: { voice: VoiceTone | null }) {
             <div className="flex flex-col gap-md">
               {audienceSegments.map((seg, i) => (
                 <div key={i}>
-                  <div className="text-sm font-medium mb-xs">{seg.name}</div>
-                  <p className="text-sm text-ink3 leading-relaxed">
+                  <div className="text-sm font-medium mb-xs" dir="auto">{seg.name}</div>
+                  <p className="text-sm text-ink3 leading-relaxed" dir="auto">
                     {seg.description}
                   </p>
                 </div>
@@ -1260,7 +1260,7 @@ function VoiceCard({
       </div>
       <ul className="flex flex-col gap-sm">
         {items.map((item, i) => (
-          <li key={i} className="text-sm text-ink2 leading-relaxed">
+          <li key={i} className="text-sm text-ink2 leading-relaxed" dir="auto">
             · {item}
           </li>
         ))}
@@ -1312,7 +1312,7 @@ function ImageStyleSection({
                 onClick={onSave}
                 disabled={pending || draft.trim().length < 20}
                 className="bg-ink text-white text-xs font-medium px-md py-[7px] rounded-full disabled:opacity-40"
-              >
+              dir="auto">
                 {pending ? "saving..." : "save"}
               </button>
               <button
@@ -1324,12 +1324,12 @@ function ImageStyleSection({
               </button>
             </div>
             {error ? (
-              <p className="text-sm text-urgent mt-sm">{error}</p>
+              <p className="text-sm text-urgent mt-sm" dir="auto">{error}</p>
             ) : null}
           </>
         ) : (
           <div className="flex items-start justify-between gap-md">
-            <p className="text-sm text-ink2 leading-relaxed flex-1">
+            <p className="text-sm text-ink2 leading-relaxed flex-1" dir="auto">
               {imageStyle}
             </p>
             <button
@@ -1440,10 +1440,10 @@ function AssetRow({
       className="w-full text-left px-lg py-md flex items-center justify-between gap-md hover:bg-surface transition-colors"
     >
       <div className="min-w-0">
-        <div className="text-sm font-medium truncate">{name}</div>
-        <div className="font-mono text-[11px] text-ink4 truncate">{meta}</div>
+        <div className="text-sm font-medium truncate" dir="auto">{name}</div>
+        <div className="font-mono text-[11px] text-ink4 truncate" dir="auto">{meta}</div>
       </div>
-      <span className="font-mono text-[11px] text-ink3 shrink-0">
+      <span className="font-mono text-[11px] text-ink3 shrink-0" dir="auto">
         download →
       </span>
     </button>
@@ -1497,21 +1497,21 @@ function HistorySection({ currentVersion }: { currentVersion: number }) {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">
+                  <div className="text-sm font-medium truncate" dir="auto">
                     v{v.version}
                     {isLive ? (
-                      <span className="ml-sm font-mono text-[10px] text-ink4 tracking-[0.1em]">
+                      <span className="ml-sm font-mono text-[10px] text-ink4 tracking-[0.1em]" dir="auto">
                         · LIVE
                       </span>
                     ) : null}
                   </div>
-                  <div className="font-mono text-[11px] text-ink4 truncate">
+                  <div className="font-mono text-[11px] text-ink4 truncate" dir="auto">
                     {date.toUpperCase()}
                   </div>
                 </div>
               </div>
               {isLive ? (
-                <span className="font-mono text-[11px] text-ink3 shrink-0">
+                <span className="font-mono text-[11px] text-ink3 shrink-0" dir="auto">
                   current
                 </span>
               ) : (
@@ -1531,7 +1531,7 @@ function HistorySection({ currentVersion }: { currentVersion: number }) {
         })}
       </div>
       {restore.error ? (
-        <p className="text-sm text-urgent mt-md">{restore.error.message}</p>
+        <p className="text-sm text-urgent mt-md" dir="auto">{restore.error.message}</p>
       ) : null}
     </div>
   );

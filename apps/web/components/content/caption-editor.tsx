@@ -46,7 +46,7 @@ export function CaptionEditor({
     <div className="flex flex-col gap-sm mb-md">
       {isEmail ? (
         <>
-          <label className="font-mono text-[10px] tracking-[0.15em] text-ink4">
+          <label className="font-mono text-[10px] tracking-[0.15em] text-ink4" dir="auto">
             SUBJECT LINE
           </label>
           <input
@@ -58,7 +58,7 @@ export function CaptionEditor({
         </>
       ) : (
         <>
-          <label className="font-mono text-[10px] tracking-[0.15em] text-ink4">
+          <label className="font-mono text-[10px] tracking-[0.15em] text-ink4" dir="auto">
             CAPTION
           </label>
           <textarea
@@ -72,7 +72,7 @@ export function CaptionEditor({
 
       {showHashtags ? (
         <>
-          <label className="font-mono text-[10px] tracking-[0.15em] text-ink4 mt-sm">
+          <label className="font-mono text-[10px] tracking-[0.15em] text-ink4 mt-sm" dir="auto">
             HASHTAGS (space-separated)
           </label>
           <input
@@ -110,7 +110,7 @@ export function CaptionEditor({
           onClick={onCancel}
           disabled={pending}
           className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
-        >
+        dir="auto">
           cancel
         </button>
       </div>

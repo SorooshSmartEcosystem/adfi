@@ -16,10 +16,10 @@ export function DashGreeting({
       <h1
         className="font-medium tracking-tight leading-[1.1] mb-[10px]"
         style={{ fontSize: "clamp(28px, 4vw, 40px)" }}
-      >
+      dir="auto">
         {headline}
       </h1>
-      <p className="text-md text-ink3 leading-[1.5]">{subhead}</p>
+      <p className="text-md text-ink3 leading-[1.5]" dir="auto">{subhead}</p>
     </div>
   );
 }

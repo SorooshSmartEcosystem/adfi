@@ -264,7 +264,7 @@ export default async function DashboardPage() {
         <h2
           className="font-medium tracking-tight"
           style={{ fontSize: "18px", letterSpacing: "-0.015em" }}
-        >
+        dir="auto">
           your channels
         </h2>
         <Link
@@ -291,7 +291,7 @@ export default async function DashboardPage() {
         <h2
           className="font-medium tracking-tight"
           style={{ fontSize: "18px", letterSpacing: "-0.015em" }}
-        >
+        dir="auto">
           what&apos;s working
         </h2>
         <Link
@@ -312,7 +312,7 @@ export default async function DashboardPage() {
         <h2
           className="font-medium tracking-tight"
           style={{ fontSize: "18px", letterSpacing: "-0.015em" }}
-        >
+        dir="auto">
           recent
         </h2>
         <Link href="/report" className="text-xs text-ink4 hover:text-ink">

@@ -239,7 +239,7 @@ export function DraftCard({
           />
         ) : (
           <div className="shrink-0 w-[56px] h-[56px] rounded-md bg-bg border-hairline border-border flex items-center justify-center">
-            <span className="text-[10px] text-ink4 font-mono">img</span>
+            <span className="text-[10px] text-ink4 font-mono" dir="auto">img</span>
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -264,7 +264,7 @@ export function DraftCard({
             {previewLine}
           </div>
         </div>
-        <span className="shrink-0 text-ink4 font-mono text-xs">
+        <span className="shrink-0 text-ink4 font-mono text-xs" dir="auto">
           {expanded ? "close" : "open →"}
         </span>
       </button>
@@ -362,14 +362,14 @@ export function DraftCard({
               onClick={triggerMotion}
               disabled={renderMotion.isPending}
               className="text-[11px] font-mono text-ink3 hover:text-ink disabled:opacity-40"
-            >
+            dir="auto">
               {renderMotion.isPending ? "rendering..." : "regenerate"}
             </button>
           </div>
         </div>
       ) : motionStatus === "rendering" || renderMotion.isPending ? (
         <div className="mb-md flex items-center gap-sm">
-          <span className="text-xs text-ink3 font-mono">
+          <span className="text-xs text-ink3 font-mono" dir="auto">
             rendering motion video — usually 15-30s…
           </span>
         </div>
@@ -664,7 +664,7 @@ function ManualPublishActions({
           type="button"
           onClick={onCopy}
           className="text-xs bg-ink text-white font-medium px-md py-[7px] rounded-full hover:opacity-85 transition-opacity"
-        >
+        dir="auto">
           {copied ? "✓ copied" : "copy text"}
         </button>
         {composeUrl ? (

@@ -109,7 +109,7 @@ function ArtboardWrap({
         </div>
       </div>
       {visualDirection ? (
-        <p className="font-mono text-[10px] text-ink4 mt-sm italic leading-relaxed">
+        <p className="font-mono text-[10px] text-ink4 mt-sm italic leading-relaxed" dir="auto">
           📷 {visualDirection}
         </p>
       ) : null}
@@ -147,11 +147,11 @@ function CoverSlideView({
             <h3
               className="font-medium tracking-[-0.025em] leading-[1.05]"
               style={{ fontSize: "clamp(20px, 4vw, 32px)" }}
-            >
+            dir="auto">
               {slide.title}
             </h3>
             {slide.subtitle ? (
-              <p className="text-sm mt-md leading-relaxed text-white/80">
+              <p className="text-sm mt-md leading-relaxed text-white/80" dir="auto">
                 {slide.subtitle}
               </p>
             ) : null}
@@ -162,7 +162,7 @@ function CoverSlideView({
           <h3
             className="font-medium tracking-[-0.025em] leading-[1.05]"
             style={{ fontSize: "clamp(20px, 4vw, 32px)" }}
-          >
+          dir="auto">
             {slide.title}
           </h3>
           {slide.subtitle ? (
@@ -223,7 +223,7 @@ function BodySlideView({
         <div
           className="font-medium tracking-tight leading-[1.15]"
           style={{ fontSize: "clamp(22px, 4.5vw, 36px)" }}
-        >
+        dir="auto">
           {slide.headline}
         </div>
       </ArtboardWrap>
@@ -248,21 +248,21 @@ function BodySlideView({
         ) : (
           <div className="absolute inset-md rounded-md border border-dashed border-current opacity-30 flex items-center justify-center">
             <div className={`text-center px-md ${PALETTE_MUTED[palette]}`}>
-              <div className="font-mono text-[10px] tracking-[0.2em] mb-xs">
+              <div className="font-mono text-[10px] tracking-[0.2em] mb-xs" dir="auto">
                 PHOTO
               </div>
-              <div className="text-sm leading-snug italic">
+              <div className="text-sm leading-snug italic" dir="auto">
                 {slide.visualDirection.slice(0, 100)}
               </div>
             </div>
           </div>
         )}
         <div className="absolute bottom-0 left-0 right-0 p-[28px] bg-black/55 text-white">
-          <div className="text-base font-medium leading-tight">
+          <div className="text-base font-medium leading-tight" dir="auto">
             {slide.headline}
           </div>
           {slide.body ? (
-            <div className="text-sm mt-xs text-white/80">{slide.body}</div>
+            <div className="text-sm mt-xs text-white/80" dir="auto">{slide.body}</div>
           ) : null}
         </div>
       </ArtboardWrap>
@@ -279,7 +279,7 @@ function BodySlideView({
         palette={palette}
         visualDirection={slide.visualDirection}
       >
-        <div className="text-lg font-medium tracking-tight mb-md leading-tight">
+        <div className="text-lg font-medium tracking-tight mb-md leading-tight" dir="auto">
           {slide.headline}
         </div>
         <div className="flex flex-col gap-sm">
@@ -288,7 +288,7 @@ function BodySlideView({
               <span
                 className={`w-[6px] h-[6px] rounded-full mt-[10px] ${PALETTE_ACCENT[palette]}`}
               />
-              <span className="text-sm leading-relaxed">{b}</span>
+              <span className="text-sm leading-relaxed" dir="auto">{b}</span>
             </div>
           ))}
         </div>
@@ -308,10 +308,10 @@ function BodySlideView({
       <div
         className="font-mono font-medium opacity-30 leading-none mb-md"
         style={{ fontSize: "clamp(48px, 10vw, 88px)" }}
-      >
+      dir="auto">
         {slide.number ?? String(index).padStart(2, "0")}
       </div>
-      <div className="text-lg font-medium tracking-tight leading-tight mb-sm">
+      <div className="text-lg font-medium tracking-tight leading-tight mb-sm" dir="auto">
         {slide.headline}
       </div>
       {slide.body ? (
@@ -340,7 +340,7 @@ function CloserSlideView({
       label="CLOSER"
       palette={palette}
     >
-      <div className="text-lg font-medium tracking-tight leading-tight mb-md">
+      <div className="text-lg font-medium tracking-tight leading-tight mb-md" dir="auto">
         {slide.title}
       </div>
       <div className={`text-sm leading-relaxed mb-md ${PALETTE_MUTED[palette]}`}>

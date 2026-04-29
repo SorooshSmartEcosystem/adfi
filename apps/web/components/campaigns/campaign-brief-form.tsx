@@ -90,7 +90,7 @@ export function CampaignBriefForm() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{p.label}</span>
+                <span className="text-sm font-medium" dir="auto">{p.label}</span>
                 <span className={`text-[10px] font-mono ${p.soon ? "text-ink4" : checked ? "text-ink" : "text-ink4"}`}>
                   {p.soon ? "SOON" : checked ? "✓" : "+"}
                 </span>
@@ -105,7 +105,7 @@ export function CampaignBriefForm() {
         <div>
           <div className="text-xs text-ink4 mb-sm">budget</div>
           <div className="flex items-center gap-xs">
-            <span className="text-md text-ink3">$</span>
+            <span className="text-md text-ink3" dir="auto">$</span>
             <input
               type="number"
               value={budget}
@@ -149,7 +149,7 @@ export function CampaignBriefForm() {
         onClick={submit}
         disabled={create.isPending || brief.trim().length < 10 || platforms.size === 0}
         className="w-full bg-ink text-white py-[13px] rounded-full text-md font-medium disabled:opacity-40 hover:opacity-85 transition-opacity"
-      >
+      dir="auto">
         {create.isPending ? "drafting…" : "draft my campaign →"}
       </button>
 
@@ -167,7 +167,7 @@ export function CampaignBriefForm() {
       ) : null}
 
       {create.error ? (
-        <p className="text-sm text-urgent mt-md font-mono">
+        <p className="text-sm text-urgent mt-md font-mono" dir="auto">
           {create.error.message}
         </p>
       ) : null}

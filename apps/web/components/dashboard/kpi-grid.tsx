@@ -33,7 +33,7 @@ function KpiCell({ kpi }: { kpi: Kpi }) {
       <div
         className="font-medium leading-none mb-[8px]"
         style={{ fontSize: "32px", letterSpacing: "-0.025em" }}
-      >
+      dir="auto">
         {kpi.value}
       </div>
       {kpi.delta ? (

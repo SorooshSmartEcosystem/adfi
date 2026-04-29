@@ -29,7 +29,7 @@ function HeroImage({
         className="bg-bg border-hairline border-border rounded-md flex items-center justify-center mb-md max-w-[280px]"
         style={{ aspectRatio: aspect, width: "100%" }}
       >
-        <div className="text-xs text-ink4 font-mono">drawing image…</div>
+        <div className="text-xs text-ink4 font-mono" dir="auto">drawing image…</div>
       </div>
     );
   }
@@ -172,7 +172,7 @@ export function DraftBody({
                 />
               ) : null}
               <div className="flex-1 min-w-0">
-                <div className="font-mono text-xs text-aliveDark mb-xs">
+                <div className="font-mono text-xs text-aliveDark mb-xs" dir="auto">
                   {b.timestamp}
                 </div>
                 <div className="text-md font-medium mb-xs" dir="auto">
@@ -243,7 +243,7 @@ export function DraftBody({
             </div>
             <div className="text-md font-medium" dir="auto">{cta.label}</div>
             {cta.link ? (
-              <div className="font-mono text-xs text-ink4 mt-xs break-all">
+              <div className="font-mono text-xs text-ink4 mt-xs break-all" dir="auto">
                 {cta.link}
               </div>
             ) : null}
@@ -290,7 +290,7 @@ export function DraftBody({
                     {f.interaction.toLowerCase()}
                   </div>
                 ) : null}
-                <div className="text-[10px] opacity-60 leading-snug">
+                <div className="text-[10px] opacity-60 leading-snug" dir="auto">
                   {f.visualDirection.slice(0, 60)}
                 </div>
               </div>

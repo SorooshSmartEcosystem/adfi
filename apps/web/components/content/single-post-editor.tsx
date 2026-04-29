@@ -31,7 +31,7 @@ export function SinglePostEditor({
 
   return (
     <div className="flex flex-col gap-sm mb-md">
-      <label className="font-mono text-[10px] tracking-[0.15em] text-ink4">
+      <label className="font-mono text-[10px] tracking-[0.15em] text-ink4" dir="auto">
         HOOK
       </label>
       <textarea
@@ -40,7 +40,7 @@ export function SinglePostEditor({
         rows={2}
         className="w-full px-md py-sm bg-bg border-hairline border-border rounded-md text-md leading-relaxed focus:outline-none focus:border-ink"
       />
-      <label className="font-mono text-[10px] tracking-[0.15em] text-ink4 mt-sm">
+      <label className="font-mono text-[10px] tracking-[0.15em] text-ink4 mt-sm" dir="auto">
         BODY
       </label>
       <textarea
@@ -49,7 +49,7 @@ export function SinglePostEditor({
         rows={8}
         className="w-full px-md py-sm bg-bg border-hairline border-border rounded-md text-md leading-relaxed focus:outline-none focus:border-ink"
       />
-      <label className="font-mono text-[10px] tracking-[0.15em] text-ink4 mt-sm">
+      <label className="font-mono text-[10px] tracking-[0.15em] text-ink4 mt-sm" dir="auto">
         CTA (optional)
       </label>
       <input
@@ -58,7 +58,7 @@ export function SinglePostEditor({
         placeholder="dm me 'wholesale' if curious"
         className="w-full px-md py-sm bg-bg border-hairline border-border rounded-md text-md focus:outline-none focus:border-ink"
       />
-      <label className="font-mono text-[10px] tracking-[0.15em] text-ink4 mt-sm">
+      <label className="font-mono text-[10px] tracking-[0.15em] text-ink4 mt-sm" dir="auto">
         HASHTAGS (space-separated)
       </label>
       <input
@@ -92,7 +92,7 @@ export function SinglePostEditor({
           onClick={onCancel}
           disabled={pending}
           className="font-mono text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
-        >
+        dir="auto">
           cancel
         </button>
       </div>

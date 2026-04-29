@@ -40,7 +40,7 @@ export function WeekGrid({
           <div className="text-xs text-ink4 mb-xs">
             {rangeLabel}
           </div>
-          <div className="text-lg font-medium">this week&apos;s plan</div>
+          <div className="text-lg font-medium" dir="auto">this week&apos;s plan</div>
         </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-sm">
@@ -67,7 +67,7 @@ export function WeekGrid({
             <div className="flex items-start justify-between mb-sm">
               <div>
                 <div className="text-xs text-ink4">{s.day.toLowerCase()}</div>
-                <div className="text-md font-medium">{s.dateNum}</div>
+                <div className="text-md font-medium" dir="auto">{s.dateNum}</div>
               </div>
               {s.platform ? (
                 <span className={`text-[11px] ${STATUS_COLOR[s.status]}`}>
@@ -77,7 +77,7 @@ export function WeekGrid({
             </div>
             {s.title ? (
               <>
-                <div className="text-sm font-medium leading-tight mb-xs">
+                <div className="text-sm font-medium leading-tight mb-xs" dir="auto">
                   {s.title}
                 </div>
                 <div className={`text-[11px] ${STATUS_COLOR[s.status]}`}>
@@ -85,7 +85,7 @@ export function WeekGrid({
                 </div>
               </>
             ) : (
-              <div className="text-sm text-ink5">quiet day</div>
+              <div className="text-sm text-ink5" dir="auto">quiet day</div>
             )}
           </div>
           </Wrap>

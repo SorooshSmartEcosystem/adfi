@@ -21,6 +21,7 @@ import { getUserAvatarUrl as getTelegramAvatarUrl } from "../services/telegram";
 import { decryptToken } from "../services/crypto";
 import { guardInbound, effectivePlan } from "../services/abuse-guard";
 import { SIGNAL_SYSTEM_PROMPT } from "./prompts/signal";
+import { detectLanguage } from "./language";
 
 // Anthropic's structured-output mode rejects `additionalProperties: <schema>`
 // (which is what z.record() compiles to) — it only accepts
@@ -78,6 +79,19 @@ export async function runSignal(args: {
     )
     .join("\n");
 
+  // Match the customer's language. Detect from the most-recent
+  // inbound message + the conversation history (so a customer who
+  // started in Farsi but sent a one-word "ok" in English doesn't
+  // suddenly trigger an English reply). The directive is forceful
+  // because Sonnet — even more than Opus — will fall back to the
+  // brand-voice's language when conversation is short.
+  const langSource = `${args.inboundMessage}\n${historyText}`;
+  const lang = detectLanguage(langSource);
+  const langDirective =
+    lang.code === "en"
+      ? "\n\nReply in English."
+      : `\n\n=== LANGUAGE LOCK ===\nThe customer wrote to you in ${lang.label}. Reply in ${lang.label}. Do not switch languages mid-reply. Do not write a single word in English (proper nouns the customer used are fine to repeat). The brand voice fingerprint above may be in a different language — that's the brand's preference, but the customer's language wins for this reply. Match the customer's tone and writing style in ${lang.label}.`;
+
   const userMessage = `Business name (use this when a customer asks what platform / product / service / app this is):
 ${args.businessName?.trim() || "(not set — ask the customer to hold rather than inventing)"}
 
@@ -91,7 +105,7 @@ Conversation so far:
 ${historyText || "(this is the first message)"}
 
 New message from customer:
-${args.inboundMessage}`;
+${args.inboundMessage}${langDirective}`;
 
   const response = await anthropic().messages.create({
     model: MODELS.SONNET,

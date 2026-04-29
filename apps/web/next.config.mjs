@@ -12,7 +12,28 @@ const nextConfig = {
   // Externalize Prisma — load at runtime from node_modules instead of bundling.
   // This avoids the need to rewrite its internal dynamic loader for the query
   // engine binary path.
-  serverExternalPackages: ["@prisma/client", ".prisma/client"],
+  //
+  // Same treatment for the Remotion stack: @remotion/bundler pulls in @rspack
+  // which ships native .node binaries Webpack can't parse. The renderer also
+  // spawns ffmpeg + Chromium at runtime, neither of which webpack should
+  // touch. They run only inside the motion-reel render service (server-side
+  // tRPC route) so externalization is safe.
+  serverExternalPackages: [
+    "@prisma/client",
+    ".prisma/client",
+    "@remotion/bundler",
+    "@remotion/renderer",
+    "@remotion/compositor-darwin-arm64",
+    "@remotion/compositor-darwin-x64",
+    "@remotion/compositor-linux-x64-gnu",
+    "@remotion/compositor-linux-x64-musl",
+    "@remotion/compositor-linux-arm64-gnu",
+    "@remotion/compositor-linux-arm64-musl",
+    "@remotion/compositor-win32-x64-msvc",
+    "@rspack/core",
+    "@rspack/binding",
+    "esbuild",
+  ],
 
   // Hosts we proxy images from. Required for next/image — without this it
   // 400s on remote sources.

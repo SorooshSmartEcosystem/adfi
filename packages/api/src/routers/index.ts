@@ -17,6 +17,7 @@ import { connectionsRouter } from "./connections";
 import { brandKitRouter } from "./brand-kit";
 import { businessRouter } from "./business";
 import { campaignsRouter } from "./campaigns";
+import { motionReelRouter } from "./motion-reel";
 
 export const appRouter = router({
   system: systemRouter,
@@ -37,6 +38,7 @@ export const appRouter = router({
   brandKit: brandKitRouter,
   business: businessRouter,
   campaigns: campaignsRouter,
+  motionReel: motionReelRouter,
 });
 
 export type AppRouter = typeof appRouter;

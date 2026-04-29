@@ -249,6 +249,15 @@ model ContentDraft {
   brief             Json?          // { intent, audience, hookFramework, references }
   scheduledFor      DateTime?      @map("scheduled_for")
   voiceMatchScore   Decimal?       @map("voice_match_score") @db.Decimal(4, 3)
+  // Motion-reel state. Populated when the user clicks "make a video"
+  // on this draft. Shape:
+  //   { template: 'quote' | 'stat' | 'list' | 'product-reveal' | 'carousel-as-reel',
+  //     slotValues: object,    // what fills the template
+  //     status: 'pending' | 'rendering' | 'ready' | 'failed',
+  //     mp4Url?: string,       // populated when status='ready'
+  //     renderedAt?: string,
+  //     error?: string }       // populated when status='failed'
+  motion            Json?
   approvedAt        DateTime?      @map("approved_at")
   rejectedAt      DateTime?      @map("rejected_at")
   rejectionReason String?        @map("rejection_reason")

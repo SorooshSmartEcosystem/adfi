@@ -26,6 +26,15 @@ type Draft = {
   voiceMatchScore: unknown;
   createdAt: Date;
   scheduledFor: Date | null;
+  motion?: unknown;
+};
+
+type MotionState = {
+  template?: string;
+  status?: "pending" | "rendering" | "ready" | "failed";
+  mp4Url?: string;
+  renderedAt?: string;
+  error?: string;
 };
 
 const STATUS_TONE: Record<
@@ -139,6 +148,13 @@ export function DraftCard({
       setEditOpen(false);
     },
   });
+  // Motion-reel render trigger (Phase 2 — opt-in via "make a video"
+  // button). Only wired for drafts with a hook to use as the quote;
+  // expanding to other shapes (stat / list / product reveal) lands as
+  // those compositions ship.
+  const renderMotion = trpc.motionReel.renderForDraft.useMutation({
+    onSuccess: () => utils.content.listDrafts.invalidate(),
+  });
   const [editOpen, setEditOpen] = useState(false);
 
   const status =
@@ -161,6 +177,31 @@ export function DraftCard({
     draft.format ?? "SINGLE_POST",
     visibleContent,
   );
+
+  // Motion state derived from the draft's persisted `motion` JSON.
+  // Drives the "make a video" button + the inline mp4 player.
+  const motion = (draft.motion ?? null) as MotionState | null;
+  const motionStatus = motion?.status ?? null;
+  // Quote-template eligibility: needs a string hook (single post / reel
+  // script) to fill the quote slot. Other formats wait for their own
+  // template wiring (carousel-as-reel, etc.).
+  const motionHook =
+    typeof (visibleContent as { hook?: unknown })?.hook === "string"
+      ? ((visibleContent as { hook: string }).hook).trim()
+      : null;
+  const motionEligible =
+    !!motionHook &&
+    (draft.format === "SINGLE_POST" || draft.format === "REEL_SCRIPT");
+  const triggerMotion = () => {
+    if (!motionHook) return;
+    renderMotion.mutate({
+      draftId: draft.id,
+      directive: {
+        template: "quote",
+        content: { quote: motionHook },
+      },
+    });
+  };
 
   return (
     <Card className="mb-md overflow-hidden" padded={false} id={`d-${draft.id}`}>
@@ -271,6 +312,63 @@ export function DraftCard({
       ) : (
         <DraftBody format={draft.format ?? "SINGLE_POST"} content={visibleContent} />
       )}
+
+      {/* Motion-reel section. Three states:
+            • ready  → inline mp4 player + "regenerate" link
+            • rendering / pending → spinner + status
+            • failed → error + retry
+          When motion has never been kicked off and the draft is
+          eligible (has a hook), the "make a video" CTA renders inside
+          the action row below. */}
+      {motionStatus === "ready" && motion?.mp4Url ? (
+        <div className="mb-md max-w-[300px]">
+          <video
+            src={motion.mp4Url}
+            controls
+            playsInline
+            className="w-full rounded-md bg-ink"
+            style={{ aspectRatio: "9/16" }}
+          />
+          <div className="flex items-center gap-md mt-xs">
+            <a
+              href={motion.mp4Url}
+              download
+              className="text-[11px] font-mono text-ink3 hover:text-ink"
+            >
+              ↓ download mp4
+            </a>
+            <button
+              type="button"
+              onClick={triggerMotion}
+              disabled={renderMotion.isPending}
+              className="text-[11px] font-mono text-ink3 hover:text-ink disabled:opacity-40"
+            >
+              {renderMotion.isPending ? "rendering..." : "regenerate"}
+            </button>
+          </div>
+        </div>
+      ) : motionStatus === "rendering" || renderMotion.isPending ? (
+        <div className="mb-md flex items-center gap-sm">
+          <span className="text-xs text-ink3 font-mono">
+            rendering motion video — usually 15-30s…
+          </span>
+        </div>
+      ) : motionStatus === "failed" ? (
+        <div className="mb-md flex items-center gap-sm flex-wrap">
+          <span className="text-xs text-urgent">
+            motion render failed{motion?.error ? `: ${motion.error}` : ""}
+          </span>
+          <button
+            type="button"
+            onClick={triggerMotion}
+            disabled={renderMotion.isPending}
+            className="text-[11px] text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+          >
+            try again
+          </button>
+        </div>
+      ) : null}
+
       <div className="mb-md" />
 
       {draft.status === "APPROVED" &&
@@ -408,6 +506,19 @@ export function DraftCard({
           >
             {regenImages.isPending ? "rerolling images..." : "reroll images"}
           </button>
+          {motionEligible && motionStatus !== "ready" ? (
+            <button
+              type="button"
+              onClick={triggerMotion}
+              disabled={pending || renderMotion.isPending || motionStatus === "rendering"}
+              className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[6px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+              title="generates a 9-second mp4 of this draft as a motion reel"
+            >
+              {renderMotion.isPending || motionStatus === "rendering"
+                ? "rendering video..."
+                : "make a video"}
+            </button>
+          ) : null}
           {draft.platform === "EMAIL" ? (
             <button
               type="button"

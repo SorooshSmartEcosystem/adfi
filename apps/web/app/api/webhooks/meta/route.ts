@@ -19,6 +19,17 @@ export async function GET(req: NextRequest) {
   const challenge = req.nextUrl.searchParams.get("hub.challenge");
   const expected = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
+  // Verbose: log every handshake attempt so we can tell from logs
+  // alone why a verify failed. tokenMatches/expectedSet bools — never
+  // log the token values themselves (they're effectively secrets).
+  console.log("[meta-webhook] GET handshake", {
+    mode,
+    hasToken: !!token,
+    hasExpected: !!expected,
+    tokenMatches: !!token && !!expected && token === expected,
+    challengePresent: !!challenge,
+  });
+
   if (mode === "subscribe" && token && expected && token === expected) {
     return new NextResponse(challenge ?? "", { status: 200 });
   }
@@ -30,10 +41,23 @@ export async function GET(req: NextRequest) {
 // on non-200, so any slow/failing branch becomes a duplicate-message
 // problem). Heavy work runs awaited because Vercel kills detached promises.
 export async function POST(req: NextRequest) {
+  // First-line entry log — fires before any verification so we can see
+  // in Vercel that *something* arrived even when downstream checks
+  // reject the payload. Helps distinguish "Meta isn't delivering" from
+  // "Meta delivers but we 401 it".
+  console.log("[meta-webhook] POST entry", {
+    contentLength: req.headers.get("content-length"),
+    hasSig: !!req.headers.get("x-hub-signature-256"),
+    userAgent: req.headers.get("user-agent")?.slice(0, 80),
+  });
+
   const raw = await req.text();
   const sig = req.headers.get("x-hub-signature-256");
   if (!verifyWebhookSignature({ rawBody: raw, signatureHeader: sig })) {
-    console.warn("[meta-webhook] bad signature");
+    console.warn("[meta-webhook] bad signature", {
+      bodyPreview: raw.slice(0, 200),
+      sigPreview: sig?.slice(0, 16),
+    });
     return new NextResponse("bad signature", { status: 401 });
   }
 

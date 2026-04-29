@@ -11,7 +11,7 @@ import {
   deleteWebhook as deleteTelegramWebhook,
   buildWebhookUrl as buildTelegramWebhookUrl,
 } from "../services/telegram";
-import { listSubscribedApps } from "../services/meta";
+import { listSubscribedApps, subscribePageWebhook } from "../services/meta";
 
 // Calls Meta's permission-revoke endpoint so disconnecting on adfi also
 // revokes the authorization on the user's facebook account. Best-effort —
@@ -477,6 +477,48 @@ export const connectionsRouter = router({
         title: chat.title,
       };
     }),
+
+  // Re-run subscribePageWebhook against the existing FB Page connection
+  // without touching OAuth. Useful for debugging delivery problems
+  // when the page was subscribed but events aren't firing — lets us
+  // re-subscribe with current scopes / log any precise error from Meta
+  // without making the user disconnect + reconnect.
+  rebindMetaWebhook: authedProc.input(z.void()).mutation(async ({ ctx }) => {
+    const fbAccount = await ctx.db.connectedAccount.findFirst({
+      where: {
+        userId: ctx.user.id,
+        provider: Provider.FACEBOOK,
+        disconnectedAt: null,
+      },
+      select: { externalId: true, encryptedToken: true },
+    });
+    if (!fbAccount) {
+      throw OrbError.NOT_FOUND("facebook connection");
+    }
+    const pageToken = decryptToken(fbAccount.encryptedToken);
+    const results: Array<{
+      field: string;
+      ok: boolean;
+      error: string | null;
+    }> = [];
+    for (const field of ["messages", "messaging_postbacks"] as const) {
+      try {
+        await subscribePageWebhook({
+          pageId: fbAccount.externalId,
+          pageAccessToken: pageToken,
+          fields: [field],
+        });
+        results.push({ field, ok: true, error: null });
+      } catch (err) {
+        results.push({
+          field,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return { results };
+  }),
 
   // Read-side diagnostic for the Meta connection. Returns what Graph
   // says is subscribed at the page + ig levels, so we can tell whether

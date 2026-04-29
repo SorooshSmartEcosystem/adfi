@@ -242,7 +242,10 @@ export function ConnectCard({
                     ) : null}
                     {provider.dbProvider === "FACEBOOK" ||
                     provider.dbProvider === "INSTAGRAM" ? (
-                      <MetaDiagnoseButton />
+                      <>
+                        <MetaRebindButton />
+                        <MetaDiagnoseButton />
+                      </>
                     ) : null}
                     {onDisconnect ? (
                       <button
@@ -603,6 +606,45 @@ function TelegramChannelForm() {
         ) : null}
       </div>
     </form>
+  );
+}
+
+// Re-runs subscribe-page-webhook against the existing connection so
+// the user doesn't have to disconnect + reconnect to retry the
+// subscription. Surfaces exact per-field success/error inline.
+function MetaRebindButton() {
+  const rebind = trpc.connections.rebindMetaWebhook.useMutation();
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => rebind.mutate()}
+        disabled={rebind.isPending}
+        className="text-xs text-ink2 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors disabled:opacity-40"
+      >
+        {rebind.isPending ? "rebinding..." : "rebind webhook"}
+      </button>
+      {rebind.data ? (
+        <span className="text-[11px] text-ink2 basis-full mt-xs">
+          {rebind.data.results.map((r, i) => (
+            <span key={i} className="block">
+              {r.ok ? (
+                <span className="text-aliveDark">✓ {r.field}</span>
+              ) : (
+                <span className="text-urgent break-words">
+                  ✗ {r.field}: {r.error}
+                </span>
+              )}
+            </span>
+          ))}
+        </span>
+      ) : null}
+      {rebind.error ? (
+        <span className="text-[11px] text-urgent basis-full">
+          {rebind.error.message}
+        </span>
+      ) : null}
+    </>
   );
 }
 

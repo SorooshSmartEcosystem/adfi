@@ -16,16 +16,25 @@ import {
 // revokes the authorization on the user's facebook account. Best-effort —
 // if it fails (token expired, etc.) we still soft-disconnect locally so the
 // app stops using it; the user can manually revoke at facebook.com/settings.
-async function revokeMetaPermissions(token: string): Promise<void> {
+//
+// Important: this MUST be called with a USER access token, not a Page
+// access token. Page tokens can only revoke per-page Page-app links, not
+// the user-level app authorization that Meta surfaces under "Apps and
+// Websites" in the user's account settings.
+async function revokeMetaPermissions(userToken: string): Promise<boolean> {
   try {
     const url = new URL("https://graph.facebook.com/v19.0/me/permissions");
-    url.searchParams.set("access_token", token);
+    url.searchParams.set("access_token", userToken);
     const res = await fetch(url, { method: "DELETE" });
     if (!res.ok) {
       console.warn("meta revoke failed:", res.status, await res.text());
+      return false;
     }
+    const body = (await res.json().catch(() => ({}))) as { success?: boolean };
+    return body.success !== false;
   } catch (err) {
     console.warn("meta revoke threw:", err);
+    return false;
   }
 }
 
@@ -85,46 +94,91 @@ export const connectionsRouter = router({
   disconnect: authedProc
     .input(z.object({ provider: z.nativeEnum(Provider) }))
     .mutation(async ({ ctx, input }) => {
+      // Meta's app-level revoke is app-wide — once we revoke, both FB
+      // Page and IG access die together. So when the user disconnects
+      // either FB or IG we treat it as "disconnect Meta" and operate on
+      // both providers' rows in lockstep. Otherwise the surviving row
+      // would lie about being connected.
+      const isMeta =
+        input.provider === Provider.FACEBOOK ||
+        input.provider === Provider.INSTAGRAM;
+      const targetProviders: Provider[] = isMeta
+        ? [Provider.FACEBOOK, Provider.INSTAGRAM]
+        : [input.provider];
+
       const accounts = await ctx.db.connectedAccount.findMany({
         where: {
           userId: ctx.user.id,
-          provider: input.provider,
+          provider: { in: targetProviders },
           disconnectedAt: null,
         },
       });
 
-      // Provider-specific external revocation. Best-effort — we always soft
-      // disconnect locally even if the upstream call fails, so the app
-      // stops using the connection.
+      // For Meta, prefer the USER access token (stored in encryptedRefresh
+      // by the oauth callback) over the page token. Only the user token
+      // can hit DELETE /me/permissions to revoke the app authorization
+      // at the user level — the page token revokes nothing visible to
+      // the user in their Meta settings.
+      let metaRevoked = false;
       const seen = new Set<string>();
-      for (const a of accounts) {
-        const token = (() => {
-          try {
-            return decryptToken(a.encryptedToken);
-          } catch {
-            return null;
-          }
-        })();
-        if (!token || seen.has(token)) continue;
-        seen.add(token);
 
-        if (
-          input.provider === Provider.FACEBOOK ||
-          input.provider === Provider.INSTAGRAM
-        ) {
-          await revokeMetaPermissions(token);
-        } else if (input.provider === Provider.TELEGRAM) {
-          await deleteTelegramWebhook(token);
+      if (isMeta) {
+        for (const a of accounts) {
+          if (!a.encryptedRefresh) continue;
+          const userToken = (() => {
+            try {
+              return decryptToken(a.encryptedRefresh);
+            } catch {
+              return null;
+            }
+          })();
+          if (!userToken || seen.has(userToken)) continue;
+          seen.add(userToken);
+          metaRevoked = (await revokeMetaPermissions(userToken)) || metaRevoked;
+          if (metaRevoked) break;
+        }
+        // Legacy fallback: rows created before encryptedRefresh was wired
+        // up have no user token. Try the page token — it won't revoke at
+        // the user level, but it's better than nothing for stopping any
+        // page-app link.
+        if (!metaRevoked) {
+          for (const a of accounts) {
+            const pageToken = (() => {
+              try {
+                return decryptToken(a.encryptedToken);
+              } catch {
+                return null;
+              }
+            })();
+            if (!pageToken || seen.has(pageToken)) continue;
+            seen.add(pageToken);
+            await revokeMetaPermissions(pageToken);
+          }
+        }
+      } else {
+        for (const a of accounts) {
+          const token = (() => {
+            try {
+              return decryptToken(a.encryptedToken);
+            } catch {
+              return null;
+            }
+          })();
+          if (!token || seen.has(token)) continue;
+          seen.add(token);
+          if (input.provider === Provider.TELEGRAM) {
+            await deleteTelegramWebhook(token);
+          }
         }
       }
 
       // Soft-disconnect locally — keeps the row so admin financials can
       // still attribute past activity, but stops the app from using it.
       await ctx.db.connectedAccount.updateMany({
-        where: { userId: ctx.user.id, provider: input.provider },
+        where: { userId: ctx.user.id, provider: { in: targetProviders } },
         data: { disconnectedAt: new Date() },
       });
-      return { ok: true as const };
+      return { ok: true as const, metaRevoked: isMeta ? metaRevoked : null };
     }),
 
   // Connect a Telegram bot by pasting the BotFather token. We validate via

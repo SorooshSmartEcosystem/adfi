@@ -113,6 +113,13 @@ export async function GET(req: NextRequest) {
     });
     const businessId = userRow?.currentBusinessId ?? null;
 
+    // We stash the long-lived USER access token in encryptedRefresh
+    // alongside the page access token. Disconnect needs the user token
+    // to call DELETE /me/permissions — page tokens can't revoke the
+    // app's authorization at the user level, which is why "still
+    // connected on Meta" was the user-visible symptom.
+    const encryptedUserToken = encryptToken(long.accessToken);
+
     await db.connectedAccount.upsert({
       where: {
         userId_provider_externalId: {
@@ -127,12 +134,14 @@ export async function GET(req: NextRequest) {
         provider: Provider.FACEBOOK,
         externalId: page.id,
         encryptedToken: encryptToken(page.accessToken),
+        encryptedRefresh: encryptedUserToken,
         scope: "page_access_token",
         expiresAt,
       },
       update: {
         businessId,
         encryptedToken: encryptToken(page.accessToken),
+        encryptedRefresh: encryptedUserToken,
         scope: "page_access_token",
         expiresAt,
         disconnectedAt: null,
@@ -161,12 +170,14 @@ export async function GET(req: NextRequest) {
           provider: Provider.INSTAGRAM,
           externalId: page.igBusinessId,
           encryptedToken: encryptToken(page.accessToken),
+          encryptedRefresh: encryptedUserToken,
           scope: "ig_via_page",
           expiresAt,
         },
         update: {
           businessId,
           encryptedToken: encryptToken(page.accessToken),
+          encryptedRefresh: encryptedUserToken,
           scope: "ig_via_page",
           expiresAt,
           disconnectedAt: null,

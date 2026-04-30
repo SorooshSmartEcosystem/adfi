@@ -99,6 +99,30 @@ export default async function DashboardOverview() {
         </div>
       </section>
 
+      {/* Multi-business + brand kit */}
+      <section className="flex flex-col gap-md">
+        <p className="text-xs font-mono text-ink3 uppercase tracking-widest">
+          businesses & brand kit
+        </p>
+        <div className="grid md:grid-cols-3 gap-md">
+          <Metric
+            label="active businesses"
+            value={overview.businesses.active.toString()}
+            sublabel={`vs ${overview.users.total} users`}
+          />
+          <Metric
+            label="brand kits"
+            value={overview.brandKit.kitsTotal.toString()}
+            sublabel="all-time"
+          />
+          <Metric
+            label="brand kit regens"
+            value={overview.brandKit.regenerationsThisMonth.toString()}
+            sublabel="this month"
+          />
+        </div>
+      </section>
+
       {/* Cost breakdown */}
       <section className="flex flex-col gap-md">
         <p className="text-xs font-mono text-ink3 uppercase tracking-widest">

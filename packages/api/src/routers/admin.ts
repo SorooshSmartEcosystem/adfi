@@ -138,15 +138,29 @@ export const adminRouter = router({
     const periodStart = startOfMonth();
     const now = new Date();
 
-    // Users + subscriptions
-    const [totalUsers, trialCount, activeCount, pastDueCount, canceledCount] =
-      await Promise.all([
-        ctx.db.user.count({ where: { deletedAt: null } }),
-        ctx.db.subscription.count({ where: { status: "TRIALING" } }),
-        ctx.db.subscription.count({ where: { status: "ACTIVE" } }),
-        ctx.db.subscription.count({ where: { status: "PAST_DUE" } }),
-        ctx.db.subscription.count({ where: { status: "CANCELED" } }),
-      ]);
+    // Users + subscriptions + businesses (multi-business adds Business
+    // as a separate entity from User — we want to track both).
+    const [
+      totalUsers,
+      trialCount,
+      activeCount,
+      pastDueCount,
+      canceledCount,
+      activeBusinesses,
+      brandKitsTotal,
+      brandKitVersionsThisMonth,
+    ] = await Promise.all([
+      ctx.db.user.count({ where: { deletedAt: null } }),
+      ctx.db.subscription.count({ where: { status: "TRIALING" } }),
+      ctx.db.subscription.count({ where: { status: "ACTIVE" } }),
+      ctx.db.subscription.count({ where: { status: "PAST_DUE" } }),
+      ctx.db.subscription.count({ where: { status: "CANCELED" } }),
+      ctx.db.business.count({ where: { deletedAt: null } }),
+      ctx.db.brandKit.count(),
+      ctx.db.brandKitVersion.count({
+        where: { createdAt: { gte: periodStart } },
+      }),
+    ]);
 
     const activeSubs = await ctx.db.subscription.findMany({
       where: { status: "ACTIVE" },
@@ -210,6 +224,15 @@ export const adminRouter = router({
         active: activeCount,
         pastDue: pastDueCount,
         canceled: canceledCount,
+      },
+      businesses: {
+        active: activeBusinesses,
+        // ratio of users with multiple businesses → STUDIO/AGENCY usage
+        multiBizUsers: Math.max(0, activeBusinesses - totalUsers),
+      },
+      brandKit: {
+        kitsTotal: brandKitsTotal,
+        regenerationsThisMonth: brandKitVersionsThisMonth,
       },
       revenue: { mrrCents },
       costs: {

@@ -2,6 +2,10 @@ import { z } from "zod";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
 import { renderForDraft } from "../services/motion-reel";
+import { runVideoAgent } from "../agents/video";
+import { getActiveAgentContextForUser } from "../services/agent-context";
+import type { BrandVoice } from "../agents/strategist";
+import { notifyAdminOfError } from "../services/admin-notify";
 
 // Same shape as MotionDirective in @orb/motion-reel — duplicated here
 // as Zod schemas so the tRPC layer validates inputs without pulling
@@ -92,6 +96,100 @@ export const motionReelRouter = router({
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         throw OrbError.EXTERNAL_API(`motion-reel render failed: ${msg}`);
+      }
+    }),
+
+  // Generate a MotionDirective from a content brief using the video
+  // agent (Sonnet). Returns the directive without rendering. Caller
+  // can review/edit before triggering renderForDraft. Useful when the
+  // UI wants the user to preview the slot text before paying for an
+  // mp4 render.
+  draftDirective: authedProc
+    .input(
+      z.object({
+        brief: z.string().min(10).max(2000),
+        // Optional: caller can lock to a specific template (when the
+        // user picked one in the UI). Otherwise the agent decides.
+        templateHint: z
+          .enum(["quote", "stat", "list"])
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const ac = await getActiveAgentContextForUser(ctx.user.id);
+        const brandVoice = (ac?.strategistOutput ?? null) as BrandVoice | null;
+        const businessRow = ctx.currentBusinessId
+          ? await ctx.db.business.findUnique({
+              where: { id: ctx.currentBusinessId },
+              select: { name: true },
+            })
+          : null;
+        const directive = await runVideoAgent({
+          brief: input.brief,
+          brandVoice,
+          businessName: businessRow?.name ?? undefined,
+          templateHint: input.templateHint,
+          userId: ctx.user.id,
+        });
+        return directive;
+      } catch (err) {
+        await notifyAdminOfError({
+          source: "motionReel.draftDirective",
+          error: err,
+          meta: { userId: ctx.user.id },
+        });
+        throw OrbError.EXTERNAL_API(
+          "we're catching our breath — try again in a minute.",
+        );
+      }
+    }),
+
+  // One-shot: agent + render. Generates a directive AND renders it
+  // in a single call. Use this when the UI doesn't need a preview
+  // step (e.g. quick "make video" button on a draft card).
+  generateAndRender: authedProc
+    .input(
+      z.object({
+        draftId: z.string().uuid(),
+        brief: z.string().min(10).max(2000),
+        templateHint: z
+          .enum(["quote", "stat", "list"])
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const ac = await getActiveAgentContextForUser(ctx.user.id);
+        const brandVoice = (ac?.strategistOutput ?? null) as BrandVoice | null;
+        const businessRow = ctx.currentBusinessId
+          ? await ctx.db.business.findUnique({
+              where: { id: ctx.currentBusinessId },
+              select: { name: true },
+            })
+          : null;
+        const directive = await runVideoAgent({
+          brief: input.brief,
+          brandVoice,
+          businessName: businessRow?.name ?? undefined,
+          templateHint: input.templateHint,
+          userId: ctx.user.id,
+        });
+        const result = await renderForDraft({
+          userId: ctx.user.id,
+          draftId: input.draftId,
+          directive,
+          cookieHeader: ctx.headers.get("cookie") ?? "",
+        });
+        return { directive, ...result };
+      } catch (err) {
+        await notifyAdminOfError({
+          source: "motionReel.generateAndRender",
+          error: err,
+          meta: { userId: ctx.user.id, draftId: input.draftId },
+        });
+        const msg = err instanceof Error ? err.message : String(err);
+        throw OrbError.EXTERNAL_API(`motion-reel pipeline failed: ${msg}`);
       }
     }),
 

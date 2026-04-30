@@ -45,10 +45,19 @@ export const LANDING_CSS = `\
   .nav-inner {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    /* Logo on far left; nav-links (and burger when present) hug the
+       right edge. Without margin-left:auto on nav-links, three flex
+       children with space-between center the middle one — pushing
+       'get the app' away from the burger. With auto-margin the cta
+       sits flush against the burger as the spec calls for. */
+    justify-content: flex-start;
+    gap: 8px;
     padding: 14px 24px;
     max-width: 1080px;
     margin: 0 auto;
+  }
+  .nav-inner > .nav-links {
+    margin-left: auto;
   }
   .logo {
     display: flex;
@@ -197,11 +206,11 @@ export const LANDING_CSS = `\
     font-weight: 500;
   }
   @media (max-width: 700px) {
-    /* Hide the inline pricing/faq text links on mobile — they live
-       in the drawer. Keep the .nav-cta ('get the app') button and
-       the .nav-user pill visible per spec: the right side of the
-       header always shows either get-the-app or the user pill,
-       plus the burger menu. */
+    /* Hide the inline pricing/faq/sign-in text links on mobile — they
+       live in the drawer. Keep the .nav-cta ('get the app') button
+       OR the .nav-user pill visible to the LEFT of the burger. When
+       the user is logged in we hide the cta entirely (the drawer
+       already has 'get the app' so we don't need it twice). */
     .nav-links .nav-link { display: none; }
     .nav-links {
       gap: 8px;
@@ -215,6 +224,10 @@ export const LANDING_CSS = `\
       padding: 7px 12px;
       font-size: 12px;
     }
+    /* When the user pill is present (logged in), the cta is
+       redundant on mobile — drawer carries it. Saves space and
+       keeps the right side clean: pill + burger only. */
+    .nav-links:has(.nav-user) .nav-cta { display: none; }
   }
 
   /* Hero v5 — minimal centered orb + headline + textarea + CTA, with

@@ -13,8 +13,10 @@ const RAW_BODY = `\
       <span>adfi</span>
     </a>
     <div class="nav-links">
+      <a href="#team" class="nav-link">agents</a>
       <a href="#pricing" class="nav-link">pricing</a>
       <a href="#faq" class="nav-link">faq</a>
+      <a href="/signin" class="nav-link">sign in</a>
       <a href="#" class="nav-cta">get the app</a>
     </div>
     <button class="nav-burger" type="button" aria-label="open menu" aria-controls="nav-drawer" aria-expanded="false">
@@ -24,6 +26,7 @@ const RAW_BODY = `\
     </button>
   </div>
   <div class="nav-drawer" id="nav-drawer" hidden>
+    <a href="#team" class="nav-drawer-link">agents</a>
     <a href="#pricing" class="nav-drawer-link">pricing</a>
     <a href="#faq" class="nav-drawer-link">faq</a>
     <a href="/signin" class="nav-drawer-link">sign in</a>

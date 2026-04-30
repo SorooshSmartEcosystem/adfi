@@ -33,10 +33,43 @@ export default async function DashLayout({
     select: { strategistOutput: true },
   });
   if (!ctx?.strategistOutput) {
-    // Brand-new business that hasn't gone through Strategist yet.
-    // The new-business onboarding flow runs Strategist on creation;
-    // legacy first-time signups go through /onboarding's full flow.
-    redirect("/onboarding");
+    // Self-heal before bouncing: an existing user might have an
+    // AgentContext attached to a different business of theirs (common
+    // after the multi-business migration when currentBusinessId got
+    // pointed at a fresh business with no Strategist run yet, or when
+    // a manual prod fixup left state inconsistent). If they already
+    // have brand voice elsewhere, attach a copy to the active business
+    // so they keep moving — much better UX than bouncing them through
+    // a full onboarding flow they already completed once.
+    const fallback = await db.agentContext.findFirst({
+      where: {
+        userId: authUser.id,
+        strategistOutput: { not: { equals: null } },
+      },
+      orderBy: { lastRefreshedAt: { sort: "desc", nulls: "last" } },
+      select: {
+        strategistOutput: true,
+        voiceFingerprint: true,
+      },
+    });
+    if (fallback?.strategistOutput) {
+      await db.agentContext.upsert({
+        where: { businessId: active.id },
+        create: {
+          userId: authUser.id,
+          businessId: active.id,
+          strategistOutput: fallback.strategistOutput ?? undefined,
+          voiceFingerprint: fallback.voiceFingerprint ?? undefined,
+        },
+        update: {
+          strategistOutput: fallback.strategistOutput ?? undefined,
+          voiceFingerprint: fallback.voiceFingerprint ?? undefined,
+        },
+      });
+    } else {
+      // Genuinely new user — no voice anywhere. Full onboarding flow.
+      redirect("/onboarding");
+    }
   }
 
   // Active Business is the canonical source of truth. The legacy

@@ -17,6 +17,17 @@ const RAW_BODY = `\
       <a href="#faq" class="nav-link">faq</a>
       <a href="#" class="nav-cta">get the app</a>
     </div>
+    <button class="nav-burger" type="button" aria-label="open menu" aria-controls="nav-drawer" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </div>
+  <div class="nav-drawer" id="nav-drawer" hidden>
+    <a href="#pricing" class="nav-drawer-link">pricing</a>
+    <a href="#faq" class="nav-drawer-link">faq</a>
+    <a href="/signin" class="nav-drawer-link">sign in</a>
+    <a href="/download" class="nav-drawer-cta">get the app</a>
   </div>
 </nav>
 

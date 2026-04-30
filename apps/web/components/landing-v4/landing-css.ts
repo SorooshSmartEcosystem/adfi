@@ -128,6 +128,95 @@ export const LANDING_CSS = `\
     white-space: nowrap;
   }
 
+  /* ===== Mobile burger menu (≤700px) =====
+     Hide the inline nav links on small screens, show a burger button
+     and a slide-down drawer instead. On desktop the burger is hidden
+     entirely; the drawer remains in the DOM so its links work for
+     keyboard users but is visually clipped via [hidden]. */
+  .nav-burger {
+    display: none;
+    background: transparent;
+    border: 0;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    cursor: pointer;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    align-items: center;
+  }
+  .nav-burger span {
+    display: block;
+    width: 18px;
+    height: 1.5px;
+    background: #111;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+  }
+  .nav-burger[aria-expanded="true"] span:nth-child(1) {
+    transform: translateY(5.5px) rotate(45deg);
+  }
+  .nav-burger[aria-expanded="true"] span:nth-child(2) {
+    opacity: 0;
+  }
+  .nav-burger[aria-expanded="true"] span:nth-child(3) {
+    transform: translateY(-5.5px) rotate(-45deg);
+  }
+  .nav-drawer {
+    display: none;
+    flex-direction: column;
+    padding: 12px 24px 20px;
+    gap: 4px;
+    border-top: 0.5px solid #E5E3DB;
+    background: rgba(250, 250, 247, 0.97);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+  }
+  .nav-drawer:not([hidden]) {
+    display: flex;
+  }
+  .nav-drawer-link {
+    color: #111;
+    text-decoration: none;
+    font-size: 15px;
+    padding: 12px 4px;
+    border-bottom: 0.5px solid #EDEBE3;
+  }
+  .nav-drawer-link:last-of-type {
+    border-bottom: 0;
+  }
+  .nav-drawer-cta {
+    margin-top: 12px;
+    background: #111;
+    color: white;
+    text-decoration: none;
+    text-align: center;
+    padding: 12px 14px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  @media (max-width: 700px) {
+    /* Hide the inline pricing/faq text links on mobile — they live
+       in the drawer. Keep the .nav-cta ('get the app') button and
+       the .nav-user pill visible per spec: the right side of the
+       header always shows either get-the-app or the user pill,
+       plus the burger menu. */
+    .nav-links .nav-link { display: none; }
+    .nav-links {
+      gap: 8px;
+    }
+    .nav-burger { display: flex; }
+    .nav-user {
+      max-width: 130px;
+    }
+    .nav-user-name { font-size: 12px; }
+    .nav-cta {
+      padding: 7px 12px;
+      font-size: 12px;
+    }
+  }
+
   /* Hero v5 — minimal centered orb + headline + textarea + CTA, with
      four corner cards fading in/out on independent loops to suggest
      live agent activity. Replaces the old side-by-side hero+canvas. */

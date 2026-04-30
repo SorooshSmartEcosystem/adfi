@@ -12,6 +12,32 @@
 //     svc-section mini-canvas engines.
 
 export const LANDING_SCRIPT = `\
+  // Mobile burger toggle. Drawer is rendered with the [hidden] attribute
+  // by default; click flips it on/off and updates aria-expanded so the
+  // animated burger -> X transition fires via CSS attribute selectors.
+  (function setupBurger() {
+    const btn = document.querySelector('.nav-burger');
+    const drawer = document.getElementById('nav-drawer');
+    if (!btn || !drawer) return;
+    function close() {
+      drawer.setAttribute('hidden', '');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+    function open() {
+      drawer.removeAttribute('hidden');
+      btn.setAttribute('aria-expanded', 'true');
+    }
+    btn.addEventListener('click', () => {
+      const expanded = btn.getAttribute('aria-expanded') === 'true';
+      if (expanded) close(); else open();
+    });
+    // Close on link tap so the user lands on the section without
+    // having to dismiss the menu manually.
+    drawer.addEventListener('click', (e) => {
+      if (e.target && e.target.tagName === 'A') close();
+    });
+  })();
+
   // FAQ toggle
   function toggleFaq(header) {
     const item = header.parentElement;

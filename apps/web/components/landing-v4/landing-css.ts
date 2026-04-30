@@ -103,20 +103,80 @@ export const LANDING_CSS = `\
     transition: transform 0.15s;
   }
   .nav-cta:active { transform: scale(0.97); }
+  .nav-user-wrap {
+    position: relative;
+  }
   .nav-user {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 12px 4px 4px;
+    padding: 4px 10px 4px 4px;
     border: 0.5px solid #E5E3DB;
     border-radius: 100px;
     font-size: 13px;
     color: #111;
     text-decoration: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
     transition: border-color 0.15s;
-    max-width: 180px;
+    max-width: 200px;
   }
   .nav-user:hover { border-color: #111; }
+  .nav-user-caret {
+    font-size: 10px;
+    color: #888;
+    margin-left: 2px;
+    transition: transform 0.15s;
+  }
+  .nav-user[aria-expanded="true"] .nav-user-caret {
+    transform: rotate(180deg);
+  }
+  .nav-user-drawer {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 180px;
+    background: rgba(250, 250, 247, 0.98);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    border: 0.5px solid #E5E3DB;
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 200;
+  }
+  .nav-user-drawer[hidden] {
+    display: none;
+  }
+  .nav-user-drawer-form {
+    margin: 0;
+    padding: 0;
+  }
+  .nav-user-drawer-link {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    background: transparent;
+    border: 0;
+    font-family: inherit;
+    font-size: 13px;
+    color: #111;
+    text-decoration: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.12s;
+  }
+  .nav-user-drawer-link:hover {
+    background: rgba(17, 17, 17, 0.05);
+  }
+  .nav-user-drawer-logout {
+    color: #C84A3E;
+  }
   .nav-user-avatar {
     width: 24px;
     height: 24px;

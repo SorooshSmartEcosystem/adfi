@@ -38,6 +38,40 @@ export const LANDING_SCRIPT = `\
     });
   })();
 
+  // Profile-pill dropdown — only present when the user is signed in.
+  // Mirrors the burger pattern: button toggles aria-expanded, drawer is
+  // [hidden] off-screen until opened. Click outside or press Escape
+  // closes it. Logout uses a real form POST so the supabase session
+  // cookie is cleared on the server.
+  (function setupUserDrawer() {
+    const trigger = document.getElementById('nav-user-trigger');
+    const drawer = document.getElementById('nav-user-drawer');
+    if (!trigger || !drawer) return;
+    function close() {
+      drawer.setAttribute('hidden', '');
+      trigger.setAttribute('aria-expanded', 'false');
+    }
+    function open() {
+      drawer.removeAttribute('hidden');
+      trigger.setAttribute('aria-expanded', 'true');
+    }
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const expanded = trigger.getAttribute('aria-expanded') === 'true';
+      if (expanded) close(); else open();
+    });
+    // Click outside or escape closes the dropdown.
+    document.addEventListener('click', (e) => {
+      if (drawer.hasAttribute('hidden')) return;
+      const t = e.target;
+      if (t && t.closest && t.closest('#nav-user-drawer, #nav-user-trigger')) return;
+      close();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !drawer.hasAttribute('hidden')) close();
+    });
+  })();
+
   // FAQ toggle
   function toggleFaq(header) {
     const item = header.parentElement;

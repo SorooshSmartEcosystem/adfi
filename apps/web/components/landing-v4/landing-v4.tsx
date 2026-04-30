@@ -37,15 +37,32 @@ export function LandingV4({ user }: { user?: LandingUser | null }) {
     const avatar = user.logoUrl
       ? `<img src="${escapeHtml(user.logoUrl)}" alt="" class="nav-user-avatar" />`
       : `<span class="nav-user-avatar nav-user-initials">${escapeHtml(initials)}</span>`;
-    const pill = `<a href="/dashboard" class="nav-user">${avatar}<span class="nav-user-name">${safeName}</span></a>`;
-    // Signed-in visitors: nav CTA stays "get the app" → /download
-    // (the literal call to action is still about installing the
-    // mobile app, regardless of auth state). We just append a user
-    // pill so they have a one-click way back to the dashboard.
-    return LANDING_BODY.replace(
+    // Pill is now a button that opens a dropdown (dashboard / logout).
+    // Wrapping div positions the dropdown beneath the button.
+    const pill = `<div class="nav-user-wrap">
+      <button type="button" class="nav-user" id="nav-user-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="nav-user-drawer">${avatar}<span class="nav-user-name">${safeName}</span><span class="nav-user-caret" aria-hidden="true">▾</span></button>
+      <div class="nav-user-drawer" id="nav-user-drawer" role="menu" hidden>
+        <a href="/dashboard" class="nav-user-drawer-link" role="menuitem">go to dashboard</a>
+        <form action="/auth/signout" method="post" class="nav-user-drawer-form" role="none">
+          <button type="submit" class="nav-user-drawer-link nav-user-drawer-logout" role="menuitem">log out</button>
+        </form>
+      </div>
+    </div>`;
+    let next = LANDING_BODY.replace(
       /<a href="\/download" class="nav-cta">get the app<\/a>/,
       `<a href="/download" class="nav-cta">get the app</a>${pill}`,
     );
+    // Strip the inline + drawer 'sign in' links — already authed users
+    // have no use for them, the pill drawer carries 'log out' instead.
+    next = next.replace(
+      /<a href="\/signin" class="nav-link">sign in<\/a>\s*/g,
+      "",
+    );
+    next = next.replace(
+      /<a href="\/signin" class="nav-drawer-link">sign in<\/a>\s*/g,
+      "",
+    );
+    return next;
   }, [user]);
 
   useEffect(() => {

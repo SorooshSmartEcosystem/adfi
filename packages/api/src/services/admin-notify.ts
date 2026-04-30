@@ -18,6 +18,39 @@ function adminRecipients(): string[] {
     .filter(Boolean);
 }
 
+// Detects errors that imply a third-party service is down or in a
+// billing/quota failure mode. We promote these to URGENT in the email
+// subject so admins notice them in their inbox among normal error
+// reports — they need human action (top up account, switch provider,
+// pause feature) and an outage stays visible until resolved.
+const URGENT_PATTERNS: Array<{ tag: string; rx: RegExp }> = [
+  // Anthropic / OpenAI billing
+  { tag: "anthropic-billing", rx: /credit balance is too low/i },
+  { tag: "openai-billing", rx: /you exceeded your current quota/i },
+  { tag: "billing", rx: /insufficient.*(funds|balance|credits)/i },
+  { tag: "billing", rx: /payment required|402/i },
+  // Generic rate-limit / throttling at the provider level. We swallow
+  // app-level rate limits before this point — anything that reaches
+  // here is the upstream provider rejecting us, which is also urgent.
+  { tag: "rate-limit", rx: /rate.?limit.*(exceeded|hit)|too many requests/i },
+  // Provider-level outage / degradation
+  { tag: "service-down", rx: /service unavailable|503|gateway timeout|504/i },
+  { tag: "service-down", rx: /upstream.*(connect|timeout|reset)/i },
+  // Twilio account suspended / number issues
+  { tag: "twilio-account", rx: /account.*(suspended|inactive)|20003/i },
+  // Stripe outage
+  { tag: "stripe-down", rx: /stripe.*(unavailable|down|cannot connect)/i },
+];
+
+function detectUrgency(error: unknown): { urgent: boolean; tags: string[] } {
+  const msg = error instanceof Error ? error.message : String(error);
+  const tags: string[] = [];
+  for (const { tag, rx } of URGENT_PATTERNS) {
+    if (rx.test(msg) && !tags.includes(tag)) tags.push(tag);
+  }
+  return { urgent: tags.length > 0, tags };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -49,7 +82,10 @@ export async function notifyAdminOfError(
   const errStack = ctx.error instanceof Error ? ctx.error.stack ?? "" : "";
 
   const summary = errMessage.slice(0, 100);
-  const subject = `[adfi error] ${ctx.source}: ${summary}`;
+  const { urgent, tags } = detectUrgency(ctx.error);
+  const subject = urgent
+    ? `[adfi · URGENT · ${tags.join(" + ")}] ${ctx.source}: ${summary}`
+    : `[adfi error] ${ctx.source}: ${summary}`;
 
   const metaHtml = ctx.meta
     ? `<h3 style="font-size:13px;color:#666;margin:16px 0 6px;">context</h3>
@@ -95,7 +131,11 @@ ${new Date().toISOString()}`;
         subject,
         text,
         html,
-        categories: ["admin-error", `source-${ctx.source}`],
+        categories: [
+          "admin-error",
+          `source-${ctx.source}`,
+          ...(urgent ? ["urgent", ...tags.map((t) => `urgent-${t}`)] : []),
+        ],
       });
     } catch (err) {
       console.error(

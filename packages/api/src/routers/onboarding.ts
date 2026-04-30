@@ -4,6 +4,7 @@ import { router, authedProc, publicProc } from "../trpc";
 import { OrbError } from "../errors";
 import { runStrategist } from "../agents/strategist";
 import { provisionNumber } from "../services/twilio";
+import { notifyAdminOfError } from "../services/admin-notify";
 import {
   RateLimitError,
   attachEmailToPreview,
@@ -38,9 +39,21 @@ export const onboardingRouter = router({
         if (error instanceof RateLimitError) {
           throw OrbError.VALIDATION(error.message);
         }
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error("onboarding preview failed:", error);
-        throw OrbError.EXTERNAL_API(msg);
+        // Don't leak third-party billing/quota messages to the client.
+        // Page admins via email + log internally; surface a friendly,
+        // non-revealing message to the visitor so they retry or come
+        // back later instead of seeing "credit balance too low".
+        await notifyAdminOfError({
+          source: "onboarding.previewDemo",
+          error,
+          meta: {
+            ip: ipFromHeaders(ctx.headers),
+            descriptionPreview: input.businessDescription.slice(0, 80),
+          },
+        });
+        throw OrbError.EXTERNAL_API(
+          "we're catching our breath — try again in a minute.",
+        );
       }
     }),
 
@@ -100,8 +113,14 @@ export const onboardingRouter = router({
         userId: ctx.user.id,
       });
     } catch (error) {
-      console.error("Strategist failed:", error);
-      throw OrbError.EXTERNAL_API("Claude");
+      await notifyAdminOfError({
+        source: "onboarding.runAnalysis",
+        error,
+        meta: { userId: ctx.user.id },
+      });
+      throw OrbError.EXTERNAL_API(
+        "we're catching our breath — try again in a minute.",
+      );
     }
 
     const brandVoice = result as unknown as Prisma.InputJsonValue;

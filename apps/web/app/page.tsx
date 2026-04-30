@@ -17,18 +17,40 @@ export default async function Home() {
 
   let user: LandingUser | null = null;
   if (authUser) {
+    // Read the user's ACTIVE business — that's where logo + name live
+    // after the multi-business migration. The legacy User.businessLogoUrl
+    // / .businessName fields are kept around as a last-ditch fallback for
+    // pre-migration accounts (rare); the active Business row is
+    // authoritative when present.
     const row = await db.user.findUnique({
       where: { id: authUser.id },
-      select: { businessName: true, businessDescription: true, businessLogoUrl: true, email: true },
+      select: {
+        email: true,
+        businessName: true,
+        businessDescription: true,
+        businessLogoUrl: true,
+        currentBusiness: {
+          select: {
+            name: true,
+            logoUrl: true,
+            description: true,
+          },
+        },
+      },
     });
     if (row) {
+      const business = row.currentBusiness;
+      const description = business?.description ?? row.businessDescription;
       const fallback =
-        row.businessDescription?.split(/[.\n]/)[0]?.slice(0, 30)?.trim() ||
+        description?.split(/[.\n]/)[0]?.slice(0, 30)?.trim() ||
         row.email?.split("@")[0] ||
         "you";
+      const name =
+        business?.name?.trim() || row.businessName?.trim() || fallback;
+      const logoUrl = business?.logoUrl ?? row.businessLogoUrl;
       user = {
-        name: (row.businessName?.trim() || fallback).toLowerCase(),
-        logoUrl: row.businessLogoUrl,
+        name: name.toLowerCase(),
+        logoUrl,
       };
     }
   }

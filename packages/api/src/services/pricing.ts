@@ -23,6 +23,18 @@ export const AVG_EVENT_COST_CENTS = {
   SIGNAL_SMS: 0.8,
 } as const;
 
+// Brand kit generation: ~4 Opus 4.7 calls (palette, typography, logo SVG,
+// image style prompt) + 3 Flux cover samples on Replicate. Estimated total
+// ~40 cents per generation (Opus calls are expensive — logo SVG alone uses
+// 24k output tokens). Replaced once we log real token usage on each step.
+export const BRAND_KIT_GENERATION_CENTS = 40;
+
+// Vapi voice — bundled per-minute price covering OpenAI realtime model +
+// Vapi platform fee + Twilio outbound. Approx 18¢/minute for our config.
+export const VAPI_CENTS = {
+  perMinute: 18,
+};
+
 // Twilio US pricing
 export const TWILIO_CENTS = {
   localNumberMonthly: 100, // $1.00

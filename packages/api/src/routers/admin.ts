@@ -4,6 +4,8 @@ import { router, adminProc } from "../trpc";
 import { OrbError } from "../errors";
 import {
   AVG_EVENT_COST_CENTS,
+  BRAND_KIT_GENERATION_CENTS,
+  VAPI_CENTS,
   estimateEventCostCents,
   FIXED_OVERHEAD_CENTS,
   PLAN_PRICING_CENTS,
@@ -205,12 +207,35 @@ export const adminRouter = router({
     const twilioSmsCents = Math.round(outboundSms * TWILIO_CENTS.outboundSms);
     const twilioCents = twilioNumbersCents + twilioSmsCents;
 
+    // Brand kit generations — each BrandKitVersion is one full generation
+    // pass (~4 Opus calls + 3 Replicate images bundled into the per-gen
+    // estimate in pricing.ts).
+    const brandKitGenCents =
+      brandKitVersionsThisMonth * BRAND_KIT_GENERATION_CENTS;
+
+    // Vapi voice — sum call durations this month and price per minute.
+    const callsThisMonth = await ctx.db.call.findMany({
+      where: { createdAt: { gte: periodStart } },
+      select: { durationSeconds: true },
+    });
+    const totalCallSeconds = callsThisMonth.reduce(
+      (s, c) => s + (c.durationSeconds ?? 0),
+      0,
+    );
+    const totalCallMinutes = Math.ceil(totalCallSeconds / 60);
+    const vapiCents = totalCallMinutes * VAPI_CENTS.perMinute;
+
     const fixedCents =
       FIXED_OVERHEAD_CENTS.vercel +
       FIXED_OVERHEAD_CENTS.supabase +
       FIXED_OVERHEAD_CENTS.anthropicTeam;
 
-    const variableCostCents = anthropicCents + replicateCents + twilioCents;
+    const variableCostCents =
+      anthropicCents +
+      replicateCents +
+      twilioCents +
+      brandKitGenCents +
+      vapiCents;
     const totalCostCents = variableCostCents + fixedCents;
     const grossMarginCents = mrrCents - variableCostCents;
     const grossMarginPct =
@@ -246,6 +271,17 @@ export const adminRouter = router({
           activeNumbers,
           outboundSmsCount: outboundSms,
         },
+        brandKitCents: brandKitGenCents,
+        brandKitBreakdown: {
+          generations: brandKitVersionsThisMonth,
+          unitCents: BRAND_KIT_GENERATION_CENTS,
+        },
+        vapiCents,
+        vapiBreakdown: {
+          calls: callsThisMonth.length,
+          totalMinutes: totalCallMinutes,
+          unitCents: VAPI_CENTS.perMinute,
+        },
         fixedCents,
         fixedBreakdown: FIXED_OVERHEAD_CENTS,
         variableCents: variableCostCents,
@@ -269,6 +305,9 @@ export const adminRouter = router({
           (e) => e.agent === "SIGNAL" && e.eventType === "sms_handled",
         ).length,
         imagesGenerated,
+        brandKitGenerations: brandKitVersionsThisMonth,
+        vapiCalls: callsThisMonth.length,
+        vapiMinutes: totalCallMinutes,
       },
     };
   }),
@@ -517,6 +556,16 @@ export const adminRouter = router({
         createdAt: { gte: periodStart },
       },
     });
+    const brandKitGenerations = await ctx.db.brandKitVersion.count({
+      where: { createdAt: { gte: periodStart } },
+    });
+    const callsThisPeriod = await ctx.db.call.findMany({
+      where: { createdAt: { gte: periodStart } },
+      select: { durationSeconds: true },
+    });
+    const totalCallMinutes = Math.ceil(
+      callsThisPeriod.reduce((s, c) => s + (c.durationSeconds ?? 0), 0) / 60,
+    );
 
     return {
       period: { start: periodStart.toISOString(), end: new Date().toISOString() },
@@ -566,6 +615,20 @@ export const adminRouter = router({
           unitCostCents: imagesGenerated > 0
             ? Math.round(replicateCents / imagesGenerated)
             : 1,
+        },
+        {
+          name: "Brand Kit (Anthropic+Replicate)",
+          costCents: brandKitGenerations * BRAND_KIT_GENERATION_CENTS,
+          unit: "generations",
+          count: brandKitGenerations,
+          unitCostCents: BRAND_KIT_GENERATION_CENTS,
+        },
+        {
+          name: "Vapi (voice calls)",
+          costCents: totalCallMinutes * VAPI_CENTS.perMinute,
+          unit: "minutes",
+          count: totalCallMinutes,
+          unitCostCents: VAPI_CENTS.perMinute,
         },
         {
           name: "Twilio — phone numbers",

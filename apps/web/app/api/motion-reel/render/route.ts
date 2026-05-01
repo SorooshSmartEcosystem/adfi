@@ -283,19 +283,18 @@ async function resolveMotionReelEntry(): Promise<string | null> {
   // an integer module id rather than a path, which then doesn't
   // resolve as a filesystem location.
   const candidates = [
+    // Build-time copy (apps/web/scripts/copy-motion-reel.mjs runs as
+    // prebuild). This path is co-located with the route so Vercel's
+    // per-function tracer always ships it. Most reliable.
+    resolve(process.cwd(), "_motion-reel-src/index.ts"),
     // Vercel prod layout (cwd=/var/task/apps/web, repo at /var/task)
     resolve(process.cwd(), "../../packages/motion-reel/src/index.ts"),
     // Vercel absolute fallback
     "/var/task/packages/motion-reel/src/index.ts",
-    // Local dev `pnpm dev` from apps/web
-    resolve(process.cwd(), "../../packages/motion-reel/src/index.ts"),
     // Local dev from repo root
     resolve(process.cwd(), "packages/motion-reel/src/index.ts"),
     // pnpm-symlinked location
-    resolve(
-      process.cwd(),
-      "node_modules/@orb/motion-reel/src/index.ts",
-    ),
+    resolve(process.cwd(), "node_modules/@orb/motion-reel/src/index.ts"),
   ];
   for (const c of candidates) {
     if (existsSync(c)) {

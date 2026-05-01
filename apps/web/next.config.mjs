@@ -91,6 +91,19 @@ const nextConfig = {
       "packages/motion-reel/**/*",
       "apps/web/node_modules/@orb/motion-reel/**/*",
     ],
+    // Vercel's per-route function tracer sometimes drops files matched
+    // by the "/**/*" pattern when a specific route doesn't statically
+    // reference them. Repeat the motion-reel + remotion paths on the
+    // exact route that needs them so they ship in this Lambda's
+    // bundle even when the global glob isn't honored. Paths relative
+    // to outputFileTracingRoot (the repo root) since that's set above.
+    "/api/motion-reel/render": [
+      "packages/motion-reel/**/*",
+      "node_modules/.pnpm/@remotion+**/**/*",
+      "node_modules/.pnpm/@rspack+**/**/*",
+      "node_modules/.pnpm/@sparticuz+**/**/*",
+      "node_modules/.pnpm/remotion@**/**/*",
+    ],
   },
 };
 

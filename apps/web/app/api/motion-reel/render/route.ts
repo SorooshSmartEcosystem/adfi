@@ -268,73 +268,43 @@ async function uploadToStorage(args: {
 //   3. Direct path probe — last resort, hardcoded relative paths Vercel's
 //      output-tracing tends to ship reliably
 async function resolveMotionReelEntry(): Promise<string | null> {
-  const { existsSync, readdirSync } = await import("node:fs");
+  const { existsSync } = await import("node:fs");
   const { resolve } = await import("node:path");
 
-  // Strategy 1: createRequire from this module's URL.
-  try {
-    const r = createRequire(import.meta.url);
-    const p = r.resolve("@orb/motion-reel");
-    if (p && existsSync(p)) return p;
-  } catch (err) {
-    console.warn("[motion-reel] createRequire resolve failed:", err);
-  }
-
-  // Strategy 2: createRequire from process.cwd. On Vercel cwd is
-  // /var/task; this can find packages in /var/task/node_modules even
-  // when import.meta.url points at a compiled file in .next/.
-  try {
-    const r = createRequire(resolve(process.cwd(), "package.json"));
-    const p = r.resolve("@orb/motion-reel");
-    if (p && existsSync(p)) return p;
-  } catch (err) {
-    console.warn("[motion-reel] cwd require.resolve failed:", err);
-  }
-
-  // Strategy 3: probe known relative paths.
+  // Confirmed via /api/debug/motion-reel that on Vercel:
+  //   - cwd = /var/task/apps/web
+  //   - /var/task/packages/motion-reel/src/index.ts exists
+  // So `../../packages/motion-reel/src/index.ts` from cwd is the right
+  // path. Probe it first; fall back to a few alternatives for local
+  // dev (where cwd varies) and for any future Vercel layout change.
+  //
+  // We skip createRequire('@orb/motion-reel') entirely: webpack
+  // replaces it with __webpack_require__ at build time and returns
+  // an integer module id rather than a path, which then doesn't
+  // resolve as a filesystem location.
   const candidates = [
-    resolve(process.cwd(), "node_modules/@orb/motion-reel/src/index.ts"),
-    resolve(process.cwd(), "node_modules/@orb/motion-reel/src/index.tsx"),
-    resolve(process.cwd(), "node_modules/@orb/motion-reel/dist/index.js"),
-    resolve(process.cwd(), "packages/motion-reel/src/index.ts"),
-    resolve(process.cwd(), "packages/motion-reel/src/index.tsx"),
+    // Vercel prod layout (cwd=/var/task/apps/web, repo at /var/task)
     resolve(process.cwd(), "../../packages/motion-reel/src/index.ts"),
-    resolve(process.cwd(), "../packages/motion-reel/src/index.ts"),
-    resolve(process.cwd(), "/var/task/packages/motion-reel/src/index.ts"),
+    // Vercel absolute fallback
+    "/var/task/packages/motion-reel/src/index.ts",
+    // Local dev `pnpm dev` from apps/web
+    resolve(process.cwd(), "../../packages/motion-reel/src/index.ts"),
+    // Local dev from repo root
+    resolve(process.cwd(), "packages/motion-reel/src/index.ts"),
+    // pnpm-symlinked location
     resolve(
       process.cwd(),
-      "/var/task/node_modules/@orb/motion-reel/src/index.ts",
-    ),
-    resolve(
-      process.cwd(),
-      "/var/task/apps/web/node_modules/@orb/motion-reel/src/index.ts",
+      "node_modules/@orb/motion-reel/src/index.ts",
     ),
   ];
   for (const c of candidates) {
     if (existsSync(c)) {
-      console.log(`[motion-reel] entry found via probe: ${c}`);
+      console.log(`[motion-reel] entry found: ${c}`);
       return c;
     }
   }
-
-  // Diagnostic: list what IS in the cwd + node_modules so we can see
-  // the actual layout Vercel produced. Limited to top-level entries
-  // to keep log size sane.
-  function safeReadDir(p: string): string[] {
-    try {
-      return existsSync(p) ? readdirSync(p).slice(0, 30) : ["(missing)"];
-    } catch (err) {
-      return [`(error: ${err instanceof Error ? err.message : String(err)})`];
-    }
-  }
-  console.warn("[motion-reel] all resolution strategies failed.", {
+  console.warn("[motion-reel] no candidate exists.", {
     cwd: process.cwd(),
-    cwdContents: safeReadDir(process.cwd()),
-    cwdNodeModules: safeReadDir(resolve(process.cwd(), "node_modules")),
-    cwdNodeModulesOrb: safeReadDir(
-      resolve(process.cwd(), "node_modules/@orb"),
-    ),
-    cwdPackages: safeReadDir(resolve(process.cwd(), "packages")),
     candidates,
   });
   return null;

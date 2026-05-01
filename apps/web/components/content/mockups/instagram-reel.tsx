@@ -64,11 +64,6 @@ export function InstagramReelMockup({ business, content, mp4Url, menu }: MockupP
           </button>
         </div>
       </div>
-      {menu?.open ? (
-        <div className="absolute right-3 top-10 z-30">
-          {menu.content}
-        </div>
-      ) : null}
 
       {/* Right action stack */}
       <div className="absolute right-2 bottom-24 flex flex-col gap-md text-white items-center">

@@ -13,25 +13,37 @@ import type { PlatformValue } from "./platform-filter";
 //     by createdAt desc — no group labels, no status counts.
 //   - Empty state is a single quiet line.
 
+type StatusBucket = "ALL" | "REVIEW" | "SCHEDULED" | "LIVE";
+
 export function DraftsPanel() {
   const [filter, setFilter] = useState<PlatformValue>("ALL");
   const [view, setView] = useState<"mockup" | "list">("mockup");
+  const [bucket, setBucket] = useState<StatusBucket>("ALL");
 
   const platformArg =
     filter === "ALL"
       ? undefined
       : (filter as Exclude<PlatformValue, "ALL">);
 
-  // Fetch awaiting + approved together so the grid shows the most
-  // recent drafts regardless of state. Status pill on each card
-  // tells the user which state they're in.
+  // Bucket → DraftStatus. We filter client-side after fetching so all
+  // status counts are visible without re-fetching when the user
+  // changes the bucket.
+  const statusForBucket: Record<StatusBucket, string[] | null> = {
+    ALL: null,
+    REVIEW: ["AWAITING_REVIEW", "DRAFT", "AWAITING_PHOTOS"],
+    SCHEDULED: ["APPROVED"],
+    LIVE: ["PUBLISHED"],
+  };
+
+  // Fetch awaiting + approved + published together so all buckets are
+  // populated from a single query. Bucket switching is a client-side
+  // filter, so it's instant.
   const drafts = trpc.content.listDrafts.useQuery(
     {
-      limit: 30,
+      limit: 60,
       platform: platformArg,
     },
     {
-      // Light caching — keep 30s so tab switches don't refetch.
       staleTime: 30 * 1000,
       refetchOnWindowFocus: false,
     },
@@ -44,7 +56,22 @@ export function DraftsPanel() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const items = drafts.data?.items ?? [];
+  const allItems = drafts.data?.items ?? [];
+  const allowedStatuses = statusForBucket[bucket];
+  const items = allowedStatuses
+    ? allItems.filter((d) => allowedStatuses.includes(d.status))
+    : allItems;
+  const counts = {
+    ALL: allItems.length,
+    REVIEW: allItems.filter((d) =>
+      statusForBucket.REVIEW!.includes(d.status),
+    ).length,
+    SCHEDULED: allItems.filter((d) =>
+      statusForBucket.SCHEDULED!.includes(d.status),
+    ).length,
+    LIVE: allItems.filter((d) => statusForBucket.LIVE!.includes(d.status))
+      .length,
+  };
 
   const business = {
     name: businessQuery.data?.name ?? me.data?.businessName ?? "your business",
@@ -59,45 +86,89 @@ export function DraftsPanel() {
 
   return (
     <div className="flex flex-col gap-md">
-      {/* Toolbar — view toggle (left) + filter (right) */}
-      <div className="flex items-center justify-between">
-        <ViewToggle value={view} onChange={setView} />
+      {/* Toolbar — view toggle + status buckets (left) + filter (right) */}
+      <div className="flex items-center justify-between gap-md flex-wrap">
+        <div className="flex items-center gap-md flex-wrap">
+          <ViewToggle value={view} onChange={setView} />
+          <StatusBuckets value={bucket} onChange={setBucket} counts={counts} />
+        </div>
         <FilterButton value={filter} onChange={setFilter} />
       </div>
 
-      {drafts.isLoading ? (
-        <p className="text-sm text-ink3 py-lg" dir="auto">one second</p>
-      ) : items.length === 0 ? (
-        <div className="bg-surface rounded-md p-lg">
-          <p className="text-md leading-relaxed" dir="auto">
-            inbox zero — nothing to review yet. tap{" "}
-            <span className="font-medium">draft post</span> at the top to
-            ask echo for one.
-          </p>
-        </div>
-      ) : view === "list" ? (
-        <div className="flex flex-col gap-sm">
-          {items.map((d) => (
-            <DraftCardV2 key={d.id} draft={d} business={business} view="list" />
-          ))}
-        </div>
-      ) : (
-        // Mockup grid uses CSS columns for masonry-style packing —
-        // cards have variable heights (a Reel is tall, an X post is
-        // short) and the column layout avoids the empty-row gaps a
-        // strict CSS grid would leave. Single column on mobile,
-        // 2 columns on md+.
-        <div className="columns-1 md:columns-2 gap-lg w-full">
-          {items.map((d) => (
-            <div
-              key={d.id}
-              className="break-inside-avoid mb-lg w-full max-w-full overflow-hidden"
-            >
-              <DraftCardV2 draft={d} business={business} view="mockup" />
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mt-md">
+        {drafts.isLoading ? (
+          <p className="text-sm text-ink3 py-lg" dir="auto">one second</p>
+        ) : items.length === 0 ? (
+          <div className="bg-surface rounded-md p-lg">
+            <p className="text-md leading-relaxed" dir="auto">
+              {bucket === "LIVE"
+                ? "no live posts yet — approve a draft and it'll appear here once published."
+                : bucket === "SCHEDULED"
+                  ? "nothing scheduled — approve a draft to queue it."
+                  : bucket === "REVIEW"
+                    ? "nothing waiting — tap draft post to ask echo for one."
+                    : "inbox zero — nothing here yet. tap draft post at the top to ask echo for one."}
+            </p>
+          </div>
+        ) : view === "list" ? (
+          <div className="flex flex-col gap-sm">
+            {items.map((d) => (
+              <DraftCardV2 key={d.id} draft={d} business={business} view="list" />
+            ))}
+          </div>
+        ) : (
+          <div className="columns-1 md:columns-2 gap-lg w-full">
+            {items.map((d) => (
+              <div
+                key={d.id}
+                className="break-inside-avoid mb-lg w-full max-w-full overflow-hidden"
+              >
+                <DraftCardV2 draft={d} business={business} view="mockup" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatusBuckets({
+  value,
+  onChange,
+  counts,
+}: {
+  value: StatusBucket;
+  onChange: (v: StatusBucket) => void;
+  counts: Record<StatusBucket, number>;
+}) {
+  const buckets: { value: StatusBucket; label: string }[] = [
+    { value: "ALL", label: "all" },
+    { value: "REVIEW", label: "review" },
+    { value: "SCHEDULED", label: "scheduled" },
+    { value: "LIVE", label: "live" },
+  ];
+  return (
+    <div className="inline-flex bg-surface border-hairline border-border rounded-md p-[2px]">
+      {buckets.map((b) => (
+        <button
+          key={b.value}
+          type="button"
+          onClick={() => onChange(b.value)}
+          className={`flex items-center gap-xs px-sm py-[5px] rounded text-[11px] font-mono tracking-[0.16em] uppercase transition-colors ${
+            value === b.value
+              ? "bg-bg text-ink shadow-sm"
+              : "text-ink3 hover:text-ink"
+          }`}
+        >
+          <span>{b.label}</span>
+          {counts[b.value] > 0 ? (
+            <span className="text-ink4 normal-case tracking-normal">
+              {counts[b.value]}
+            </span>
+          ) : null}
+        </button>
+      ))}
     </div>
   );
 }

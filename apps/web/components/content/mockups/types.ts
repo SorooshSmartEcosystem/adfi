@@ -1,7 +1,5 @@
 // Shared types + helpers for platform mockups.
 
-import type { ReactNode } from "react";
-
 // Normalized draft content — flat shape every mockup reads from.
 // Echo emits different shapes per format (SINGLE_POST has heroImage
 // + body + hook; CAROUSEL has coverSlide + bodySlides + caption;
@@ -32,15 +30,13 @@ export type MockupBusiness = {
   verified?: boolean;
 };
 
-// Action menu rendered inside the platform's own header (where the
+// Action menu trigger inside the platform's own header (where the
 // `⋯` glyph already lives in real IG/X/LinkedIn UIs). Each mockup
-// renders the trigger; the parent owns the open/close state via
-// these props.
+// renders ONLY the trigger; the parent renders the popover content
+// itself, OUTSIDE the mockup's overflow-hidden wrapper, so the popover
+// can extend below the card without being clipped.
 export type MockupMenu = {
-  open: boolean;
   onToggle: () => void;
-  // Rendered into a popover beneath the trigger when `open`.
-  content: ReactNode;
 };
 
 export type MockupProps = {

@@ -14,7 +14,7 @@ export function LinkedInMockup({ business, content, menu }: MockupProps) {
   return (
     <div className="bg-white border-hairline border-[#dde1e6] rounded-md overflow-hidden max-w-[560px] w-full">
       <div className="px-md py-md">
-        <div className="flex items-start gap-sm mb-sm relative">
+        <div className="flex items-start gap-sm mb-sm">
           <Avatar business={business} />
           <div className="flex-1 min-w-0">
             <div className="text-[14px] font-semibold text-[#000000e6] truncate">
@@ -38,11 +38,6 @@ export function LinkedInMockup({ business, content, menu }: MockupProps) {
           >
             ⋯
           </button>
-          {menu?.open ? (
-            <div className="absolute right-0 top-full mt-xs z-30">
-              {menu.content}
-            </div>
-          ) : null}
         </div>
 
         <div className="text-[14px] leading-[1.5] text-[#000000e6] whitespace-pre-wrap" dir="auto">

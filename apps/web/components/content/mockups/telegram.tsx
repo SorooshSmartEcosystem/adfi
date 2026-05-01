@@ -14,7 +14,7 @@ export function TelegramMockup({ business, content, menu }: MockupProps) {
 
   return (
     <div className="bg-[#e6ebee] p-md rounded-md max-w-[480px] w-full">
-      <div className="bg-white rounded-md overflow-hidden shadow-sm relative">
+      <div className="bg-white rounded-md overflow-hidden shadow-sm">
         <div className="flex items-center gap-sm px-md pt-md">
           <Avatar business={business} />
           <div className="flex-1 min-w-0">
@@ -34,11 +34,6 @@ export function TelegramMockup({ business, content, menu }: MockupProps) {
           >
             ⋯
           </button>
-          {menu?.open ? (
-            <div className="absolute right-md top-full mt-xs z-30">
-              {menu.content}
-            </div>
-          ) : null}
         </div>
 
         {content.imageUrl ? (

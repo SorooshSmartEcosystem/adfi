@@ -215,6 +215,19 @@ export function DraftCardV2({
     );
   } else if (draft.status === "PUBLISHED") {
     menuItems.push(copyItem);
+    if (format === "REEL_SCRIPT") {
+      menuItems.push(
+        <MenuItem
+          key="rerender"
+          onClick={() => {
+            draftScript.mutate({ brief: textBrief(normalized) });
+            setShowMenu(false);
+          }}
+        >
+          re-render video
+        </MenuItem>,
+      );
+    }
   } else if (draft.status === "FAILED") {
     menuItems.push(
       <MenuItem
@@ -366,9 +379,9 @@ export function DraftCardV2({
       }`}
       onBlur={scheduleMenuClose}
     >
-      {/* Status label sits above the mockup — quiet, never overlapping
-          the post chrome. */}
-      <div className="flex items-center gap-sm mb-xs px-xs">
+      {/* Status label sits above the mockup — left-aligned with the
+          mockup's left edge, never overlapping the post chrome. */}
+      <div className="flex items-center gap-sm mb-xs">
         <span className="w-1 h-1 rounded-full" style={{ background: status.color }} />
         <span
           className="font-mono text-[10px] tracking-[0.22em] uppercase"
@@ -381,19 +394,25 @@ export function DraftCardV2({
         </span>
       </div>
 
-      <div className="w-full max-w-full overflow-hidden flex justify-center">
-        <PlatformMockup
-          platform={platform}
-          format={format}
-          business={business}
-          content={normalized}
-          mp4Url={motion?.mp4Url ?? null}
-          menu={{
-            open: showMenu,
-            onToggle: () => setShowMenu((v) => !v),
-            content: menuContent,
-          }}
-        />
+      {/* Mockup + popover. The popover is a sibling of the mockup, NOT
+          a child — keeps it outside the mockup's overflow-hidden so
+          short cards (Telegram) don't clip the dropdown. */}
+      <div className="relative w-full max-w-full">
+        <div className="w-full max-w-full overflow-hidden">
+          <PlatformMockup
+            platform={platform}
+            format={format}
+            business={business}
+            content={normalized}
+            mp4Url={motion?.mp4Url ?? null}
+            menu={{
+              onToggle: () => setShowMenu((v) => !v),
+            }}
+          />
+        </div>
+        {showMenu ? (
+          <div className="absolute right-2 top-12 z-50">{menuContent}</div>
+        ) : null}
       </div>
 
       {isVideoRendering ? (

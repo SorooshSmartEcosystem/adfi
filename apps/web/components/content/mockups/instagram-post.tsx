@@ -35,7 +35,7 @@ export function InstagramPostMockup({
   return (
     <div className="bg-white border-hairline border-[#dbdbdb] rounded-md overflow-hidden max-w-[440px] w-full">
       {/* Header */}
-      <div className="flex items-center gap-sm px-md py-sm relative">
+      <div className="flex items-center gap-sm px-md py-sm">
         <Avatar business={business} />
         <div className="flex-1 min-w-0">
           <div className="text-[13px] font-semibold text-ink truncate">
@@ -52,11 +52,6 @@ export function InstagramPostMockup({
         >
           ⋯
         </button>
-        {menu?.open ? (
-          <div className="absolute right-md top-full mt-xs z-30">
-            {menu.content}
-          </div>
-        ) : null}
       </div>
 
       {/* Image / carousel */}

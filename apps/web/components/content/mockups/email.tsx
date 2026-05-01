@@ -23,7 +23,7 @@ export function EmailMockup({ business, content, menu }: MockupProps) {
   return (
     <div className="bg-white border-hairline border-[#d4d4d8] rounded-md overflow-hidden max-w-[640px] w-full">
       {/* Email-client toolbar */}
-      <div className="bg-[#f4f4f5] px-md py-sm flex items-center gap-sm border-b-hairline border-[#e4e4e7] relative">
+      <div className="bg-[#f4f4f5] px-md py-sm flex items-center gap-sm border-b-hairline border-[#e4e4e7]">
         <div className="flex gap-xs">
           <span className="w-3 h-3 rounded-full bg-[#ff5f56]" />
           <span className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
@@ -39,11 +39,6 @@ export function EmailMockup({ business, content, menu }: MockupProps) {
         >
           ⋯
         </button>
-        {menu?.open ? (
-          <div className="absolute right-md top-full mt-xs z-30">
-            {menu.content}
-          </div>
-        ) : null}
       </div>
 
       {/* From / subject header */}

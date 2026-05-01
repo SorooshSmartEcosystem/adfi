@@ -13,7 +13,7 @@ export function FacebookMockup({ business, content, menu }: MockupProps) {
 
   return (
     <div className="bg-white border-hairline border-[#dadde1] rounded-md overflow-hidden max-w-[560px] w-full">
-      <div className="px-md py-sm flex items-start gap-sm relative">
+      <div className="px-md py-sm flex items-start gap-sm">
         <Avatar business={business} />
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-semibold text-[#050505] truncate">
@@ -34,11 +34,6 @@ export function FacebookMockup({ business, content, menu }: MockupProps) {
         >
           ⋯
         </button>
-        {menu?.open ? (
-          <div className="absolute right-md top-full mt-xs z-30">
-            {menu.content}
-          </div>
-        ) : null}
       </div>
 
       <div className="px-md pb-sm text-[15px] leading-[1.4] text-[#050505] whitespace-pre-wrap" dir="auto">

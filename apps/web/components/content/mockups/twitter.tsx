@@ -40,22 +40,15 @@ export function TwitterMockup({ business, content, menu }: MockupProps) {
             <span className="text-[#536471]">just now</span>
 
             {/* ⋯ menu trigger sits at top-right of the tweet header */}
-            <div className="ml-auto relative">
-              <button
-                type="button"
-                onClick={menu?.onToggle}
-                disabled={!menu}
-                className="text-[#536471] hover:text-[#0f1419] text-lg leading-none w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#1d9bf0]/10 disabled:opacity-30"
-                aria-label="post actions"
-              >
-                ⋯
-              </button>
-              {menu?.open ? (
-                <div className="absolute right-0 top-full mt-xs z-30">
-                  {menu.content}
-                </div>
-              ) : null}
-            </div>
+            <button
+              type="button"
+              onClick={menu?.onToggle}
+              disabled={!menu}
+              className="ml-auto text-[#536471] hover:text-[#0f1419] text-lg leading-none w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#1d9bf0]/10 disabled:opacity-30"
+              aria-label="post actions"
+            >
+              ⋯
+            </button>
           </div>
 
           <div className="mt-xs text-[15px] leading-[1.4] text-[#0f1419] whitespace-pre-wrap" dir="auto">

@@ -268,7 +268,7 @@ async function uploadToStorage(args: {
 //   3. Direct path probe — last resort, hardcoded relative paths Vercel's
 //      output-tracing tends to ship reliably
 async function resolveMotionReelEntry(): Promise<string | null> {
-  const { existsSync } = await import("node:fs");
+  const { existsSync, readdirSync } = await import("node:fs");
   const { resolve } = await import("node:path");
 
   // Strategy 1: createRequire from this module's URL.
@@ -291,16 +291,24 @@ async function resolveMotionReelEntry(): Promise<string | null> {
     console.warn("[motion-reel] cwd require.resolve failed:", err);
   }
 
-  // Strategy 3: probe known relative paths. Vercel's output-tracing
-  // includes workspace packages but the runtime can't always reach
-  // them via require.resolve when the package's main is a .ts file.
-  // The compiled tarball or src .ts file usually lives at one of
-  // these locations.
+  // Strategy 3: probe known relative paths.
   const candidates = [
     resolve(process.cwd(), "node_modules/@orb/motion-reel/src/index.ts"),
+    resolve(process.cwd(), "node_modules/@orb/motion-reel/src/index.tsx"),
     resolve(process.cwd(), "node_modules/@orb/motion-reel/dist/index.js"),
     resolve(process.cwd(), "packages/motion-reel/src/index.ts"),
+    resolve(process.cwd(), "packages/motion-reel/src/index.tsx"),
     resolve(process.cwd(), "../../packages/motion-reel/src/index.ts"),
+    resolve(process.cwd(), "../packages/motion-reel/src/index.ts"),
+    resolve(process.cwd(), "/var/task/packages/motion-reel/src/index.ts"),
+    resolve(
+      process.cwd(),
+      "/var/task/node_modules/@orb/motion-reel/src/index.ts",
+    ),
+    resolve(
+      process.cwd(),
+      "/var/task/apps/web/node_modules/@orb/motion-reel/src/index.ts",
+    ),
   ];
   for (const c of candidates) {
     if (existsSync(c)) {
@@ -308,8 +316,26 @@ async function resolveMotionReelEntry(): Promise<string | null> {
       return c;
     }
   }
-  console.warn(
-    `[motion-reel] all resolution strategies failed. cwd=${process.cwd()} candidates=${candidates.join(", ")}`,
-  );
+
+  // Diagnostic: list what IS in the cwd + node_modules so we can see
+  // the actual layout Vercel produced. Limited to top-level entries
+  // to keep log size sane.
+  function safeReadDir(p: string): string[] {
+    try {
+      return existsSync(p) ? readdirSync(p).slice(0, 30) : ["(missing)"];
+    } catch (err) {
+      return [`(error: ${err instanceof Error ? err.message : String(err)})`];
+    }
+  }
+  console.warn("[motion-reel] all resolution strategies failed.", {
+    cwd: process.cwd(),
+    cwdContents: safeReadDir(process.cwd()),
+    cwdNodeModules: safeReadDir(resolve(process.cwd(), "node_modules")),
+    cwdNodeModulesOrb: safeReadDir(
+      resolve(process.cwd(), "node_modules/@orb"),
+    ),
+    cwdPackages: safeReadDir(resolve(process.cwd(), "packages")),
+    candidates,
+  });
   return null;
 }

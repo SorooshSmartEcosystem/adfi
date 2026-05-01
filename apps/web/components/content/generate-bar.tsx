@@ -1,15 +1,10 @@
 "use client";
 
-// GenerateBar — the big focused textarea at the top of /content.
+// GenerateBar — minimal-by-default. Just a textarea + "draft post"
+// button. Format/platform pickers live behind a single "options"
+// toggle — most users default to "let echo pick" anyway.
 //
-// Replaces the old 6-tab filter bar + status pills. One job: tell ADFI
-// what to post about, pick format + platform, hit draft. While the
-// agent works the OrbLoader takes over the bar, status line cycles
-// through Echo's drafting stages.
-//
-// Format/platform default to "let echo pick" — the agent infers from
-// the brief if not specified. Once user picks a format we surface the
-// channels that actually make sense for it.
+// While the agent works the OrbLoader takes over.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -35,21 +30,12 @@ const PLATFORMS = [
   { value: "EMAIL", label: "email" },
 ] as const;
 
-const PLACEHOLDER_ROTATION = [
+const PLACEHOLDERS = [
   "what should we post about today?",
   "tell me what's happening — i'll write it.",
-  "we just hit 200 paying users — thank-you post in our voice",
-  "the kitchen renovation is finally done — show before/after",
-  "drop a quick tip about saving on taxes this month",
+  "we just hit 200 paying users — thank-you post",
   "today's mood, in one line",
-];
-
-const CHIP_SUGGESTIONS = [
-  { label: "weekly recap", brief: "wrap up this week's wins for our audience" },
-  { label: "launch teaser", brief: "tease the new thing we're shipping next week" },
-  { label: "behind-the-scenes", brief: "what we're working on today, in our voice" },
-  { label: "client win", brief: "celebrate a recent customer success" },
-  { label: "faq answer", brief: "answer the question we get asked the most" },
+  "a quick reminder about the spring drop",
 ];
 
 export function GenerateBar() {
@@ -57,13 +43,12 @@ export function GenerateBar() {
   const [text, setText] = useState("");
   const [format, setFormat] = useState<string>("auto");
   const [platform, setPlatform] = useState<string>("auto");
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
 
-  // Rotate the placeholder so the empty state has movement without
-  // being an animation. ~6s per phrase.
   useEffect(() => {
     const id = setInterval(
-      () => setPlaceholderIdx((i) => (i + 1) % PLACEHOLDER_ROTATION.length),
+      () => setPlaceholderIdx((i) => (i + 1) % PLACEHOLDERS.length),
       6000,
     );
     return () => clearInterval(id);
@@ -71,8 +56,6 @@ export function GenerateBar() {
 
   const generate = trpc.content.generate.useMutation({
     onSuccess: () => {
-      // Refresh the page server-side so the new draft appears in the
-      // feed without a full reload.
       router.refresh();
       setText("");
     },
@@ -88,94 +71,82 @@ export function GenerateBar() {
     });
   }
 
-  function applyChip(brief: string) {
-    setText(brief);
-  }
-
   if (generate.isPending) {
     return (
-      <div className="bg-surface border-hairline border-border rounded-2xl p-2xl flex items-center justify-center min-h-[260px]">
-        <OrbLoader
-          tone="alive"
-          size="md"
-          stages={STAGES_DRAFT_POST}
-        />
+      <div className="bg-surface border-hairline border-border rounded-2xl p-2xl flex items-center justify-center min-h-[200px]">
+        <OrbLoader tone="alive" size="md" stages={STAGES_DRAFT_POST} />
       </div>
     );
   }
 
+  const formatLabel = FORMATS.find((f) => f.value === format)?.label ?? "any format";
+  const platformLabel =
+    PLATFORMS.find((p) => p.value === platform)?.label ?? "any channel";
+
   return (
-    <div className="bg-surface border-hairline border-border rounded-2xl p-lg flex flex-col gap-md">
+    <div className="bg-surface border-hairline border-border rounded-2xl px-lg py-md flex flex-col gap-sm">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit();
         }}
-        placeholder={PLACEHOLDER_ROTATION[placeholderIdx]}
-        rows={3}
+        placeholder={PLACEHOLDERS[placeholderIdx]}
+        rows={2}
         className="w-full bg-transparent border-0 outline-none resize-none text-md leading-relaxed text-ink placeholder:text-ink4"
         dir="auto"
       />
 
       <div className="flex items-center gap-sm flex-wrap">
-        <Pill>
-          <select
-            value={format}
-            onChange={(e) => setFormat(e.target.value)}
-            className="bg-transparent border-0 outline-none font-mono text-xs text-ink2 cursor-pointer pr-1"
-          >
-            {FORMATS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </Pill>
-        <Pill>
-          <select
-            value={platform}
-            onChange={(e) => setPlatform(e.target.value)}
-            className="bg-transparent border-0 outline-none font-mono text-xs text-ink2 cursor-pointer pr-1"
-          >
-            {PLATFORMS.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </Pill>
-
-        <span className="font-mono text-[10px] text-ink4 ml-auto hidden sm:inline">
-          ⌘ + ENTER
-        </span>
+        {/* One quiet options toggle — collapses format + platform pickers */}
+        <button
+          type="button"
+          onClick={() => setOptionsOpen((v) => !v)}
+          className="font-mono text-[11px] text-ink3 hover:text-ink transition-colors"
+        >
+          {optionsOpen ? "hide options" : `${formatLabel} · ${platformLabel} ▾`}
+        </button>
 
         <button
           type="button"
           onClick={submit}
           disabled={!text.trim() || generate.isPending}
-          className="bg-ink text-white text-xs font-medium px-md py-[9px] rounded-full hover:opacity-85 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+          className="ml-auto bg-ink text-white text-xs font-medium px-md py-[8px] rounded-full hover:opacity-85 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
         >
           draft post →
         </button>
       </div>
 
-      {/* Chip suggestions — quiet hint for what to type */}
-      <div className="flex items-center gap-xs flex-wrap">
-        <span className="font-mono text-[10px] text-ink4 tracking-[0.18em] mr-xs">
-          TRY:
-        </span>
-        {CHIP_SUGGESTIONS.map((c) => (
-          <button
-            key={c.label}
-            type="button"
-            onClick={() => applyChip(c.brief)}
-            className="font-mono text-[11px] text-ink3 border-hairline border-border rounded-full px-md py-[5px] hover:border-ink hover:text-ink transition-colors"
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
+      {optionsOpen ? (
+        <div className="flex items-center gap-sm flex-wrap pt-sm border-t-hairline border-border2">
+          <Pill>
+            <select
+              value={format}
+              onChange={(e) => setFormat(e.target.value)}
+              className="bg-transparent border-0 outline-none font-mono text-xs text-ink2 cursor-pointer pr-1"
+            >
+              {FORMATS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </Pill>
+          <Pill>
+            <select
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value)}
+              className="bg-transparent border-0 outline-none font-mono text-xs text-ink2 cursor-pointer pr-1"
+            >
+              {PLATFORMS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </Pill>
+        </div>
+      ) : null}
 
       {generate.error ? (
         <div className="font-mono text-[11px] text-urgent">

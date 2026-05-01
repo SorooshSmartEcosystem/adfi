@@ -18,6 +18,7 @@
     "@orb/ui": "workspace:*",
     "@prisma/client": "^5.22.0",
     "@remotion/bundler": "^4.0.0",
+    "@remotion/compositor-linux-x64-gnu": "^4.0.0",
     "@remotion/renderer": "^4.0.0",
     "@sparticuz/chromium": "^131.0.0",
     "@stripe/stripe-js": "^9.3.1",

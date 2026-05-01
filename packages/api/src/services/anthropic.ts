@@ -119,8 +119,21 @@ export async function recordAnthropicUsage(args: {
   const cacheCreationTokens = usage.cache_creation_input_tokens ?? 0;
 
   const model = r.model ?? "";
+  // Match by prefix so date-suffixed model ids returned by the API
+  // (e.g. 'claude-opus-4-7-20260301') still resolve to a price. Exact
+  // match silently zeroed the entire admin cost report when Anthropic
+  // started returning suffixed ids.
   const knownModel =
-    model in MODEL_PRICING ? (model as keyof typeof MODEL_PRICING) : null;
+    model in MODEL_PRICING
+      ? (model as keyof typeof MODEL_PRICING)
+      : (Object.keys(MODEL_PRICING) as (keyof typeof MODEL_PRICING)[]).find(
+          (k) => model.startsWith(k),
+        ) ?? null;
+  if (!knownModel && model) {
+    console.warn(
+      `[anthropic-usage] model "${model}" did not match any pricing key — costCents will be 0`,
+    );
+  }
   const costCents = knownModel
     ? estimateAnthropicCostCents({
         model: knownModel,

@@ -92,6 +92,14 @@ export function estimateAnthropicCostCents(args: {
 // Prefers the real cost logged in payload.costCents (written by
 // recordAnthropicUsage) when available, falling back to observed
 // averages for legacy events that pre-date usage logging.
+//
+// Self-healing: when payload.costCents is 0 or missing but the
+// payload still carries inputTokens + outputTokens + model, we
+// recompute from the tokens. Earlier versions of recordAnthropicUsage
+// stored 0 when the model id didn't match MODEL_PRICING (Anthropic
+// started returning date-suffixed ids that broke exact matching).
+// This recovery means the admin dashboard heals retroactively without
+// a database backfill.
 export function estimateEventCostCents(
   eventType: string,
   agent: string,
@@ -99,7 +107,28 @@ export function estimateEventCostCents(
 ): number {
   if (payload && typeof payload === "object") {
     const p = payload as Record<string, unknown>;
-    if (typeof p.costCents === "number") return Math.round(p.costCents);
+    const stored = typeof p.costCents === "number" ? p.costCents : null;
+    if (stored && stored > 0) return Math.round(stored);
+
+    // Try to recover from raw tokens if costCents is missing or 0.
+    const model = typeof p.model === "string" ? p.model : null;
+    const inputTokens =
+      typeof p.inputTokens === "number" ? p.inputTokens : null;
+    const outputTokens =
+      typeof p.outputTokens === "number" ? p.outputTokens : null;
+    if (model && inputTokens !== null && outputTokens !== null) {
+      const matchedKey = (Object.keys(MODEL_PRICING) as (keyof typeof MODEL_PRICING)[]).find(
+        (k) => model === k || model.startsWith(k),
+      );
+      if (matchedKey) {
+        const price = MODEL_PRICING[matchedKey];
+        const cents =
+          (inputTokens / 1_000_000) * price.inputPerM +
+          (outputTokens / 1_000_000) * price.outputPerM;
+        return Math.round(cents);
+      }
+    }
+    if (stored === 0) return 0; // explicit 0 with no tokens — leave it
   }
   if (agent === "STRATEGIST") return AVG_EVENT_COST_CENTS.STRATEGIST;
   if (agent === "ECHO" && eventType === "draft_created")

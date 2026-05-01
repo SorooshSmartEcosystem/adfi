@@ -1,20 +1,21 @@
-// QuoteReel — Mirrors the carousel-artboard "ink palette + accent"
-// design language. Vertical 1080×1920 reel, ~9 seconds.
+// QuoteReel — Direct port of the landing-page meet-the-team scene
+// aesthetic. Cream background, rounded white cards stacking with
+// staggered fade-up, mono labels with colored dots, soft shadows.
 //
-// Frame map (270 frames @ 30fps):
-//   0.0s  ink backdrop fades up; corner labels (01/01 + QUOTE) appear
-//   0.5s  accent dot pulses in top-left; mark fades into top-right
-//   1.0s  quote words start fading up sequentially (~3.5s of staggered reveals)
-//   5.0s  attribution mono line slides up
-//   6.5s  brief hold
-//   7.5s  inversion: quote slides up + out, brand block scales in for closer
-//   9.0s  end on a brand-stamped end card
+// Vertical 1080×1920, 9 seconds (270 frames @ 30fps):
+//   0.0s  cream backdrop, status bar fades in ("ECHO · DRAFTED")
+//   0.4s  card 1 — "WROTE IN YOUR VOICE" mono label + the quote
+//   2.5s  card 2 — attribution as a subtle mono caption
+//   4.5s  card 3 — "PUBLISHED" mono + business name + brand mark
+//   8.0s  hold, soft outro fade
+//   9.0s  end
 //
-// Use case: opinion takes, value statements, observations the audience
-// would screenshot.
+// Use case: opinion takes, value statements, observations.
 
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
-import { WordReveal } from "../primitives/WordReveal";
+import { PCCard } from "../primitives/PCCard";
+import { PCMonoLabel } from "../primitives/PCMonoLabel";
+import { StatusBar } from "../primitives/StatusBar";
 import { BrandMark } from "../primitives/BrandMark";
 import type { BrandTokens, QuoteContent } from "../types";
 
@@ -23,236 +24,161 @@ type Props = { tokens: BrandTokens; content: QuoteContent };
 export const QuoteReel: React.FC<Props> = ({ tokens, content }) => {
   const frame = useCurrentFrame();
 
-  // Closer phase starts at 7.5s (frame 225). Quote slides out, brand
-  // stamp grows in.
-  const closerProgress = interpolate(frame, [220, 260], [0, 1], {
+  // Outro fade in last 0.5s
+  const outro = interpolate(frame, [255, 270], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
   });
-
-  // Word reveal: spread across ~3.5s. Stagger picked so a typical
-  // 25-word quote finishes around frame 130.
-  const wordCount = content.quote.split(/\s+/).filter(Boolean).length;
-  const stagger = Math.max(2, Math.min(6, Math.round(90 / Math.max(1, wordCount))));
-  const lastWordFinishesAt = 30 + wordCount * stagger + 16;
-  const attributionStart = lastWordFinishesAt + 8;
 
   return (
     <AbsoluteFill
       style={{
-        background: tokens.ink,
+        background: tokens.bg,
         fontFamily:
           '-apple-system, "SF Pro Text", Inter, system-ui, sans-serif',
-        color: "#FFFFFF",
+        color: tokens.ink,
         overflow: "hidden",
+        opacity: outro,
       }}
     >
-      {/* Subtle radial vignette for depth — flat solid bg looks cheap. */}
+      {/* Faint cream wash to give depth (matches landing's surface tone) */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: `radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0) 55%)`,
+          background: `radial-gradient(ellipse at 50% 35%, ${tokens.surface} 0%, ${tokens.bg} 70%)`,
         }}
       />
 
-      {/* CORNER METADATA — copies the carousel's HUD aesthetic. */}
-      {/* Top-left: accent dot + slide counter */}
+      {/* Status bar pinned to top */}
       <div
         style={{
           position: "absolute",
-          top: 64,
-          left: 64,
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          opacity: interpolate(frame, [6, 22], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          }),
+          top: 56,
+          left: 0,
+          right: 0,
         }}
       >
-        <PulseDot color={tokens.alive ?? "#7CE896"} />
-        <span style={hudMonoStyle}>01 / 01</span>
+        <StatusBar
+          label={`ECHO · DRAFTED`}
+          time={statusTime()}
+          startFrame={0}
+        />
       </div>
 
-      {/* Top-right: template label */}
-      <div
-        style={{
-          position: "absolute",
-          top: 64,
-          right: 64,
-          opacity: interpolate(frame, [6, 22], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          }),
-        }}
-      >
-        <span style={hudMonoStyle}>QUOTE</span>
-      </div>
-
-      {/* MAIN CONTENT — quote (active 0-7.5s) and brand stamp (closer). */}
-
-      {/* Quote */}
+      {/* CARD STACK — vertically centered, gap-aligned */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          padding: "0 96px",
+          padding: "180px 0 160px",
           display: "flex",
           flexDirection: "column",
-          alignItems: "flex-start",
+          alignItems: "center",
           justifyContent: "center",
-          opacity: 1 - closerProgress,
-          transform: `translateY(${closerProgress * -240}px)`,
+          gap: 32,
         }}
       >
-        {/* Big leading quote glyph — accent color, sets the stage. */}
-        <div
-          style={{
-            fontSize: 240,
-            lineHeight: 0.6,
-            color: tokens.alive ?? "#7CE896",
-            fontFamily: '"SF Pro Display", "Helvetica Neue", serif',
-            fontWeight: 600,
-            marginBottom: -40,
-            opacity: interpolate(frame, [10, 28], [0, 1], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-              easing: Easing.out(Easing.cubic),
-            }),
-            transform: `translateY(${interpolate(
-              frame,
-              [10, 28],
-              [12, 0],
-              { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-            )}px)`,
-          }}
-        >
-          “
-        </div>
-
-        <div
-          style={{
-            fontSize: 76,
-            fontWeight: 500,
-            lineHeight: 1.15,
-            letterSpacing: "-0.025em",
-            color: "#FFFFFF",
-            maxWidth: 880,
-          }}
-        >
-          <WordReveal startFrame={30} staggerFrames={stagger} wordDurationFrames={20} travel={18}>
-            {content.quote}
-          </WordReveal>
-        </div>
-
-        {content.attribution ? (
+        {/* CARD 1 — the quote */}
+        <PCCard startFrame={12} variant="default">
+          <PCMonoLabel tone="alive" style={{ marginBottom: 24 }}>
+            WROTE IN YOUR VOICE
+          </PCMonoLabel>
           <div
             style={{
-              marginTop: 56,
-              fontFamily: '"SF Mono", "JetBrains Mono", monospace',
-              fontSize: 22,
-              letterSpacing: "0.18em",
-              color: "rgba(255,255,255,0.55)",
-              textTransform: "uppercase",
-              opacity: interpolate(
-                frame,
-                [attributionStart, attributionStart + 16],
-                [0, 1],
-                {
-                  extrapolateLeft: "clamp",
-                  extrapolateRight: "clamp",
-                  easing: Easing.out(Easing.cubic),
-                },
-              ),
-              transform: `translateY(${interpolate(
-                frame,
-                [attributionStart, attributionStart + 16],
-                [14, 0],
-                { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-              )}px)`,
+              fontSize: 56,
+              fontWeight: 500,
+              lineHeight: 1.18,
+              letterSpacing: "-0.025em",
+              color: tokens.ink,
             }}
           >
-            — {content.attribution}
+            <span style={{ color: tokens.ink4 }}>“</span>
+            {content.quote}
+            <span style={{ color: tokens.ink4 }}>”</span>
           </div>
-        ) : null}
-      </div>
+          {content.attribution ? (
+            <div
+              style={{
+                marginTop: 28,
+                fontFamily: '"SF Mono", "JetBrains Mono", monospace',
+                fontSize: 20,
+                letterSpacing: "0.16em",
+                color: tokens.ink3,
+                textTransform: "uppercase",
+              }}
+            >
+              — {content.attribution}
+            </div>
+          ) : null}
+        </PCCard>
 
-      {/* CLOSER — brand stamp grows in as quote leaves. */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 28,
-          opacity: closerProgress,
-          transform: `scale(${interpolate(
-            closerProgress,
-            [0, 1],
-            [0.92, 1],
-            { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-          )})`,
-        }}
-      >
-        <BrandMark
-          markInner={tokens.markInner}
-          size={140}
-          startFrame={220}
-          rings={true}
-        />
-        <div
-          style={{
-            fontSize: 44,
-            fontWeight: 500,
-            letterSpacing: "-0.015em",
-            color: "#FFFFFF",
-          }}
-        >
-          {tokens.businessName}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginTop: 8,
-          }}
-        >
-          <PulseDot color={tokens.alive ?? "#7CE896"} />
-          <span style={hudMonoStyle}>END</span>
-        </div>
+        {/* CARD 2 — meta context (varies by whether attribution exists) */}
+        <PCCard startFrame={68} variant="default" width={880}>
+          <PCMonoLabel tone="ink" style={{ marginBottom: 14 }}>
+            POST PREVIEW · INSTAGRAM
+          </PCMonoLabel>
+          <div
+            style={{
+              fontSize: 28,
+              lineHeight: 1.45,
+              color: tokens.ink2,
+              fontWeight: 400,
+            }}
+          >
+            i'll publish this when your audience is most active. tagging
+            it for your{" "}
+            <span style={{ color: tokens.ink, fontWeight: 500 }}>
+              brand voice
+            </span>{" "}
+            archive.
+          </div>
+        </PCCard>
+
+        {/* CARD 3 — brand stamp / closer */}
+        <PCCard startFrame={130} variant="dark" width={880}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 20,
+            }}
+          >
+            <BrandMark
+              markInner={tokens.markInner}
+              size={64}
+              startFrame={130}
+              rings={false}
+            />
+            <div style={{ flex: 1 }}>
+              <PCMonoLabel
+                tone="alive"
+                color="rgba(255,255,255,0.75)"
+                style={{ marginBottom: 6 }}
+              >
+                PUBLISHED
+              </PCMonoLabel>
+              <div
+                style={{
+                  fontSize: 32,
+                  fontWeight: 500,
+                  letterSpacing: "-0.015em",
+                  color: "#FFFFFF",
+                }}
+              >
+                {tokens.businessName}
+              </div>
+            </div>
+          </div>
+        </PCCard>
       </div>
     </AbsoluteFill>
   );
 };
 
-const hudMonoStyle: React.CSSProperties = {
-  fontFamily: '"SF Mono", "JetBrains Mono", monospace',
-  fontSize: 18,
-  letterSpacing: "0.2em",
-  color: "rgba(255,255,255,0.45)",
-  textTransform: "uppercase",
-};
-
-function PulseDot({ color }: { color: string }) {
-  const frame = useCurrentFrame();
-  const scale = 1 + 0.25 * Math.sin(frame / 8);
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        width: 8,
-        height: 8,
-        borderRadius: "50%",
-        background: color,
-        transform: `scale(${scale})`,
-        boxShadow: `0 0 12px ${color}66`,
-      }}
-    />
-  );
+// Deterministic "current time" string so the same composition always
+// renders the same status bar. Picks 11:02AM — a believable mid-morning
+// moment matching when small-business owners might check their drafts.
+function statusTime(): string {
+  return "11:02AM";
 }

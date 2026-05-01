@@ -1,20 +1,21 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getCurrentUser } from "@orb/auth/server";
 import { trpcServer } from "../../../lib/trpc-server";
-import { PageHero } from "../../../components/shared/page-hero";
 import { GenerateBar } from "../../../components/content/generate-bar";
-import { DraftsPanel } from "../../../components/content/drafts-panel";
-import { WeekGrid } from "../../../components/content/week-grid";
-import { PerformancePanel } from "../../../components/content/performance-panel";
+import { ContentTabsClient } from "../../../components/content/content-tabs-client";
 
-// Content page — three views, selected via top tabs:
-//   feed       — drafts feed (the default; what 90% of users come for)
-//   week       — calendar of the week's plan + scheduled posts
-//   performance — what's actually working
+// Content page — minimal layout:
+//   1. tabs at the very top (feed / week / performance)
+//   2. GenerateBar (the single primary action)
+//   3. tab content
 //
-// GenerateBar at the very top is the single primary action; tabs
-// just change what shows beneath it.
+// Tabs are client-side (no full server roundtrip on switch). Each
+// tab's panel mounts lazily on first view. No status counts above
+// the feed — every draft card carries its own state pill so the
+// info isn't repeated.
+
+const DAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Tab = "feed" | "week" | "performance";
 
@@ -22,9 +23,6 @@ function parseTab(value: string | string[] | undefined): Tab {
   if (value === "week" || value === "performance") return value;
   return "feed";
 }
-
-const DAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function shortPlatform(p: string): string {
   if (p === "INSTAGRAM") return "IG";
@@ -43,23 +41,16 @@ export default async function ContentPage({
   if (!authUser) redirect("/signin");
 
   const { tab: tabParam } = await searchParams;
-  const tab = parseTab(tabParam);
+  const initialTab = parseTab(tabParam);
 
   const trpc = await trpcServer();
+  // Build the week-grid slots server-side so the week tab is data-
+  // ready when first viewed. Cheap query, runs at request time.
   const [drafts, posts] = await Promise.all([
     trpc.content.listDrafts({ limit: 30 }),
     trpc.content.listPosts({ limit: 30 }),
   ]);
 
-  const inFlight = drafts.items.filter(
-    (d) => d.status === "DRAFT" || d.status === "AWAITING_REVIEW",
-  ).length;
-  const awaitingPhotos = drafts.items.filter(
-    (d) => d.status === "AWAITING_PHOTOS",
-  ).length;
-  const approved = drafts.items.filter((d) => d.status === "APPROVED").length;
-
-  // Build week-grid slots for the week view.
   const now = new Date();
   const weekStart = new Date(now);
   weekStart.setHours(0, 0, 0, 0);
@@ -148,71 +139,13 @@ export default async function ContentPage({
     .toUpperCase()}`;
 
   return (
-    <div className="max-w-[760px] mx-auto flex flex-col gap-xl">
-      <PageHero
-        title="content"
-        sub="tell adfi what to post — echo will draft it in your voice."
+    <div className="max-w-[1100px] mx-auto flex flex-col gap-lg">
+      <ContentTabsClient
+        initialTab={initialTab}
+        weekRangeLabel={rangeLabel}
+        weekSlots={slots}
+        headerSlot={<GenerateBar />}
       />
-
-      <GenerateBar />
-
-      <div className="font-mono text-[11px] text-ink4 tracking-[0.18em] flex items-center gap-md flex-wrap">
-        <span>{inFlight} IN-FLIGHT</span>
-        {awaitingPhotos > 0 ? (
-          <>
-            <span className="text-ink5">·</span>
-            <span className="text-attentionText">
-              {awaitingPhotos} AWAITING PHOTOS
-            </span>
-          </>
-        ) : null}
-        {approved > 0 ? (
-          <>
-            <span className="text-ink5">·</span>
-            <span>{approved} APPROVED</span>
-          </>
-        ) : null}
-      </div>
-
-      {/* Tab strip — feed / week / performance */}
-      <div className="flex items-center gap-md hairline-bottom pb-md">
-        <TabLink tab="feed" current={tab} label="feed" />
-        <TabLink tab="week" current={tab} label="week" />
-        <TabLink tab="performance" current={tab} label="performance" />
-      </div>
-
-      {tab === "week" ? (
-        <WeekGrid rangeLabel={rangeLabel} slots={slots} />
-      ) : tab === "performance" ? (
-        <PerformancePanel />
-      ) : (
-        <DraftsPanel />
-      )}
     </div>
-  );
-}
-
-function TabLink({
-  tab,
-  current,
-  label,
-}: {
-  tab: Tab;
-  current: Tab;
-  label: string;
-}) {
-  const isActive = tab === current;
-  const href = tab === "feed" ? "/content" : `/content?tab=${tab}`;
-  return (
-    <Link
-      href={href}
-      className={`text-sm transition-colors ${
-        isActive
-          ? "text-ink font-medium"
-          : "text-ink3 hover:text-ink"
-      }`}
-    >
-      {label}
-    </Link>
   );
 }

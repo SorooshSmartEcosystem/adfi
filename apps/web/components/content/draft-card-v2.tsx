@@ -1,11 +1,13 @@
 "use client";
 
-// DraftCard v2 — wraps the platform-mockup family. Single primary
-// action per state (approve / regenerate / add photos / preview /
-// view live), tertiary actions in a … menu. The mockup is the visual
-// core; the chrome around it is intentionally minimal.
+// DraftCardV2 (revision 2) — minimal chrome. Just the mockup with a
+// quiet status pill in the corner and a single ⋯ menu that holds
+// every action. No more primary button + tertiary links — the user
+// wanted all actions consolidated. Tap the mockup to expand the
+// caption (show-more pattern). Carousel posts get prev/next arrows
+// directly on the mockup.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { PlatformMockup } from "./mockups";
 import type { DraftContent } from "./mockups";
@@ -32,82 +34,36 @@ type Business = {
 };
 
 type MotionState = {
-  template?: string;
   status?: "pending" | "rendering" | "ready" | "failed";
   mp4Url?: string;
   error?: string;
-};
-
-type PrimaryAction =
-  | { kind: "approve"; label: string }
-  | { kind: "regenerate"; label: string }
-  | { kind: "add-photos"; label: string }
-  | { kind: "preview-script"; label: string }
-  | { kind: "view-live"; label: string; href: string }
-  | { kind: "retry"; label: string };
-
-function statusToAction(status: string, format: string | undefined): PrimaryAction {
-  switch (status) {
-    case "AWAITING_PHOTOS":
-      return { kind: "add-photos", label: "add photos" };
-    case "AWAITING_REVIEW":
-    case "DRAFT":
-      return { kind: "approve", label: "approve →" };
-    case "APPROVED":
-      return {
-        kind: "view-live",
-        label: "view scheduled",
-        href: `/content/draft/${format ?? "post"}`,
-      };
-    case "PUBLISHED":
-      return { kind: "view-live", label: "view live ↗", href: "#" };
-    case "FAILED":
-      return { kind: "retry", label: "retry" };
-    default:
-      return { kind: "regenerate", label: "regenerate" };
-  }
-}
-
-function statusLabel(status: string): { label: string; tone: "alive" | "attn" | "ink" | "urgent" } {
-  switch (status) {
-    case "AWAITING_REVIEW":
-      return { label: "needs your eyes", tone: "attn" };
-    case "AWAITING_PHOTOS":
-      return { label: "awaiting photos", tone: "attn" };
-    case "DRAFT":
-      return { label: "draft", tone: "ink" };
-    case "APPROVED":
-      return { label: "scheduled", tone: "alive" };
-    case "PUBLISHED":
-      return { label: "published", tone: "alive" };
-    case "REJECTED":
-      return { label: "rejected", tone: "ink" };
-    case "FAILED":
-      return { label: "failed", tone: "urgent" };
-    default:
-      return { label: status.toLowerCase(), tone: "ink" };
-  }
-}
-
-function formatLabel(platform: string, format: string | undefined): string {
-  if (format === "REEL_SCRIPT") return "INSTAGRAM REEL";
-  if (format === "EMAIL_NEWSLETTER") return "EMAIL NEWSLETTER";
-  if (format === "STORY_SEQUENCE") return "INSTAGRAM STORY";
-  if (format === "CAROUSEL") return `${platform} CAROUSEL`;
-  return platform;
-}
-
-const TONE_HEX: Record<"alive" | "attn" | "ink" | "urgent", string> = {
-  alive: "#3a9d5c",
-  attn: "#D9A21C",
-  ink: "#888",
-  urgent: "#C84A3E",
 };
 
 type ScriptForPreview = {
   scenes: { type: string; duration: number; [k: string]: unknown }[];
   design: Record<string, unknown>;
 };
+
+// Tiny status indicator. One word per state. No "needs your eyes"
+// noise repeated above the card already.
+function statusBlip(status: string): { text: string; color: string } {
+  switch (status) {
+    case "AWAITING_REVIEW":
+      return { text: "review", color: "#D9A21C" };
+    case "AWAITING_PHOTOS":
+      return { text: "photos", color: "#D9A21C" };
+    case "DRAFT":
+      return { text: "draft", color: "#888" };
+    case "APPROVED":
+      return { text: "scheduled", color: "#3a9d5c" };
+    case "PUBLISHED":
+      return { text: "live", color: "#3a9d5c" };
+    case "FAILED":
+      return { text: "failed", color: "#C84A3E" };
+    default:
+      return { text: status.toLowerCase(), color: "#888" };
+  }
+}
 
 export function DraftCardV2({
   draft,
@@ -116,23 +72,18 @@ export function DraftCardV2({
 }: {
   draft: Draft;
   business: Business;
-  // Optional brand tokens for the in-app video preview Player. When
-  // omitted we synthesize a minimal token set from the business
-  // name/logo. Real tokens come from the page-level loader pulling
-  // BrandKit, so this card stays decoupled.
   brandTokens?: Record<string, string>;
 }) {
   const utils = trpc.useUtils();
   const [showMenu, setShowMenu] = useState(false);
-  const [draftedScript, setDraftedScript] = useState<ScriptForPreview | null>(
-    null,
-  );
+  const [expanded, setExpanded] = useState(false);
+  const [carouselIdx, setCarouselIdx] = useState(0);
+  const [draftedScript, setDraftedScript] = useState<ScriptForPreview | null>(null);
+  const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const motion = (draft.motion ?? null) as MotionState | null;
   const isVideoRendering = motion?.status === "rendering";
-
-  const action = statusToAction(draft.status, draft.format);
-  const status = statusLabel(draft.status);
+  const status = statusBlip(draft.status);
 
   const approve = trpc.content.approveDraft.useMutation({
     onSuccess: () => utils.content.listDrafts.invalidate(),
@@ -144,33 +95,56 @@ export function DraftCardV2({
     onSuccess: () => utils.content.listDrafts.invalidate(),
   });
   const draftScript = trpc.motionReel.draftScript.useMutation({
-    onSuccess: (script) => {
-      setDraftedScript(script as ScriptForPreview);
-    },
+    onSuccess: (s) => setDraftedScript(s as ScriptForPreview),
   });
 
-  const isPending =
-    approve.isPending || reject.isPending || regenerate.isPending;
+  const isPending = approve.isPending || reject.isPending || regenerate.isPending;
 
-  function handlePrimary() {
-    if (action.kind === "approve") {
-      approve.mutate({ id: draft.id, variant: "primary" });
-    } else if (action.kind === "regenerate" || action.kind === "retry") {
-      regenerate.mutate({ id: draft.id });
-    } else if (action.kind === "view-live") {
-      window.open(action.href, "_blank");
-    }
-  }
-
-  const content = (draft.content ?? {}) as DraftContent;
+  const rawContent = (draft.content ?? {}) as DraftContent & {
+    slides?: { imageUrl?: string; headline?: string; body?: string }[];
+    coverSlide?: { imageUrl?: string; headline?: string };
+  };
   const platform = draft.platform as Parameters<typeof PlatformMockup>[0]["platform"];
   const format = (draft.format ?? "SINGLE_POST") as Parameters<
     typeof PlatformMockup
   >[0]["format"];
 
-  // Synthesize a minimal token set if the parent doesn't pass real
-  // BrandKit tokens. Just enough for the script-preview Player to
-  // render without crashing.
+  // Carousel handling — the mockup gets one slide at a time. We thread
+  // the current slide's image + headline through `imageUrl` + `caption`
+  // so existing mockups don't need to know about carousels.
+  const isCarousel = format === "CAROUSEL";
+  type CarouselSlide = {
+    imageUrl?: string;
+    headline?: string;
+    body?: string;
+  };
+  const slides: CarouselSlide[] = isCarousel
+    ? [
+        ...(rawContent.coverSlide ? [rawContent.coverSlide as CarouselSlide] : []),
+        ...((rawContent.slides ?? []) as CarouselSlide[]),
+      ]
+    : [];
+  const currentSlide =
+    isCarousel && slides.length > 0 ? slides[carouselIdx] : null;
+  const visibleContent: DraftContent =
+    isCarousel && currentSlide
+      ? {
+          ...rawContent,
+          imageUrl: currentSlide.imageUrl ?? rawContent.imageUrl,
+          caption:
+            currentSlide.headline ?? currentSlide.body ?? rawContent.caption,
+        }
+      : rawContent;
+
+  // Show-more: caption is truncated unless `expanded` is set. We pass
+  // the full caption to the mockup when expanded so user sees it all.
+  const fullCaption = visibleContent.caption ?? visibleContent.body ?? "";
+  const TRUNC = 140;
+  const isLong = fullCaption.length > TRUNC;
+  const displayedCaption = expanded || !isLong
+    ? fullCaption
+    : fullCaption.slice(0, TRUNC).trimEnd() + "…";
+
   const tokens = {
     bg: brandTokens?.bg ?? "#FAFAF7",
     surface: brandTokens?.surface ?? "#F2EFE5",
@@ -188,136 +162,202 @@ export function DraftCardV2({
     businessName: business.name,
   };
 
+  // Close menu on blur — small delay so click handler runs first.
+  function scheduleMenuClose() {
+    if (menuTimerRef.current) clearTimeout(menuTimerRef.current);
+    menuTimerRef.current = setTimeout(() => setShowMenu(false), 140);
+  }
+
   return (
-    <div className="flex flex-col gap-sm">
-      {/* HUD strip — quiet platform + format + status indicator */}
-      <div className="flex items-center gap-md text-[11px] font-mono tracking-[0.18em] text-ink4">
-        <span>{formatLabel(platform, format)}</span>
-        <span className="text-ink5">·</span>
-        <span style={{ color: TONE_HEX[status.tone] }}>
-          {status.label.toUpperCase()}
+    <div className="bg-bg border-hairline border-border rounded-lg overflow-hidden flex flex-col">
+      {/* Top bar — status pill + 3-dot menu */}
+      <div className="flex items-center justify-between px-md py-xs border-b-hairline border-border2">
+        <span
+          className="font-mono text-[10px] tracking-[0.2em] uppercase"
+          style={{ color: status.color }}
+        >
+          {status.text}
         </span>
-        {draft.scheduledFor ? (
-          <>
-            <span className="text-ink5">·</span>
-            <span>
-              {draft.scheduledFor.toLocaleDateString("en-US", {
-                weekday: "short",
-                hour: "numeric",
-              })}
-            </span>
-          </>
-        ) : null}
-        <span className="ml-auto text-ink5">
-          {draft.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-        </span>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowMenu((v) => !v)}
+            onBlur={scheduleMenuClose}
+            disabled={isPending}
+            className="text-ink3 hover:text-ink text-lg leading-none px-xs disabled:opacity-30"
+            aria-label="actions"
+          >
+            ⋯
+          </button>
+          {showMenu ? (
+            <div
+              className="absolute right-0 top-full mt-xs bg-bg border-hairline border-border rounded-md p-xs z-20 min-w-[180px] shadow-lg"
+              onMouseDown={(e) => e.preventDefault() /* keep menu open */}
+            >
+              {(draft.status === "AWAITING_REVIEW" ||
+                draft.status === "DRAFT") ? (
+                <>
+                  <MenuItem
+                    onClick={() => {
+                      approve.mutate({ id: draft.id, variant: "primary" });
+                      setShowMenu(false);
+                    }}
+                  >
+                    approve
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      regenerate.mutate({ id: draft.id });
+                      setShowMenu(false);
+                    }}
+                  >
+                    regenerate
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      draftScript.mutate({ brief: textBrief(rawContent) });
+                      setShowMenu(false);
+                    }}
+                  >
+                    make video
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      navigator.clipboard.writeText(textBrief(rawContent));
+                      setShowMenu(false);
+                    }}
+                  >
+                    copy text
+                  </MenuItem>
+                  <MenuDivider />
+                  <MenuItem
+                    danger
+                    onClick={() => {
+                      reject.mutate({ id: draft.id });
+                      setShowMenu(false);
+                    }}
+                  >
+                    reject
+                  </MenuItem>
+                </>
+              ) : null}
+              {draft.status === "APPROVED" ? (
+                <>
+                  <MenuItem onClick={() => setShowMenu(false)}>
+                    edit schedule
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      navigator.clipboard.writeText(textBrief(rawContent));
+                      setShowMenu(false);
+                    }}
+                  >
+                    copy text
+                  </MenuItem>
+                  <MenuDivider />
+                  <MenuItem
+                    danger
+                    onClick={() => {
+                      reject.mutate({ id: draft.id });
+                      setShowMenu(false);
+                    }}
+                  >
+                    unschedule
+                  </MenuItem>
+                </>
+              ) : null}
+              {draft.status === "PUBLISHED" ? (
+                <>
+                  <MenuItem onClick={() => setShowMenu(false)}>
+                    view live ↗
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      navigator.clipboard.writeText(textBrief(rawContent));
+                      setShowMenu(false);
+                    }}
+                  >
+                    copy text
+                  </MenuItem>
+                </>
+              ) : null}
+              {draft.status === "FAILED" ? (
+                <MenuItem
+                  onClick={() => {
+                    regenerate.mutate({ id: draft.id });
+                    setShowMenu(false);
+                  }}
+                >
+                  retry
+                </MenuItem>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      {/* Mockup — the visual core */}
-      <div className={isPending ? "opacity-40 transition-opacity" : ""}>
+      {/* Mockup body */}
+      <div
+        className={`relative ${isPending ? "opacity-40 transition-opacity" : ""}`}
+      >
         <PlatformMockup
           platform={platform}
           format={format}
           business={business}
-          content={content}
+          content={{ ...visibleContent, caption: displayedCaption }}
           mp4Url={motion?.mp4Url ?? null}
         />
-      </div>
 
-      {/* Action row */}
-      {isPending ? (
-        <div className="py-md flex items-center justify-center">
-          <OrbLoader tone="alive" size="sm" />
-        </div>
-      ) : isVideoRendering ? (
-        <div className="py-md flex items-center justify-center">
-          <OrbLoader
-            tone="alive"
-            size="sm"
-            stages={[
-              "RENDERING ON LAMBDA",
-              "BUNDLING SCENES",
-              "ENCODING MP4",
-              "UPLOADING",
-            ]}
-          />
-        </div>
-      ) : (
-        <div className="flex items-center gap-md flex-wrap">
+        {/* Carousel prev/next arrows */}
+        {isCarousel && slides.length > 1 ? (
+          <>
+            <CarouselArrow
+              direction="prev"
+              disabled={carouselIdx === 0}
+              onClick={() => setCarouselIdx((i) => Math.max(0, i - 1))}
+            />
+            <CarouselArrow
+              direction="next"
+              disabled={carouselIdx === slides.length - 1}
+              onClick={() =>
+                setCarouselIdx((i) => Math.min(slides.length - 1, i + 1))
+              }
+            />
+            <div className="absolute top-md left-1/2 -translate-x-1/2 flex gap-xs">
+              {slides.map((_, i) => (
+                <span
+                  key={i}
+                  className={`w-1 h-1 rounded-full ${
+                    i === carouselIdx ? "bg-white" : "bg-white/40"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
+
+        {/* Show-more link — quiet, only when caption truncated */}
+        {isLong ? (
           <button
             type="button"
-            onClick={handlePrimary}
-            disabled={isPending}
-            className="bg-ink text-white text-xs font-medium px-md py-[8px] rounded-full hover:opacity-85 transition-opacity disabled:opacity-40"
+            onClick={() => setExpanded((v) => !v)}
+            className="absolute bottom-md right-md font-mono text-[10px] text-ink4 hover:text-ink bg-bg/85 backdrop-blur px-sm py-[2px] rounded-full"
           >
-            {action.label}
+            {expanded ? "show less" : "show more"}
           </button>
+        ) : null}
+      </div>
 
-          {/* Tertiary links — quiet, mono */}
-          {draft.status === "AWAITING_REVIEW" || draft.status === "DRAFT" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => regenerate.mutate({ id: draft.id })}
-                className="font-mono text-[11px] text-ink3 hover:text-ink transition-colors"
-              >
-                regenerate
-              </button>
-              <button
-                type="button"
-                onClick={() => reject.mutate({ id: draft.id })}
-                className="font-mono text-[11px] text-ink3 hover:text-urgent transition-colors"
-              >
-                reject
-              </button>
-              {/* Make-video draft + preview path — script first, render
-                  only after user approves in the drawer. */}
-              {!draftScript.isPending && !draftedScript ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    draftScript.mutate({
-                      brief: textBrief(content),
-                    })
-                  }
-                  className="font-mono text-[11px] text-ink3 hover:text-ink transition-colors"
-                  disabled={draftScript.isPending}
-                >
-                  make video
-                </button>
-              ) : null}
-              {draftScript.isPending ? (
-                <span className="font-mono text-[11px] text-ink3">
-                  drafting script…
-                </span>
-              ) : null}
-            </>
-          ) : null}
-
-          {/* Overflow menu trigger — for delete / change platform / etc. */}
-          <div className="ml-auto relative">
-            <button
-              type="button"
-              onClick={() => setShowMenu((v) => !v)}
-              className="font-mono text-[11px] text-ink3 hover:text-ink"
-              aria-label="more actions"
-            >
-              ⋯
-            </button>
-            {showMenu ? (
-              <div className="absolute right-0 top-full mt-xs bg-bg border-hairline border-border rounded-md p-xs z-10 min-w-[160px] shadow-md">
-                <MenuLink>change schedule</MenuLink>
-                <MenuLink>change platform</MenuLink>
-                <MenuLink>copy text</MenuLink>
-                <MenuLink danger>delete</MenuLink>
-              </div>
-            ) : null}
-          </div>
+      {/* Inline render-progress strip */}
+      {isVideoRendering ? (
+        <div className="border-t-hairline border-border2 py-sm flex items-center justify-center">
+          <OrbLoader tone="alive" size="sm" stages={STAGES_VIDEO_SCRIPT} />
         </div>
-      )}
+      ) : null}
 
+      {/* Inline error strip */}
       {(approve.error || reject.error || regenerate.error || draftScript.error) ? (
-        <div className="font-mono text-[11px] text-urgent">
+        <div className="px-md py-xs font-mono text-[11px] text-urgent border-t-hairline border-border2">
           {approve.error?.message ??
             reject.error?.message ??
             regenerate.error?.message ??
@@ -341,32 +381,20 @@ export function DraftCardV2({
   );
 }
 
-// Build a brief for the video agent from the draft's content. The
-// brief is what the agent decomposes into scenes — we want the post
-// body, hashtags, and any subject/hook so the agent has full context.
-function textBrief(content: DraftContent): string {
-  const parts = [
-    content.hook,
-    content.caption ?? content.body,
-    content.subject,
-    content.hashtags && content.hashtags.length > 0
-      ? "hashtags: " + content.hashtags.join(" ")
-      : null,
-  ].filter(Boolean);
-  return parts.join("\n\n");
-}
-
-function MenuLink({
+function MenuItem({
   children,
+  onClick,
   danger,
 }: {
   children: React.ReactNode;
+  onClick: () => void;
   danger?: boolean;
 }) {
   return (
     <button
       type="button"
-      className={`block w-full text-left text-xs px-sm py-xs rounded ${
+      onClick={onClick}
+      className={`block w-full text-left text-xs px-sm py-[7px] rounded ${
         danger
           ? "text-urgent hover:bg-urgent/10"
           : "text-ink2 hover:bg-surface"
@@ -375,4 +403,44 @@ function MenuLink({
       {children}
     </button>
   );
+}
+
+function MenuDivider() {
+  return <div className="my-xs h-px bg-border" />;
+}
+
+function CarouselArrow({
+  direction,
+  onClick,
+  disabled,
+}: {
+  direction: "prev" | "next";
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`absolute top-1/2 -translate-y-1/2 ${
+        direction === "prev" ? "left-md" : "right-md"
+      } w-9 h-9 rounded-full bg-white/90 backdrop-blur text-ink shadow-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-colors`}
+      aria-label={direction === "prev" ? "previous slide" : "next slide"}
+    >
+      {direction === "prev" ? "‹" : "›"}
+    </button>
+  );
+}
+
+function textBrief(content: DraftContent): string {
+  const parts = [
+    content.hook,
+    content.caption ?? content.body,
+    content.subject,
+    content.hashtags && content.hashtags.length > 0
+      ? content.hashtags.join(" ")
+      : null,
+  ].filter(Boolean);
+  return parts.join("\n\n");
 }

@@ -105,27 +105,23 @@ export async function POST(request: NextRequest) {
       // similar instance state, so we MUST call it as a bound method
       // — destructuring `const fn = sp.executablePath` then `fn()`
       // throws "Cannot read properties of undefined (reading
-      // 'graphics')" because `this` is lost.
+      // 'graphics')" because `this` is lost. Calling
+      // instance.executablePath() preserves `this` so the getter
+      // resolves correctly.
+      //
+      // We don't try to set instance.graphics — it's a read-only
+      // getter on the Chromium class. The default value is fine for
+      // our SVG/CSS compositions (no WebGL).
       const sparticuz = (await import("@sparticuz/chromium")) as unknown as {
         default?: {
           executablePath: () => Promise<string>;
-          graphics?: boolean;
         };
         executablePath?: () => Promise<string>;
-        graphics?: boolean;
       };
       const instance = sparticuz.default ?? sparticuz;
       if (!instance || typeof instance.executablePath !== "function") {
         throw new Error("@sparticuz/chromium has no executablePath export");
       }
-      // Optional knob: turning graphics on inflates the swiftshader
-      // tarball (~30MB more cold-start). Off keeps the bundle lean
-      // since we don't render webgl content.
-      if ("graphics" in instance) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (instance as any).graphics = false;
-      }
-      // Method call (preserves `this`) — not a bare function reference.
       executablePath = await instance.executablePath();
     }
 

@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
 import { trpc } from "../../lib/trpc";
-import { DraftCard } from "./draft-card";
+import { DraftCardV2 } from "./draft-card-v2";
 import { PlatformFilter, type PlatformValue } from "./platform-filter";
 
-// DraftsPanel — feed of drafts grouped by review state. Generation
+// DraftsPanel — vertical feed of drafts rendered inside platform-
+// authentic mockups (see components/content/mockups/). Generation
 // moved to <GenerateBar> at the page level; this panel is read-only
-// browsing + per-draft actions.
+// browsing + per-draft actions via the new DraftCardV2.
 
 export function DraftsPanel() {
   const [filter, setFilter] = useState<PlatformValue>("ALL");
@@ -27,21 +28,35 @@ export function DraftsPanel() {
     platform: platformArg,
   });
 
+  const me = trpc.user.me.useQuery();
+  const businessQuery = trpc.business.getActive.useQuery();
+
   const awaitingItems = awaiting.data?.items ?? [];
   const approvedItems = approved.data?.items ?? [];
   const isLoading = awaiting.isLoading || approved.isLoading;
 
+  const business = {
+    name: businessQuery.data?.name ?? me.data?.businessName ?? "your business",
+    handle: (businessQuery.data?.name ?? me.data?.businessName ?? "you")
+      .toLowerCase()
+      .replace(/\s+/g, "_"),
+    logoUrl: businessQuery.data?.logoUrl ?? null,
+    initials: initialsFor(
+      businessQuery.data?.name ?? me.data?.businessName ?? "Y",
+    ),
+  };
+
   return (
-    <>
+    <div className="flex flex-col gap-xl">
       <PlatformFilter
         value={filter}
         onChange={setFilter}
         label="filter drafts"
       />
 
-      <section className="mb-xl">
-        <div className="text-xs text-ink4 mb-md">
-          needs your eyes · {awaitingItems.length}
+      <section className="flex flex-col gap-xl">
+        <div className="font-mono text-[11px] text-ink4 tracking-[0.18em]">
+          NEEDS YOUR EYES · {awaitingItems.length}
         </div>
         {isLoading ? (
           <p className="text-sm text-ink3" dir="auto">one second</p>
@@ -53,29 +68,39 @@ export function DraftsPanel() {
                 : `nothing waiting on ${filter.toLowerCase().replace(/_/g, " ")}.`}
             </p>
             <p className="text-sm text-ink3 leading-relaxed" dir="auto">
-              echo drafts on the weekly cadence, or you can pick a format chip
-              above and hit &apos;write me one&apos; for an on-demand draft.
-              tip: pick the format that hasn&apos;t shipped recently to keep
-              your feed varied.
+              echo drafts on the weekly cadence. tap{" "}
+              <span className="font-medium">draft post</span> at the top to
+              ask for one on-demand.
             </p>
           </div>
         ) : (
-          awaitingItems.map((d, i) => (
-            <DraftCard key={d.id} draft={d} defaultExpanded={i === 0} />
+          awaitingItems.map((d) => (
+            <DraftCardV2 key={d.id} draft={d} business={business} />
           ))
         )}
       </section>
 
       {approvedItems.length > 0 ? (
-        <section className="mb-xl">
-          <div className="text-xs text-ink4 mb-md">
+        <section className="flex flex-col gap-xl">
+          <div className="font-mono text-[11px] text-ink4 tracking-[0.18em]">
             SCHEDULED · {approvedItems.length}
           </div>
           {approvedItems.map((d) => (
-            <DraftCard key={d.id} draft={d} />
+            <DraftCardV2 key={d.id} draft={d} business={business} />
           ))}
         </section>
       ) : null}
-    </>
+    </div>
+  );
+}
+
+function initialsFor(name: string): string {
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((p) => p.charAt(0).toUpperCase())
+      .join("") || "—"
   );
 }

@@ -18,6 +18,7 @@
     "@orb/ui": "workspace:*",
     "@prisma/client": "^5.22.0",
     "@remotion/lambda": "^4.0.0",
+    "@remotion/player": "^4.0.0",
     "@stripe/stripe-js": "^9.3.1",
     "@tanstack/react-query": "^5.60.0",
     "@trpc/client": "^11.0.0",

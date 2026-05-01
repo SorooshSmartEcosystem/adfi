@@ -5,6 +5,7 @@
   "description": "Motion-reel pipeline — Remotion-based code-as-video for client content (reels / shorts / square posts). Hand-tuned motion choreographies + Echo's content + brand tokens + real photos → mp4. Same minimal motion vocabulary as the landing-page meet-the-team scenes.",
   "exports": {
     ".": "./src/index.ts",
+    "./client": "./src/client.ts",
     "./root": "./src/Root.tsx",
     "./types": "./src/types.ts"
   },

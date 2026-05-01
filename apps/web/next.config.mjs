@@ -5,7 +5,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@orb/api", "@orb/auth", "@orb/db", "@orb/ui"],
+  transpilePackages: ["@orb/api", "@orb/auth", "@orb/db", "@orb/ui", "@orb/motion-reel"],
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
 

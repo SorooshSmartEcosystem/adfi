@@ -9,7 +9,8 @@ import { useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { PlatformMockup } from "./mockups";
 import type { DraftContent } from "./mockups";
-import { OrbLoader } from "../shared/orb-loader";
+import { OrbLoader, STAGES_VIDEO_SCRIPT } from "../shared/orb-loader";
+import { ScriptPreview } from "./script-preview";
 
 type Draft = {
   id: string;
@@ -103,15 +104,29 @@ const TONE_HEX: Record<"alive" | "attn" | "ink" | "urgent", string> = {
   urgent: "#C84A3E",
 };
 
+type ScriptForPreview = {
+  scenes: { type: string; duration: number; [k: string]: unknown }[];
+  design: Record<string, unknown>;
+};
+
 export function DraftCardV2({
   draft,
   business,
+  brandTokens,
 }: {
   draft: Draft;
   business: Business;
+  // Optional brand tokens for the in-app video preview Player. When
+  // omitted we synthesize a minimal token set from the business
+  // name/logo. Real tokens come from the page-level loader pulling
+  // BrandKit, so this card stays decoupled.
+  brandTokens?: Record<string, string>;
 }) {
   const utils = trpc.useUtils();
   const [showMenu, setShowMenu] = useState(false);
+  const [draftedScript, setDraftedScript] = useState<ScriptForPreview | null>(
+    null,
+  );
 
   const motion = (draft.motion ?? null) as MotionState | null;
   const isVideoRendering = motion?.status === "rendering";
@@ -127,6 +142,11 @@ export function DraftCardV2({
   });
   const regenerate = trpc.content.regenerateDraft.useMutation({
     onSuccess: () => utils.content.listDrafts.invalidate(),
+  });
+  const draftScript = trpc.motionReel.draftScript.useMutation({
+    onSuccess: (script) => {
+      setDraftedScript(script as ScriptForPreview);
+    },
   });
 
   const isPending =
@@ -147,6 +167,26 @@ export function DraftCardV2({
   const format = (draft.format ?? "SINGLE_POST") as Parameters<
     typeof PlatformMockup
   >[0]["format"];
+
+  // Synthesize a minimal token set if the parent doesn't pass real
+  // BrandKit tokens. Just enough for the script-preview Player to
+  // render without crashing.
+  const tokens = {
+    bg: brandTokens?.bg ?? "#FAFAF7",
+    surface: brandTokens?.surface ?? "#F2EFE5",
+    surface2: brandTokens?.surface2 ?? "#F8F5EA",
+    border: brandTokens?.border ?? "#E5E3DB",
+    ink: brandTokens?.ink ?? "#111111",
+    ink2: brandTokens?.ink2 ?? "#444444",
+    ink3: brandTokens?.ink3 ?? "#666666",
+    ink4: brandTokens?.ink4 ?? "#888888",
+    alive: brandTokens?.alive ?? "#7CE896",
+    aliveDark: brandTokens?.aliveDark ?? "#3A9D5C",
+    attnBg: brandTokens?.attnBg ?? "#FFF9ED",
+    attnBorder: brandTokens?.attnBorder ?? "#F0D98C",
+    attnText: brandTokens?.attnText ?? "#8A6A1E",
+    businessName: business.name,
+  };
 
   return (
     <div className="flex flex-col gap-sm">
@@ -230,6 +270,27 @@ export function DraftCardV2({
               >
                 reject
               </button>
+              {/* Make-video draft + preview path — script first, render
+                  only after user approves in the drawer. */}
+              {!draftScript.isPending && !draftedScript ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    draftScript.mutate({
+                      brief: textBrief(content),
+                    })
+                  }
+                  className="font-mono text-[11px] text-ink3 hover:text-ink transition-colors"
+                  disabled={draftScript.isPending}
+                >
+                  make video
+                </button>
+              ) : null}
+              {draftScript.isPending ? (
+                <span className="font-mono text-[11px] text-ink3">
+                  drafting script…
+                </span>
+              ) : null}
             </>
           ) : null}
 
@@ -255,15 +316,44 @@ export function DraftCardV2({
         </div>
       )}
 
-      {(approve.error || reject.error || regenerate.error) ? (
+      {(approve.error || reject.error || regenerate.error || draftScript.error) ? (
         <div className="font-mono text-[11px] text-urgent">
           {approve.error?.message ??
             reject.error?.message ??
-            regenerate.error?.message}
+            regenerate.error?.message ??
+            draftScript.error?.message}
         </div>
+      ) : null}
+
+      {draftedScript ? (
+        <ScriptPreview
+          draftId={draft.id}
+          script={draftedScript}
+          tokens={tokens}
+          onClose={() => setDraftedScript(null)}
+          onRendered={() => {
+            setDraftedScript(null);
+            utils.content.listDrafts.invalidate();
+          }}
+        />
       ) : null}
     </div>
   );
+}
+
+// Build a brief for the video agent from the draft's content. The
+// brief is what the agent decomposes into scenes — we want the post
+// body, hashtags, and any subject/hook so the agent has full context.
+function textBrief(content: DraftContent): string {
+  const parts = [
+    content.hook,
+    content.caption ?? content.body,
+    content.subject,
+    content.hashtags && content.hashtags.length > 0
+      ? "hashtags: " + content.hashtags.join(" ")
+      : null,
+  ].filter(Boolean);
+  return parts.join("\n\n");
 }
 
 function MenuLink({

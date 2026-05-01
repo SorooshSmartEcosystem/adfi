@@ -125,11 +125,17 @@ export async function POST(request: NextRequest) {
       executablePath = await instance.executablePath();
     }
 
-    // Resolve the @orb/motion-reel package's entry point. createRequire
-    // gives us a CJS-style resolver that works regardless of how Next
-    // compiled this file.
-    const r = createRequire(import.meta.url);
-    const entryPath = r.resolve("@orb/motion-reel");
+    // Resolve the @orb/motion-reel package's entry point. Vercel's
+    // bundled environment doesn't always honor createRequire(import.meta.url)
+    // for workspace packages — try a few strategies and fail loudly with
+    // diagnostic info when none work.
+    const entryPath = await resolveMotionReelEntry();
+    if (!entryPath) {
+      throw new Error(
+        "could not resolve @orb/motion-reel entry path — package not in function bundle. check next.config.mjs serverExternalPackages + outputFileTracingIncludes",
+      );
+    }
+    console.log(`[motion-reel] entryPoint=${entryPath}`);
 
     const serveUrl = await bundle({ entryPoint: entryPath });
 
@@ -252,4 +258,58 @@ async function uploadToStorage(args: {
   }
   const { data } = admin.storage.from("business-assets").getPublicUrl(path);
   return data.publicUrl;
+}
+
+// Tries multiple ways to find @orb/motion-reel's entry file at runtime.
+// Each strategy is needed for a different deploy/build configuration:
+//   1. createRequire(import.meta.url) — works in dev + most Next builds
+//   2. require.resolve via node-modules paths starting from cwd —
+//      catches Vercel's /var/task layout
+//   3. Direct path probe — last resort, hardcoded relative paths Vercel's
+//      output-tracing tends to ship reliably
+async function resolveMotionReelEntry(): Promise<string | null> {
+  const { existsSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+
+  // Strategy 1: createRequire from this module's URL.
+  try {
+    const r = createRequire(import.meta.url);
+    const p = r.resolve("@orb/motion-reel");
+    if (p && existsSync(p)) return p;
+  } catch (err) {
+    console.warn("[motion-reel] createRequire resolve failed:", err);
+  }
+
+  // Strategy 2: createRequire from process.cwd. On Vercel cwd is
+  // /var/task; this can find packages in /var/task/node_modules even
+  // when import.meta.url points at a compiled file in .next/.
+  try {
+    const r = createRequire(resolve(process.cwd(), "package.json"));
+    const p = r.resolve("@orb/motion-reel");
+    if (p && existsSync(p)) return p;
+  } catch (err) {
+    console.warn("[motion-reel] cwd require.resolve failed:", err);
+  }
+
+  // Strategy 3: probe known relative paths. Vercel's output-tracing
+  // includes workspace packages but the runtime can't always reach
+  // them via require.resolve when the package's main is a .ts file.
+  // The compiled tarball or src .ts file usually lives at one of
+  // these locations.
+  const candidates = [
+    resolve(process.cwd(), "node_modules/@orb/motion-reel/src/index.ts"),
+    resolve(process.cwd(), "node_modules/@orb/motion-reel/dist/index.js"),
+    resolve(process.cwd(), "packages/motion-reel/src/index.ts"),
+    resolve(process.cwd(), "../../packages/motion-reel/src/index.ts"),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) {
+      console.log(`[motion-reel] entry found via probe: ${c}`);
+      return c;
+    }
+  }
+  console.warn(
+    `[motion-reel] all resolution strategies failed. cwd=${process.cwd()} candidates=${candidates.join(", ")}`,
+  );
+  return null;
 }

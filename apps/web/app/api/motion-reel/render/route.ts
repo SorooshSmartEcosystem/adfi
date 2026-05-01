@@ -101,16 +101,32 @@ export async function POST(request: NextRequest) {
     );
     let executablePath: string | undefined;
     if (isServerless) {
-      const sparticuz = await import("@sparticuz/chromium");
-      const sp = sparticuz as unknown as {
-        default?: { executablePath: () => Promise<string> };
+      // @sparticuz/chromium's executablePath uses `this.graphics` and
+      // similar instance state, so we MUST call it as a bound method
+      // — destructuring `const fn = sp.executablePath` then `fn()`
+      // throws "Cannot read properties of undefined (reading
+      // 'graphics')" because `this` is lost.
+      const sparticuz = (await import("@sparticuz/chromium")) as unknown as {
+        default?: {
+          executablePath: () => Promise<string>;
+          graphics?: boolean;
+        };
         executablePath?: () => Promise<string>;
+        graphics?: boolean;
       };
-      const fn = sp.default?.executablePath ?? sp.executablePath;
-      if (!fn) {
+      const instance = sparticuz.default ?? sparticuz;
+      if (!instance || typeof instance.executablePath !== "function") {
         throw new Error("@sparticuz/chromium has no executablePath export");
       }
-      executablePath = await fn();
+      // Optional knob: turning graphics on inflates the swiftshader
+      // tarball (~30MB more cold-start). Off keeps the bundle lean
+      // since we don't render webgl content.
+      if ("graphics" in instance) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (instance as any).graphics = false;
+      }
+      // Method call (preserves `this`) — not a bare function reference.
+      executablePath = await instance.executablePath();
     }
 
     // Resolve the @orb/motion-reel package's entry point. createRequire

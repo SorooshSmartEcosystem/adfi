@@ -8,6 +8,11 @@
 import { useState } from "react";
 import type { MockupProps } from "./types";
 import { pickPrimaryText, truncate } from "./types";
+import {
+  CoverSlideView,
+  BodySlideView,
+  CloserSlideView,
+} from "../carousel-artboard";
 
 export function InstagramPostMockup({
   business,
@@ -20,13 +25,22 @@ export function InstagramPostMockup({
   const tags = content.hashtags ?? [];
   const [expanded, setExpanded] = useState(false);
 
-  // Carousel: cycle through slides with prev/next arrows.
-  const slides = content.slides ?? [];
-  const isCarousel = slides.length > 1;
+  // Carousel: prefer the rich `carousel` shape (designed slides per
+  // template/palette) when available. Fall back to the flat slides[]
+  // for legacy drafts.
+  const richCarousel = content.carousel;
+  const richSlideCount = richCarousel
+    ? 1 + richCarousel.body.length + 1
+    : 0;
+  const flatSlides = content.slides ?? [];
+  const isCarousel = richCarousel
+    ? richSlideCount > 1
+    : flatSlides.length > 1;
+  const slideCount = richCarousel ? richSlideCount : flatSlides.length;
   const [slideIdx, setSlideIdx] = useState(0);
-  const currentSlide = isCarousel ? slides[slideIdx] : null;
+  const currentFlatSlide = !richCarousel && isCarousel ? flatSlides[slideIdx] : null;
   const displayedImage =
-    currentSlide?.imageUrl ?? content.imageUrl ?? slides[0]?.imageUrl;
+    currentFlatSlide?.imageUrl ?? content.imageUrl ?? flatSlides[0]?.imageUrl;
 
   const TRUNC = 110;
   const isLong = fullCaption.length > TRUNC;
@@ -56,7 +70,15 @@ export function InstagramPostMockup({
 
       {/* Image / carousel */}
       <div className="relative aspect-square bg-surface flex items-center justify-center overflow-hidden">
-        {displayedImage ? (
+        {richCarousel ? (
+          // Rich carousel — render the actual designed slide for the
+          // current index. Cover (idx 0), body (1..n), closer (last).
+          <RichCarouselSlide
+            carousel={richCarousel}
+            index={slideIdx}
+            total={richSlideCount}
+          />
+        ) : displayedImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={displayedImage}
@@ -81,16 +103,16 @@ export function InstagramPostMockup({
                 onClick={() => setSlideIdx((i) => Math.max(0, i - 1))}
               />
             ) : null}
-            {slideIdx < slides.length - 1 ? (
+            {slideIdx < slideCount - 1 ? (
               <ArrowBtn
                 direction="next"
                 onClick={() =>
-                  setSlideIdx((i) => Math.min(slides.length - 1, i + 1))
+                  setSlideIdx((i) => Math.min(slideCount - 1, i + 1))
                 }
               />
             ) : null}
             <div className="absolute top-md left-1/2 -translate-x-1/2 flex gap-xs">
-              {slides.map((_, i) => (
+              {Array.from({ length: slideCount }).map((_, i) => (
                 <span
                   key={i}
                   className={`w-1.5 h-1.5 rounded-full ${
@@ -100,25 +122,27 @@ export function InstagramPostMockup({
               ))}
             </div>
             <div className="absolute top-md right-md font-mono text-[10px] tracking-[0.16em] text-white bg-black/45 backdrop-blur px-sm py-[2px] rounded-full">
-              {slideIdx + 1}/{slides.length}
+              {slideIdx + 1}/{slideCount}
             </div>
 
-            {/* Slide caption overlay (headline + body of the current slide) */}
-            {currentSlide?.headline || currentSlide?.body ? (
+            {/* Legacy flat-slide overlay caption — only for non-rich
+                carousels (rich carousels render text inside each
+                designed slide). */}
+            {!richCarousel && (currentFlatSlide?.headline || currentFlatSlide?.body) ? (
               <div className="absolute bottom-0 left-0 right-0 p-md text-white pointer-events-none"
                 style={{
                   background:
                     "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 100%)",
                 }}
               >
-                {currentSlide.headline ? (
+                {currentFlatSlide.headline ? (
                   <div className="text-[14px] font-semibold mb-xs leading-tight" dir="auto">
-                    {currentSlide.headline}
+                    {currentFlatSlide.headline}
                   </div>
                 ) : null}
-                {currentSlide.body ? (
+                {currentFlatSlide.body ? (
                   <div className="text-[12px] leading-relaxed line-clamp-3" dir="auto">
-                    {currentSlide.body}
+                    {currentFlatSlide.body}
                   </div>
                 ) : null}
               </div>
@@ -206,6 +230,79 @@ function IgIcon({ path }: { path: string }) {
     >
       <path d={path} />
     </svg>
+  );
+}
+
+// Renders the right designed slide (cover / body[i] / closer) for a
+// given index. Picks the slide view in feed mode (no shadow / hairline
+// / visualDirection caption — the IG mockup chrome already provides
+// the framing).
+function RichCarouselSlide({
+  carousel,
+  index,
+  total,
+}: {
+  carousel: NonNullable<MockupProps["content"]["carousel"]>;
+  index: number;
+  total: number;
+}) {
+  const bodyCount = carousel.body.length;
+  const isCover = index === 0;
+  const isCloser = index === total - 1 && bodyCount > 0;
+  // Edge case: no body slides — index 1 should fall back to closer.
+  const closerOnly = bodyCount === 0 && index === 1;
+
+  if (isCover) {
+    return (
+      <CoverSlideView
+        slide={{
+          palette: (carousel.cover.palette ?? "ink") as never,
+          title: carousel.cover.title,
+          subtitle: carousel.cover.subtitle ?? null,
+          visualDirection: carousel.cover.visualDirection,
+          imageUrl: carousel.cover.imageUrl ?? null,
+        }}
+        index={index}
+        total={total}
+        mode="feed"
+      />
+    );
+  }
+  if (isCloser || closerOnly) {
+    return (
+      <CloserSlideView
+        slide={{
+          palette: (carousel.closer.palette ?? "ink") as never,
+          title: carousel.closer.title,
+          body: carousel.closer.body,
+          cta: carousel.closer.cta ?? null,
+        }}
+        index={index}
+        total={total}
+        mode="feed"
+      />
+    );
+  }
+  const bodyIdx = index - 1;
+  const slide = carousel.body[bodyIdx];
+  if (!slide) return null;
+  return (
+    <BodySlideView
+      slide={{
+        template: (slide.template ?? "numbered") as never,
+        palette: (slide.palette ?? "cream") as never,
+        headline: slide.headline,
+        body: slide.body,
+        number: slide.number ?? null,
+        quoteAttribution: slide.quoteAttribution ?? null,
+        bulletPoints: slide.bulletPoints ?? null,
+        visualDirection: slide.visualDirection ?? "",
+        imageUrl: slide.imageUrl ?? null,
+      }}
+      index={index}
+      total={total}
+      mode="feed"
+    />
   );
 }
 

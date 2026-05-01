@@ -40,7 +40,7 @@ const PALETTE_MUTED: Record<Palette, string> = {
   attn: "text-attentionText",
 };
 
-type CoverSlide = {
+export type CoverSlide = {
   palette?: Palette;
   title: string;
   subtitle: string | null;
@@ -48,7 +48,7 @@ type CoverSlide = {
   imageUrl?: string | null;
 };
 
-type BodySlide = {
+export type BodySlide = {
   template?: Template;
   palette?: Palette;
   headline: string;
@@ -60,13 +60,20 @@ type BodySlide = {
   imageUrl?: string | null;
 };
 
-type CloserSlide = {
+export type CloserSlide = {
   palette?: Palette;
   title: string;
   body: string;
   cta: string | null;
 };
 
+// Wrapper around the slide content. Two modes:
+//   - "artboard" (default): rounded card, shadow, hairline border,
+//     visualDirection caption below — for the editor/preview screen.
+//   - "feed": fills the parent square edge-to-edge, no shadow or
+//     hairline, no caption — for embedding inside a platform mockup
+//     (IG/Pinterest carousel) where the post chrome already provides
+//     the framing.
 function ArtboardWrap({
   index,
   total,
@@ -74,6 +81,7 @@ function ArtboardWrap({
   palette,
   children,
   visualDirection,
+  mode = "artboard",
 }: {
   index: number;
   total: number;
@@ -81,13 +89,20 @@ function ArtboardWrap({
   palette: Palette;
   children: React.ReactNode;
   visualDirection?: string;
+  mode?: "artboard" | "feed";
 }) {
+  const isFeed = mode === "feed";
+  const cardCls = isFeed
+    ? `relative w-full h-full ${PALETTE_CLS[palette]}`
+    : `relative aspect-square rounded-[16px] overflow-hidden border-hairline border-border shadow-[0_4px_24px_rgba(0,0,0,0.06)] ${PALETTE_CLS[palette]}`;
+  const padCls = isFeed
+    ? "absolute inset-0 px-[24px] py-[56px] flex flex-col justify-center"
+    : "absolute inset-0 px-[28px] py-[60px] flex flex-col justify-center";
+
   return (
-    <div className="flex flex-col">
-      <div
-        className={`relative aspect-square rounded-[16px] overflow-hidden border-hairline border-border shadow-[0_4px_24px_rgba(0,0,0,0.06)] ${PALETTE_CLS[palette]}`}
-      >
-        <div className="absolute top-md left-md flex items-center gap-sm">
+    <div className={isFeed ? "w-full h-full" : "flex flex-col"}>
+      <div className={cardCls}>
+        <div className="absolute top-md left-md flex items-center gap-sm z-10">
           <span
             className={`w-[6px] h-[6px] rounded-full ${PALETTE_ACCENT[palette]}`}
           />
@@ -97,18 +112,16 @@ function ArtboardWrap({
             {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
           </span>
         </div>
-        <div className="absolute top-md right-md">
+        <div className="absolute top-md right-md z-10">
           <span
             className={`font-mono text-[10px] tracking-[0.2em] ${PALETTE_MUTED[palette]}`}
           >
             {label}
           </span>
         </div>
-        <div className="absolute inset-0 px-[28px] py-[60px] flex flex-col justify-center">
-          {children}
-        </div>
+        <div className={padCls}>{children}</div>
       </div>
-      {visualDirection ? (
+      {!isFeed && visualDirection ? (
         <p className="font-mono text-[10px] text-ink4 mt-sm italic leading-relaxed" dir="auto">
           📷 {visualDirection}
         </p>
@@ -117,14 +130,16 @@ function ArtboardWrap({
   );
 }
 
-function CoverSlideView({
+export function CoverSlideView({
   slide,
   index,
   total,
+  mode = "artboard",
 }: {
   slide: CoverSlide;
   index: number;
   total: number;
+  mode?: "artboard" | "feed";
 }) {
   const palette = slide.palette ?? "ink";
   return (
@@ -134,6 +149,7 @@ function CoverSlideView({
       label="COVER"
       palette={palette}
       visualDirection={slide.visualDirection}
+      mode={mode}
     >
       {slide.imageUrl ? (
         <>
@@ -176,14 +192,16 @@ function CoverSlideView({
   );
 }
 
-function BodySlideView({
+export function BodySlideView({
   slide,
   index,
   total,
+  mode = "artboard",
 }: {
   slide: BodySlide;
   index: number;
   total: number;
+  mode?: "artboard" | "feed";
 }) {
   const palette = slide.palette ?? "cream";
   const template = slide.template ?? "numbered";
@@ -196,6 +214,7 @@ function BodySlideView({
         label="QUOTE"
         palette={palette}
         visualDirection={slide.visualDirection}
+        mode={mode}
       >
         <div
           className={`text-[clamp(18px,3.5vw,28px)] font-medium leading-[1.2] tracking-tight`}
@@ -219,6 +238,7 @@ function BodySlideView({
         label="STATEMENT"
         palette={palette}
         visualDirection={slide.visualDirection}
+        mode={mode}
       >
         <div
           className="font-medium tracking-tight leading-[1.15]"
@@ -238,6 +258,7 @@ function BodySlideView({
         label="IMAGE"
         palette={palette}
         visualDirection={slide.visualDirection}
+        mode={mode}
       >
         {slide.imageUrl ? (
           <img
@@ -278,6 +299,7 @@ function BodySlideView({
         label="LIST"
         palette={palette}
         visualDirection={slide.visualDirection}
+        mode={mode}
       >
         <div className="text-lg font-medium tracking-tight mb-md leading-tight" dir="auto">
           {slide.headline}
@@ -304,6 +326,7 @@ function BodySlideView({
       label="STEP"
       palette={palette}
       visualDirection={slide.visualDirection}
+      mode={mode}
     >
       <div
         className="font-mono font-medium opacity-30 leading-none mb-md"
@@ -323,14 +346,16 @@ function BodySlideView({
   );
 }
 
-function CloserSlideView({
+export function CloserSlideView({
   slide,
   index,
   total,
+  mode = "artboard",
 }: {
   slide: CloserSlide;
   index: number;
   total: number;
+  mode?: "artboard" | "feed";
 }) {
   const palette = slide.palette ?? "ink";
   return (
@@ -339,6 +364,7 @@ function CloserSlideView({
       total={total}
       label="CLOSER"
       palette={palette}
+      mode={mode}
     >
       <div className="text-lg font-medium tracking-tight leading-tight mb-md" dir="auto">
         {slide.title}

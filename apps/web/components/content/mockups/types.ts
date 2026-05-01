@@ -11,8 +11,38 @@ export type DraftContent = {
   body?: string;
   hashtags?: string[];
   imageUrl?: string;
-  // Carousel slides (cover + body + closer flattened in order).
+  // Carousel slides (cover + body + closer flattened in order — used
+  // by anything that just wants thumbnails).
   slides?: { imageUrl?: string; headline?: string; body?: string }[];
+  // Carousel — rich shape with palette/template per slide. When
+  // present, the IG mockup uses the proper artboard slide views (one
+  // designed slide per index) rather than the flat slides[] above.
+  carousel?: {
+    cover: {
+      palette?: string;
+      title: string;
+      subtitle?: string | null;
+      visualDirection?: string;
+      imageUrl?: string | null;
+    };
+    body: Array<{
+      template?: string;
+      palette?: string;
+      headline: string;
+      body: string;
+      number?: string | null;
+      quoteAttribution?: string | null;
+      bulletPoints?: string[] | null;
+      visualDirection?: string;
+      imageUrl?: string | null;
+    }>;
+    closer: {
+      palette?: string;
+      title: string;
+      body: string;
+      cta?: string | null;
+    };
+  };
   // Email
   subject?: string;
   preheader?: string;

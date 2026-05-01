@@ -76,53 +76,91 @@ function normalizeSinglePost(c: RawContent): DraftContent {
 }
 
 function normalizeCarousel(c: RawContent): DraftContent {
-  const cover = c.coverSlide as
-    | { title?: string; subtitle?: string | null; imageUrl?: string }
-    | undefined;
-  const bodySlides = Array.isArray(c.bodySlides)
-    ? (c.bodySlides as Array<{
-        headline?: string;
-        body?: string;
-        imageUrl?: string;
-      }>)
+  const cover = (c.coverSlide as Record<string, unknown> | undefined) ?? {};
+  const rawBody = Array.isArray(c.bodySlides)
+    ? (c.bodySlides as Array<Record<string, unknown>>)
     : [];
-  const closer = c.closerSlide as
-    | { title?: string; body?: string; cta?: string | null }
-    | undefined;
+  const closer = (c.closerSlide as Record<string, unknown> | undefined) ?? {};
 
+  const coverSlide = {
+    palette: typeof cover.palette === "string" ? cover.palette : undefined,
+    title: typeof cover.title === "string" ? cover.title : "",
+    subtitle:
+      typeof cover.subtitle === "string"
+        ? cover.subtitle
+        : cover.subtitle === null
+          ? null
+          : null,
+    visualDirection:
+      typeof cover.visualDirection === "string"
+        ? cover.visualDirection
+        : undefined,
+    imageUrl:
+      typeof cover.imageUrl === "string"
+        ? cover.imageUrl
+        : cover.imageUrl === null
+          ? null
+          : null,
+  };
+
+  const bodySlides = rawBody.map((s) => ({
+    template: typeof s.template === "string" ? s.template : undefined,
+    palette: typeof s.palette === "string" ? s.palette : undefined,
+    headline: typeof s.headline === "string" ? s.headline : "",
+    body: typeof s.body === "string" ? s.body : "",
+    number: typeof s.number === "string" ? s.number : null,
+    quoteAttribution:
+      typeof s.quoteAttribution === "string" ? s.quoteAttribution : null,
+    bulletPoints: Array.isArray(s.bulletPoints)
+      ? (s.bulletPoints as string[])
+      : null,
+    visualDirection:
+      typeof s.visualDirection === "string" ? s.visualDirection : "",
+    imageUrl:
+      typeof s.imageUrl === "string"
+        ? s.imageUrl
+        : s.imageUrl === null
+          ? null
+          : null,
+  }));
+
+  const closerSlide = {
+    palette: typeof closer.palette === "string" ? closer.palette : undefined,
+    title: typeof closer.title === "string" ? closer.title : "",
+    body: typeof closer.body === "string" ? closer.body : "",
+    cta: typeof closer.cta === "string" ? closer.cta : null,
+  };
+
+  // Flat slides array — kept so anything that just needs a thumbnail
+  // doesn't have to know about the rich shape.
   const slides = [
-    ...(cover
-      ? [
-          {
-            imageUrl: cover.imageUrl,
-            headline: cover.title,
-            body: cover.subtitle ?? undefined,
-          },
-        ]
-      : []),
+    {
+      imageUrl: coverSlide.imageUrl ?? undefined,
+      headline: coverSlide.title,
+      body: coverSlide.subtitle ?? undefined,
+    },
     ...bodySlides.map((s) => ({
-      imageUrl: s.imageUrl,
+      imageUrl: s.imageUrl ?? undefined,
       headline: s.headline,
       body: s.body,
     })),
-    ...(closer
-      ? [
-          {
-            // closer may not have its own imageUrl; reuse cover's so
-            // the final slide isn't a blank panel
-            imageUrl: cover?.imageUrl,
-            headline: closer.title,
-            body: closer.body,
-          },
-        ]
-      : []),
+    {
+      imageUrl: coverSlide.imageUrl ?? undefined,
+      headline: closerSlide.title,
+      body: closerSlide.body,
+    },
   ];
 
   return {
     caption:
-      typeof c.caption === "string" ? c.caption : cover?.title ?? undefined,
-    imageUrl: cover?.imageUrl ?? slides[0]?.imageUrl,
+      typeof c.caption === "string" ? c.caption : coverSlide.title || undefined,
+    imageUrl: coverSlide.imageUrl ?? slides[0]?.imageUrl,
     slides,
+    carousel: {
+      cover: coverSlide,
+      body: bodySlides,
+      closer: closerSlide,
+    },
     hashtags: pickHashtags(c),
   };
 }

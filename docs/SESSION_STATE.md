@@ -1,14 +1,57 @@
 ---
 title: SESSION_STATE
 purpose: Hand-off snapshot for the next Claude Code session
-last_updated: 2026-04-28 (evening)
+last_updated: 2026-05-01 (night)
 ---
 
-# Session state — 2026-04-28 (evening)
+# Session state — 2026-05-01 (night)
 
 Frozen snapshot of where ADFI is, what's been built, what's locked, what's
 open, and exactly what to do next. A fresh Claude Code session should be
 able to pick up by reading this top-to-bottom.
+
+## Latest session (2026-04-30 → 05-01) — content + motion-reel rewrite
+
+Three big things shipped:
+
+**1. Motion-reel scene-script architecture (was single-template).** The
+video agent now writes a sequence of 3-7 scenes (hook · stat · contrast ·
+quote · punchline · list · hashtags · brand-stamp) that play back-to-back
+via Remotion `<Sequence>`. Switched the agent from Sonnet to Haiku 4.5 +
+prompt caching the long system prompt — per-video cost dropped from ~2¢
+to ~1.1¢ at scale, ~0.4¢ within AWS Lambda free tier. 6 industry preview
+scripts (renovation 50s, fitness, legal/tax, restaurant, SaaS, copy-trading)
+in `packages/motion-reel/src/previews/` for studio iteration without
+burning tokens.
+
+**2. Content page redesign.** /content rebuilt around three ideas:
+  - Big focused GenerateBar at top (textarea + collapsed format/platform
+    pickers + draft button). OrbLoader takes over while Echo drafts.
+  - Platform-authentic mockups (instagram-post, instagram-reel,
+    twitter, linkedin, facebook, telegram, email — see
+    apps/web/components/content/mockups/) instead of generic text rows
+  - DraftCardV2 wraps the mockup with single-primary-action ladder per
+    state (approve / regenerate / add-photos / view-live / retry) +
+    overflow menu for tertiary actions
+  - Tabs back: feed / week / performance as a quiet link strip
+  - In-app script preview drawer via Remotion `<Player>` — free
+    browser playback before paying for Lambda render
+
+**3. Critical prod fix.** prisma.business.create() was failing in tRPC
+middleware for fresh Supabase users (FK violation on user_id) — locked
+users out of dashboard with no way to even sign out. Fixed by upserting
+the User row before business.create.
+
+Also: admin dashboard period selector (default 30d, was hard-coded
+this-month and showed empty grid on May 1st), .env.example refreshed
+for SendGrid + Remotion Lambda env vars, error swallowing for third-
+party quota failures with admin-notify URGENT tags, persisted Meta user
+token + DELETE /me/permissions on disconnect, IG webhook subscribe
+fixes, mobile burger menu + profile dropdown on landing.
+
+Skill `~/.claude/skills/video-agent/SKILL.md` updated with scene
+catalog, cost model, in-app preview pattern, and adding-new-scene
+workflow.
 
 For project-wide rules, read [`CLAUDE.md`](../CLAUDE.md). For architecture,
 read [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). For the agent workflow,

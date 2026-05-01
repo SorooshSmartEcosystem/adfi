@@ -6,6 +6,21 @@ Format note: write changes from the user's perspective in plain English. "Users 
 
 ## [Unreleased]
 
+### Added (content page · 2026-05-01)
+- `/content` rebuilt around three primitives: a focused **GenerateBar** (single textarea + collapsed format/platform pickers), the **PlatformMockup family** (instagram-post · instagram-reel · twitter · linkedin · facebook · telegram · email — drafts now render inside their destination platform's actual UI frame), and **DraftCardV2** (single primary action per state, tertiary actions in an overflow menu). Tabs back as a quiet link strip: feed / week / performance.
+- **OrbLoader** primitive (`apps/web/components/shared/orb-loader.tsx`) — unified "I'm working" indicator. Three sizes (sm/md/lg), four agent tones (alive/attn/urgent/ink), spinner ring or progress arc + percentage, cycling status line. Stage banks ready for every agent action.
+- **In-app video preview** via Remotion `<Player>` — clicking 'make video' on a draft now generates a script (~0.4¢ Haiku) and opens a preview drawer that plays the video in-browser at 60fps with $0 cost. User scrubs, optionally edits scene durations, then renders mp4 only when satisfied (~1.1¢ Lambda). Old flow burned 1.1¢ on every attempt.
+
+### Changed (motion-reel · 2026-05-01)
+- Switched from single-template MotionDirective to **multi-scene VideoScript**. The video agent now writes 3-7 scenes (hook · stat · contrast · quote · punchline · list · hashtags · brand-stamp) that play back-to-back via Remotion `<Sequence>`. Same design system, but each video has its own narrative arc.
+- Video agent moved from Sonnet to **Haiku 4.5** + ephemeral prompt caching. Per-video cost dropped from ~2¢ → ~1.1¢ at scale, ~0.4¢ within AWS Lambda free tier. Render cost now scales with actual video duration (`VIDEO_RENDER_PER_SECOND_CENTS = 0.04`) rather than a flat 0.8¢.
+- 6 industry preview scripts shipped under `packages/motion-reel/src/previews/` — renovation 50s, fitness 22s, legal/tax 18s, restaurant 25s, SaaS 20s, copy-trading 20s. Each is a standalone .ts file rendered as its own composition in Remotion Studio. Free local iteration without Lambda spend.
+- Admin dashboard tracks video cost and rendered seconds: `costs.videoBreakdown.{agentCents, renderCents, renderSeconds}`. Tile shows `<n> generated · <total>s rendered`.
+
+### Fixed (prod lockout · 2026-05-01)
+- **Critical:** `prisma.business.create()` was failing in tRPC middleware for fresh Supabase auth users — FK constraint violated because the User row hadn't been created yet (user.me's self-heal only fired when something called user.me). Symptoms: signed-in user → dashboard → trpc errors loop the page → error boundary takes over → can't even reach /signout. Fix: upsert User row inside the same self-heal block before business.create.
+- Admin dashboard `/admin/dashboard` was hard-coded to "this calendar month" which made it look empty on day 1 of any month. Now accepts `?period=7d|30d|month|all`, default 30d. Quiet link strip swaps periods. `?period=all` starts at 2024-01-01 to exclude pre-prod test data.
+
 ### Added (design-agent · 2026-04-28)
 - New `@orb/design-agent` package — the start of a per-business "design specialist" pipeline. Two phases ship deterministic (no LLM):
   - **Phase 2 — palette generation**: `generatePalette(anchorHex, rationale)` derives a 7-role palette (primary / secondary / accent / ink / surface / background / border) via HSL rotations + lightness adjustments, then nudges lightness until every text-on-bg pair clears WCAG AA. `validatePaletteContrast` reports any failures. sRGB → linear → relative-luminance contrast math is hand-written against the WCAG 2.x spec — no `chroma-js` dependency.

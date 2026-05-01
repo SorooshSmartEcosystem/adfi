@@ -7,8 +7,9 @@ import {
   BRAND_KIT_GENERATION_CENTS,
   VAPI_CENTS,
   VIDEO_AGENT_CENTS,
-  VIDEO_RENDER_CENTS,
+  VIDEO_RENDER_PER_SECOND_CENTS,
   VIDEO_TOTAL_CENTS,
+  videoRenderCentsForDuration,
   estimateEventCostCents,
   FIXED_OVERHEAD_CENTS,
   PLAN_PRICING_CENTS,
@@ -228,16 +229,47 @@ export const adminRouter = router({
     const totalCallMinutes = Math.ceil(totalCallSeconds / 60);
     const vapiCents = totalCallMinutes * VAPI_CENTS.perMinute;
 
-    // Motion-reel videos — count successful video agent runs this
-    // month. Captures both the directive generation cost (Sonnet) and
-    // the compute cost of the Remotion render. We log
-    // `video_directive_generated` agent events on every video agent
-    // call in agents/video.ts, so the count of those events equals
-    // the number of videos requested.
-    const videoEvents = events.filter(
-      (e) => e.eventType === "video_directive_generated",
-    ).length;
-    const videoCents = Math.round(videoEvents * VIDEO_TOTAL_CENTS);
+    // Motion-reel videos — agent + render cost.
+    //   - Agent cost is logged via recordAnthropicUsage (events with
+    //     eventType in {video_script_generated, video_directive_generated}).
+    //     The Anthropic call cost is already in payload.costCents.
+    //   - Render cost scales with the video's duration (sec). We pull
+    //     the duration from the persisted ContentDraft.motion field.
+    const videoAgentEvents = events.filter(
+      (e) =>
+        e.eventType === "video_script_generated" ||
+        e.eventType === "video_directive_generated",
+    );
+    const videoCount = videoAgentEvents.length;
+
+    // Sum render seconds across drafts that rendered this month.
+    // ContentDraft.motion has shape { kind, durationSeconds, status,
+    // mp4Url } for scripts. Drafts in other states or without motion
+    // contribute zero.
+    const motionDrafts = await ctx.db.contentDraft.findMany({
+      where: {
+        updatedAt: { gte: periodStart },
+        motion: { not: { equals: null } },
+      },
+      select: { motion: true },
+    });
+    let videoRenderSeconds = 0;
+    for (const d of motionDrafts) {
+      const m = d.motion as Record<string, unknown> | null;
+      if (!m) continue;
+      if (m.status !== "ready") continue;
+      if (typeof m.durationSeconds === "number") {
+        videoRenderSeconds += m.durationSeconds;
+      } else {
+        // Legacy directive renders had ~9s duration baked in.
+        videoRenderSeconds += 9;
+      }
+    }
+    const videoRenderCents = Math.round(
+      videoRenderSeconds * VIDEO_RENDER_PER_SECOND_CENTS,
+    );
+    const videoAgentCents = Math.round(videoCount * VIDEO_AGENT_CENTS);
+    const videoCents = videoAgentCents + videoRenderCents;
 
     const fixedCents =
       FIXED_OVERHEAD_CENTS.vercel +
@@ -299,10 +331,13 @@ export const adminRouter = router({
         },
         videoCents,
         videoBreakdown: {
-          videos: videoEvents,
+          videos: videoCount,
+          agentCents: videoAgentCents,
+          renderCents: videoRenderCents,
+          renderSeconds: videoRenderSeconds,
           agentUnitCents: VIDEO_AGENT_CENTS,
-          renderUnitCents: VIDEO_RENDER_CENTS,
-          totalUnitCents: VIDEO_TOTAL_CENTS,
+          renderUnitCentsPerSecond: VIDEO_RENDER_PER_SECOND_CENTS,
+          typicalUnitCents: VIDEO_TOTAL_CENTS,
         },
         fixedCents,
         fixedBreakdown: FIXED_OVERHEAD_CENTS,
@@ -330,7 +365,8 @@ export const adminRouter = router({
         brandKitGenerations: brandKitVersionsThisMonth,
         vapiCalls: callsThisMonth.length,
         vapiMinutes: totalCallMinutes,
-        videosGenerated: videoEvents,
+        videosGenerated: videoCount,
+        videoTotalSeconds: videoRenderSeconds,
       },
     };
   }),
@@ -590,7 +626,9 @@ export const adminRouter = router({
       callsThisPeriod.reduce((s, c) => s + (c.durationSeconds ?? 0), 0) / 60,
     );
     const videoCount = events.filter(
-      (e) => e.eventType === "video_directive_generated",
+      (e) =>
+        e.eventType === "video_script_generated" ||
+        e.eventType === "video_directive_generated",
     ).length;
 
     return {
@@ -657,11 +695,11 @@ export const adminRouter = router({
           unitCostCents: VAPI_CENTS.perMinute,
         },
         {
-          name: "Motion-reel video (Sonnet + render)",
+          name: "Motion-reel video (Haiku + Lambda render)",
           costCents: Math.round(videoCount * VIDEO_TOTAL_CENTS),
           unit: "videos",
           count: videoCount,
-          unitCostCents: Math.round(VIDEO_TOTAL_CENTS),
+          unitCostCents: Math.round(VIDEO_TOTAL_CENTS * 10) / 10,
         },
         {
           name: "Twilio — phone numbers",

@@ -225,7 +225,7 @@ export default async function DashboardOverview() {
           <Metric
             label="videos generated"
             value={overview.eventCounts.videosGenerated.toString()}
-            sublabel={`${formatCents(overview.costs.videoCents)} · ~2¢/video`}
+            sublabel={`${formatCents(overview.costs.videoCents)} · ${overview.eventCounts.videoTotalSeconds}s rendered`}
           />
           <div className="flex flex-col gap-xs bg-surface border-hairline border-border rounded-lg p-lg">
             <p className="text-xs font-mono text-ink3 uppercase tracking-widest">

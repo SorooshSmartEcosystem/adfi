@@ -29,18 +29,33 @@ export const AVG_EVENT_COST_CENTS = {
 // 24k output tokens). Replaced once we log real token usage on each step.
 export const BRAND_KIT_GENERATION_CENTS = 40;
 
-// Motion-reel video — broken out so the breakdown panel can show
-// agent vs render separately. Total per video: ~2 cents.
-//   - Sonnet directive generation: ~1.5k input + 500 output tokens
-//     at Sonnet 4.6 prices = ~1.2 cents
-//   - Vercel compute: ~45s @ 2GB = 0.025 GB-hours, ~0.5 cents at the
-//     overage rate of $0.18/GB-hour (free within Pro included 1000
-//     GB-hours/month — this number is the marginal-after-quota cost)
-//   - Supabase upload + bandwidth: negligible (~5MB mp4)
-// Replace once we log real per-render token + compute time.
-export const VIDEO_AGENT_CENTS = 1.2;
-export const VIDEO_RENDER_CENTS = 0.8;
-export const VIDEO_TOTAL_CENTS = VIDEO_AGENT_CENTS + VIDEO_RENDER_CENTS;
+// Motion-reel video — multi-scene script architecture (post 2026-05-01).
+// Cost optimization levers applied:
+//   1. HAIKU 4.5 instead of Sonnet (5× cheaper input, 5× cheaper output)
+//   2. Prompt caching the system prompt (cached input ≈ 10% of base)
+//   3. Lambda render via Remotion (per-second pricing, parallelized
+//      across multiple Lambda invocations under the hood)
+//
+// Cost per video at 18-22s typical script length:
+//   - Haiku call: ~3k cached input ($1/M × 0.1 ≈ ~negligible)
+//                 + ~500 fresh input ($1/M)
+//                 + ~1500 output ($5/M)
+//                 ≈ 0.4¢ per call
+//   - Lambda render: 18-22s of video × ~3.5 Lambda-seconds per video-
+//                    second × $0.0000167/GB-second @ 2GB
+//                    ≈ 0.7¢ per render after free tier
+//                    (FREE within AWS Lambda's 400k GB-second free tier)
+//   - Total: ~1.1¢ per video at scale, ~0.4¢ within free tier
+//
+// Constants tuned to that target.
+export const VIDEO_AGENT_CENTS = 0.4;
+export const VIDEO_RENDER_PER_SECOND_CENTS = 0.04; // ~0.04¢ per second of output
+export const VIDEO_TOTAL_CENTS = 1.1; // typical 18-22s script
+
+// Compute marginal cost given the script's actual duration.
+export function videoRenderCentsForDuration(seconds: number): number {
+  return Math.round(seconds * VIDEO_RENDER_PER_SECOND_CENTS * 10) / 10;
+}
 
 // Vapi voice — bundled per-minute price covering OpenAI realtime model +
 // Vapi platform fee + Twilio outbound. Approx 18¢/minute for our config.

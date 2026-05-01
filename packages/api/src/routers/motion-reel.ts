@@ -1,15 +1,104 @@
 import { z } from "zod";
 import { router, authedProc } from "../trpc";
 import { OrbError } from "../errors";
-import { renderForDraft } from "../services/motion-reel";
+import {
+  renderScriptForDraft,
+  renderDirectiveForDraft,
+} from "../services/motion-reel";
 import { runVideoAgent } from "../agents/video";
 import { getActiveAgentContextForUser } from "../services/agent-context";
 import type { BrandVoice } from "../agents/strategist";
 import { notifyAdminOfError } from "../services/admin-notify";
 
-// Same shape as MotionDirective in @orb/motion-reel — duplicated here
-// as Zod schemas so the tRPC layer validates inputs without pulling
-// the React-heavy package into the validator path.
+// =============================================================
+// Scene-script schema (current canonical shape)
+// =============================================================
+// Mirror of @orb/motion-reel/types Scene + VideoScript. Replicated as
+// Zod here so tRPC validates without pulling the React-heavy renderer
+// package into the validator path.
+
+const SceneSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("hook"),
+    headline: z.string().min(1).max(40),
+    subtitle: z.string().max(120).optional(),
+    duration: z.number().min(1.5).max(8),
+  }),
+  z.object({
+    type: z.literal("stat"),
+    value: z.union([z.number(), z.string()]),
+    prefix: z.string().max(8).optional(),
+    suffix: z.string().max(8).optional(),
+    label: z.string().min(2).max(40),
+    duration: z.number().min(1.5).max(8),
+  }),
+  z.object({
+    type: z.literal("contrast"),
+    leftLabel: z.string().min(2).max(40),
+    leftValue: z.string().min(1).max(20),
+    rightLabel: z.string().min(2).max(40),
+    rightValue: z.string().min(1).max(20),
+    caption: z.string().max(140).optional(),
+    duration: z.number().min(1.5).max(8),
+  }),
+  z.object({
+    type: z.literal("quote"),
+    quote: z.string().min(20).max(200),
+    emphasis: z.string().max(40).optional(),
+    attribution: z.string().max(80).optional(),
+    duration: z.number().min(1.5).max(8),
+  }),
+  z.object({
+    type: z.literal("punchline"),
+    line: z.string().min(8).max(140),
+    emphasis: z.string().max(40).optional(),
+    duration: z.number().min(1.5).max(8),
+  }),
+  z.object({
+    type: z.literal("list"),
+    title: z.string().min(4).max(80),
+    items: z
+      .array(
+        z.object({
+          headline: z.string().min(2).max(60),
+          body: z.string().max(120).optional(),
+        }),
+      )
+      .min(2)
+      .max(4),
+    duration: z.number().min(2).max(10),
+  }),
+  z.object({
+    type: z.literal("hashtags"),
+    hashtags: z.array(z.string().min(2).max(40)).min(3).max(8),
+    caption: z.string().max(120).optional(),
+    duration: z.number().min(1.5).max(6),
+  }),
+  z.object({
+    type: z.literal("brand-stamp"),
+    cta: z.string().max(120).optional(),
+    duration: z.number().min(1.5).max(6),
+  }),
+]);
+
+const VideoDesignSchema = z.object({
+  style: z.enum(["minimal", "bold", "warm", "editorial"]),
+  accent: z.enum(["alive", "attn", "urgent", "ink"]),
+  pace: z.enum(["slow", "medium", "fast"]),
+  statusLabel: z.string().min(2).max(40),
+  hookLabel: z.string().min(2).max(40),
+  metaLabel: z.string().min(2).max(40),
+  closerLabel: z.string().min(2).max(40),
+});
+
+const VideoScriptSchema = z.object({
+  scenes: z.array(SceneSchema).min(2).max(10),
+  design: VideoDesignSchema,
+});
+
+// =============================================================
+// Legacy single-template directive schema (back-compat)
+// =============================================================
 
 const QuoteContentSchema = z.object({
   quote: z.string().min(1).max(280),
@@ -24,97 +113,28 @@ const StatContentSchema = z.object({
   context: z.string().min(1).max(220),
 });
 
-const ListContentSchema = z.object({
-  title: z.string().min(1).max(120),
-  items: z
-    .array(
-      z.object({
-        headline: z.string().min(1).max(80),
-        body: z.string().min(1).max(220),
-      }),
-    )
-    .min(2)
-    .max(4),
-});
-
-const ProductRevealSchema = z.object({
-  heroImageUrl: z.string().url(),
-  name: z.string().min(1).max(80),
-  tagline: z.string().max(160).optional(),
-  priceLabel: z.string().max(40).optional(),
-  cta: z.string().max(40).optional(),
-});
-
-const CarouselAsReelSchema = z.object({
-  slides: z
-    .array(
-      z.object({
-        imageUrl: z.string().url().optional(),
-        headline: z.string().min(1).max(120),
-        body: z.string().max(280).optional(),
-      }),
-    )
-    .min(2)
-    .max(8),
-});
-
 const DirectiveSchema = z.discriminatedUnion("template", [
-  z.object({ template: z.literal("quote"), content: QuoteContentSchema }),
-  z.object({ template: z.literal("stat"), content: StatContentSchema }),
-  z.object({ template: z.literal("list"), content: ListContentSchema }),
-  z.object({ template: z.literal("product-reveal"), content: ProductRevealSchema }),
-  z.object({ template: z.literal("carousel-as-reel"), content: CarouselAsReelSchema }),
+  z.object({
+    template: z.literal("quote"),
+    content: QuoteContentSchema,
+    design: VideoDesignSchema.optional(),
+  }),
+  z.object({
+    template: z.literal("stat"),
+    content: StatContentSchema,
+    design: VideoDesignSchema.optional(),
+  }),
 ]);
 
-export const motionReelRouter = router({
-  // Trigger a render for a draft. Synchronous from the user's POV —
-  // returns once the mp4 is uploaded. Render takes 10-30s on a 2GB
-  // function; the maxDuration: 300 on api/trpc covers it.
-  //
-  // Today only `quote` and `stat` actually have compositions wired
-  // (Phase 1). Choosing a template that doesn't exist yet (list /
-  // product-reveal / carousel-as-reel) errors with a clear message.
-  renderForDraft: authedProc
-    .input(
-      z.object({
-        draftId: z.string().uuid(),
-        directive: DirectiveSchema,
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      try {
-        // Forward the user's session cookie to the internal render
-        // route so it can re-verify the user. Without this the
-        // route's createServerClient() finds no session and 401s.
-        const result = await renderForDraft({
-          userId: ctx.user.id,
-          draftId: input.draftId,
-          directive: input.directive,
-          cookieHeader: ctx.headers.get("cookie") ?? "",
-        });
-        return result;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        throw OrbError.EXTERNAL_API(`motion-reel render failed: ${msg}`);
-      }
-    }),
+// =============================================================
+// Router
+// =============================================================
 
-  // Generate a MotionDirective from a content brief using the video
-  // agent (Sonnet). Returns the directive without rendering. Caller
-  // can review/edit before triggering renderForDraft. Useful when the
-  // UI wants the user to preview the slot text before paying for an
-  // mp4 render.
-  draftDirective: authedProc
-    .input(
-      z.object({
-        brief: z.string().min(10).max(2000),
-        // Optional: caller can lock to a specific template (when the
-        // user picked one in the UI). Otherwise the agent decides.
-        templateHint: z
-          .enum(["quote", "stat", "list"])
-          .optional(),
-      }),
-    )
+export const motionReelRouter = router({
+  // Generate a VideoScript from a content brief without rendering.
+  // Caller can review/edit scenes before triggering renderForDraft.
+  draftScript: authedProc
+    .input(z.object({ brief: z.string().min(10).max(2000) }))
     .mutation(async ({ ctx, input }) => {
       try {
         const ac = await getActiveAgentContextForUser(ctx.user.id);
@@ -122,20 +142,20 @@ export const motionReelRouter = router({
         const businessRow = ctx.currentBusinessId
           ? await ctx.db.business.findUnique({
               where: { id: ctx.currentBusinessId },
-              select: { name: true },
+              select: { name: true, description: true },
             })
           : null;
-        const directive = await runVideoAgent({
+        const script = await runVideoAgent({
           brief: input.brief,
           brandVoice,
           businessName: businessRow?.name ?? undefined,
-          templateHint: input.templateHint,
+          industry: businessRow?.description ?? undefined,
           userId: ctx.user.id,
         });
-        return directive;
+        return script;
       } catch (err) {
         await notifyAdminOfError({
-          source: "motionReel.draftDirective",
+          source: "motionReel.draftScript",
           error: err,
           meta: { userId: ctx.user.id },
         });
@@ -145,17 +165,35 @@ export const motionReelRouter = router({
       }
     }),
 
-  // One-shot: agent + render. Generates a directive AND renders it
-  // in a single call. Use this when the UI doesn't need a preview
-  // step (e.g. quick "make video" button on a draft card).
+  // Render a previously-drafted (and optionally edited) script.
+  renderScript: authedProc
+    .input(
+      z.object({
+        draftId: z.string().uuid(),
+        script: VideoScriptSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await renderScriptForDraft({
+          userId: ctx.user.id,
+          draftId: input.draftId,
+          script: input.script,
+          cookieHeader: ctx.headers.get("cookie") ?? "",
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw OrbError.EXTERNAL_API(`motion-reel render failed: ${msg}`);
+      }
+    }),
+
+  // One-shot: agent + render. Most common path from the make-video
+  // button on draft cards.
   generateAndRender: authedProc
     .input(
       z.object({
         draftId: z.string().uuid(),
         brief: z.string().min(10).max(2000),
-        templateHint: z
-          .enum(["quote", "stat", "list"])
-          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -165,23 +203,23 @@ export const motionReelRouter = router({
         const businessRow = ctx.currentBusinessId
           ? await ctx.db.business.findUnique({
               where: { id: ctx.currentBusinessId },
-              select: { name: true },
+              select: { name: true, description: true },
             })
           : null;
-        const directive = await runVideoAgent({
+        const script = await runVideoAgent({
           brief: input.brief,
           brandVoice,
           businessName: businessRow?.name ?? undefined,
-          templateHint: input.templateHint,
+          industry: businessRow?.description ?? undefined,
           userId: ctx.user.id,
         });
-        const result = await renderForDraft({
+        const result = await renderScriptForDraft({
           userId: ctx.user.id,
           draftId: input.draftId,
-          directive,
+          script,
           cookieHeader: ctx.headers.get("cookie") ?? "",
         });
-        return { directive, ...result };
+        return { script, ...result };
       } catch (err) {
         await notifyAdminOfError({
           source: "motionReel.generateAndRender",
@@ -193,9 +231,31 @@ export const motionReelRouter = router({
       }
     }),
 
-  // Read the motion state of a draft. Used by the UI to poll/refresh
-  // after a render is in flight or to display a previously-rendered
-  // mp4 when the page loads.
+  // Legacy back-compat: render a single-template MotionDirective.
+  // Kept so older drafts persisted under the directive shape still
+  // render. New flows should use renderScript / generateAndRender.
+  renderForDraft: authedProc
+    .input(
+      z.object({
+        draftId: z.string().uuid(),
+        directive: DirectiveSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await renderDirectiveForDraft({
+          userId: ctx.user.id,
+          draftId: input.draftId,
+          directive: input.directive,
+          cookieHeader: ctx.headers.get("cookie") ?? "",
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw OrbError.EXTERNAL_API(`motion-reel render failed: ${msg}`);
+      }
+    }),
+
+  // Read the motion state of a draft.
   get: authedProc
     .input(z.object({ draftId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {

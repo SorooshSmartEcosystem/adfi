@@ -31,14 +31,24 @@ export const runtime = "nodejs";
 // compositions. We poll while waiting; 300s gives ample headroom.
 export const maxDuration = 300;
 
-type RenderBody = {
-  draftId: string;
-  template: string; // 'quote' | 'stat' | etc.
-  content: Record<string, unknown>;
-  // Optional design knobs the video agent chose. Renderer fills in
-  // sensible defaults if any are missing.
-  design?: Record<string, unknown>;
-};
+type RenderBody =
+  // New script-based shape (preferred).
+  | {
+      draftId: string;
+      kind: "script";
+      script: {
+        scenes: Array<Record<string, unknown>>;
+        design?: Record<string, unknown>;
+      };
+    }
+  // Legacy single-template shape (back-compat for older drafts).
+  | {
+      draftId: string;
+      kind?: "directive";
+      template: string;
+      content: Record<string, unknown>;
+      design?: Record<string, unknown>;
+    };
 
 const TEMPLATE_TO_COMPOSITION: Record<string, string> = {
   quote: "quote-reel",
@@ -67,11 +77,45 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid json body" }, { status: 400 });
   }
 
-  if (!body.draftId || !body.template || !body.content) {
-    return NextResponse.json(
-      { error: "missing draftId / template / content" },
-      { status: 400 },
-    );
+  if (!body.draftId) {
+    return NextResponse.json({ error: "missing draftId" }, { status: 400 });
+  }
+
+  // Determine composition + inputProps based on body shape.
+  // TS doesn't narrow well on the discriminated union here because
+  // `kind` is optional on the legacy branch — use any-flavored picks.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const b = body as any;
+  let compositionId: string;
+  let inputProps: Record<string, unknown>;
+  if (b.kind === "script" || b.script) {
+    if (!b.script || !Array.isArray(b.script.scenes)) {
+      return NextResponse.json(
+        { error: "missing script.scenes" },
+        { status: 400 },
+      );
+    }
+    compositionId = "script-reel";
+    inputProps = { script: b.script };
+  } else {
+    if (!b.template || !b.content) {
+      return NextResponse.json(
+        { error: "missing template / content" },
+        { status: 400 },
+      );
+    }
+    const cid = TEMPLATE_TO_COMPOSITION[b.template as string];
+    if (!cid) {
+      return NextResponse.json(
+        { error: `unknown template: ${b.template}` },
+        { status: 400 },
+      );
+    }
+    compositionId = cid;
+    inputProps = {
+      content: b.content,
+      design: b.design ?? null,
+    };
   }
 
   const draft = await db.contentDraft.findFirst({
@@ -82,19 +126,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "draft not found" }, { status: 404 });
   }
 
-  const compositionId = TEMPLATE_TO_COMPOSITION[body.template];
-  if (!compositionId) {
-    return NextResponse.json(
-      { error: `unknown template: ${body.template}` },
-      { status: 400 },
-    );
-  }
-
   try {
     const tokens = await loadBrandTokens({
       userId: authUser.id,
       businessId: draft.businessId,
     });
+    inputProps.tokens = tokens;
 
     const region = envOrThrow("REMOTION_AWS_REGION");
     const functionName = envOrThrow("REMOTION_LAMBDA_FUNCTION_NAME");
@@ -112,7 +149,7 @@ export async function POST(request: NextRequest) {
       functionName,
       serveUrl,
       composition: compositionId,
-      inputProps: { tokens, content: body.content, design: body.design ?? null },
+      inputProps,
       codec: "h264",
       privacy: "public",
       maxRetries: 1,

@@ -1,23 +1,17 @@
 // Motion-reel render service — thin orchestrator.
 //
-// Persists draft.motion state transitions (idle → rendering → ready/failed)
-// and delegates the actual render work to a Next.js app-route at
-// `apps/web/app/api/motion-reel/render/route.ts`. The route does the
-// heavy Remotion + Chromium lifting; this service just kicks it off
-// and records the result on the draft.
+// Two render entry points:
+//   - renderScriptForDraft  — multi-scene script (canonical)
+//   - renderDirectiveForDraft — legacy single-template
 //
-// Why split this way: Remotion's renderer + bundler pull in @rspack
-// with native .node binaries. When called from inside @orb/api (which
-// gets pulled into the Next bundle via transpilePackages), Vercel's
-// outputFileTracing can't reliably include the runtime files.
-// Putting the render call directly in an apps/web route bypasses all
-// of that — the route is a leaf in Vercel's tracing graph.
+// Both POST to apps/web/app/api/motion-reel/render which calls
+// Remotion Lambda. This service just persists draft.motion state
+// transitions (idle → rendering → ready/failed) and forwards the
+// payload.
 
 import { db, type Prisma } from "@orb/db";
-import type { MotionDirective } from "@orb/motion-reel/types";
+import type { MotionDirective, VideoScript } from "@orb/motion-reel/types";
 
-// Where the actual render route lives. Resolves from env at runtime
-// so dev hits localhost and prod hits the deployed URL.
 function renderEndpoint(): string {
   const base =
     process.env.NEXT_PUBLIC_WEB_URL ??
@@ -26,23 +20,100 @@ function renderEndpoint(): string {
   return `${base}/api/motion-reel/render`;
 }
 
-export type RenderForDraftResult = {
+export type RenderResult = {
   draftId: string;
   mp4Url: string;
-  template: string;
   durationFrames: number;
 };
 
-export async function renderForDraft(args: {
+export async function renderScriptForDraft(args: {
   userId: string;
   draftId: string;
-  // The auth cookie header from the originating tRPC request — we
-  // forward it to the internal /api/motion-reel/render route so it
-  // can authenticate the user. Without this, the internal call has
-  // no session.
+  cookieHeader: string;
+  script: VideoScript;
+}): Promise<RenderResult & { totalDurationSeconds: number }> {
+  const draft = await db.contentDraft.findFirst({
+    where: { id: args.draftId, userId: args.userId },
+    select: { id: true },
+  });
+  if (!draft) throw new Error(`draft ${args.draftId} not found`);
+
+  const totalDurationSeconds = args.script.scenes.reduce(
+    (s, sc) => s + (sc.duration ?? 3),
+    0,
+  );
+
+  await persistMotionState(args.draftId, {
+    kind: "script",
+    script: args.script as unknown as Record<string, unknown>,
+    durationSeconds: totalDurationSeconds,
+    status: "rendering",
+  });
+
+  try {
+    const res = await fetch(renderEndpoint(), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: args.cookieHeader,
+      },
+      body: JSON.stringify({
+        draftId: args.draftId,
+        kind: "script",
+        script: args.script,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(errBody.error ?? `render endpoint returned ${res.status}`);
+    }
+
+    const payload = (await res.json()) as {
+      ok: true;
+      mp4Url: string;
+      durationFrames: number;
+    };
+
+    await persistMotionState(args.draftId, {
+      kind: "script",
+      script: args.script as unknown as Record<string, unknown>,
+      durationSeconds: totalDurationSeconds,
+      status: "ready",
+      mp4Url: payload.mp4Url,
+      renderedAt: new Date().toISOString(),
+    });
+
+    return {
+      draftId: args.draftId,
+      mp4Url: payload.mp4Url,
+      durationFrames: payload.durationFrames,
+      totalDurationSeconds,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[motion-reel] script render failed for draft ${args.draftId}: ${msg}`,
+    );
+    await persistMotionState(args.draftId, {
+      kind: "script",
+      script: args.script as unknown as Record<string, unknown>,
+      durationSeconds: totalDurationSeconds,
+      status: "failed",
+      error: msg,
+    });
+    throw err;
+  }
+}
+
+// Legacy single-template render. Same persistence pattern but writes
+// the older { template, slotValues } shape into draft.motion.
+export async function renderDirectiveForDraft(args: {
+  userId: string;
+  draftId: string;
   cookieHeader: string;
   directive: MotionDirective;
-}): Promise<RenderForDraftResult> {
+}): Promise<RenderResult> {
   const draft = await db.contentDraft.findFirst({
     where: { id: args.draftId, userId: args.userId },
     select: { id: true },
@@ -50,6 +121,7 @@ export async function renderForDraft(args: {
   if (!draft) throw new Error(`draft ${args.draftId} not found`);
 
   await persistMotionState(args.draftId, {
+    kind: "directive",
     template: args.directive.template,
     slotValues: args.directive.content as Record<string, unknown>,
     status: "rendering",
@@ -60,29 +132,20 @@ export async function renderForDraft(args: {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        // Forward the user's auth cookie so the internal route can
-        // verify the session.
         cookie: args.cookieHeader,
       },
       body: JSON.stringify({
         draftId: args.draftId,
+        kind: "directive",
         template: args.directive.template,
         content: args.directive.content,
-        // Pass the design knobs through so the renderer can apply
-        // them. Older drafts without design fields render with
-        // sensible defaults.
-        design:
-          "design" in args.directive ? args.directive.design : undefined,
+        design: "design" in args.directive ? args.directive.design : undefined,
       }),
     });
 
     if (!res.ok) {
-      const errBody = (await res.json().catch(() => ({}))) as {
-        error?: string;
-      };
-      throw new Error(
-        errBody.error ?? `render endpoint returned ${res.status}`,
-      );
+      const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(errBody.error ?? `render endpoint returned ${res.status}`);
     }
 
     const payload = (await res.json()) as {
@@ -92,6 +155,7 @@ export async function renderForDraft(args: {
     };
 
     await persistMotionState(args.draftId, {
+      kind: "directive",
       template: args.directive.template,
       slotValues: args.directive.content as Record<string, unknown>,
       status: "ready",
@@ -102,15 +166,13 @@ export async function renderForDraft(args: {
     return {
       draftId: args.draftId,
       mp4Url: payload.mp4Url,
-      template: args.directive.template,
       durationFrames: payload.durationFrames,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(
-      `[motion-reel] render failed for draft ${args.draftId}: ${msg}`,
-    );
+    console.error(`[motion-reel] directive render failed for draft ${args.draftId}: ${msg}`);
     await persistMotionState(args.draftId, {
+      kind: "directive",
       template: args.directive.template,
       slotValues: args.directive.content as Record<string, unknown>,
       status: "failed",
@@ -129,3 +191,7 @@ async function persistMotionState(
     data: { motion: motion as Prisma.InputJsonValue },
   });
 }
+
+// Re-export the original name so existing callsites don't break
+// during the migration window.
+export const renderForDraft = renderDirectiveForDraft;

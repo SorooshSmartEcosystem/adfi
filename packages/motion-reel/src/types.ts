@@ -157,6 +157,117 @@ export type MotionDirective =
       design?: VideoDesign;
     };
 
+// =============================================================
+// SCENE SCRIPTS — multi-scene reels.
+//
+// The agent decomposes a post into a SEQUENCE of scenes (3-8 beats),
+// each with its own visual treatment. The composition plays them
+// back-to-back via Remotion's <Sequence>. Scene-types share the
+// PCCard / PCMonoLabel / typography vocabulary so they feel like one
+// system, but each beat looks distinct.
+// =============================================================
+
+// Each scene declares a duration in seconds. The composition's total
+// length is the sum. We cap totals at 30s — Instagram/TikTok reels
+// rarely retain past that.
+export type SceneDurationSeconds = number; // ≤6 typical, ≤8 hard cap
+
+// Scene shapes. Each is intentionally small — 1-3 slot fields. Heavy
+// design choices live in BrandTokens + VideoDesign, not per-scene.
+export type HookScene = {
+  type: "hook";
+  // The big stat or word. Up to ~8 chars renders as display.
+  headline: string;
+  // Optional one-line subtitle. ≤80 chars.
+  subtitle?: string;
+  duration: SceneDurationSeconds;
+};
+
+export type StatSceneShape = {
+  type: "stat";
+  value: number | string;
+  prefix?: string;
+  suffix?: string;
+  // Mono caption above the number. e.g. "PROFITABLE TRADERS".
+  label: string;
+  duration: SceneDurationSeconds;
+};
+
+export type ContrastScene = {
+  type: "contrast";
+  // Side A — label + value (the "good" or focal side).
+  leftLabel: string;
+  leftValue: string;
+  // Side B — comparison side.
+  rightLabel: string;
+  rightValue: string;
+  // Optional caption rendered below both sides.
+  caption?: string;
+  duration: SceneDurationSeconds;
+};
+
+export type QuoteSceneShape = {
+  type: "quote";
+  // The pull quote. ≤180 chars renders comfortably.
+  quote: string;
+  // Optional bold word/phrase from the quote. Renderer auto-emphasizes
+  // matching tokens in the quote text.
+  emphasis?: string;
+  attribution?: string;
+  duration: SceneDurationSeconds;
+};
+
+export type PunchlineScene = {
+  type: "punchline";
+  // The line that lands. ≤120 chars.
+  line: string;
+  // Token to emphasize visually (color shift + weight bump).
+  emphasis?: string;
+  duration: SceneDurationSeconds;
+};
+
+export type ListSceneShape = {
+  type: "list";
+  title: string;
+  items: { headline: string; body?: string }[];
+  duration: SceneDurationSeconds;
+};
+
+export type HashtagScene = {
+  type: "hashtags";
+  hashtags: string[]; // 3-8 tags, with or without `#` prefix
+  caption?: string; // optional one-liner above the tags
+  duration: SceneDurationSeconds;
+};
+
+export type BrandStampScene = {
+  type: "brand-stamp";
+  // Optional CTA below the brand name. e.g. "DM 'feed' for the list".
+  cta?: string;
+  duration: SceneDurationSeconds;
+};
+
+export type Scene =
+  | HookScene
+  | StatSceneShape
+  | ContrastScene
+  | QuoteSceneShape
+  | PunchlineScene
+  | ListSceneShape
+  | HashtagScene
+  | BrandStampScene;
+
+// The whole script. Persisted on ContentDraft.motion (alongside the
+// older single-template `MotionDirective` for backward compat — both
+// shapes flow through the same render route).
+export type VideoScript = {
+  // Sequence of beats. 3-8 typical, hard min 2 / max 10.
+  scenes: Scene[];
+  // Inherited per-post design choices. Same shape as before but used
+  // for per-scene defaults too.
+  design?: VideoDesign;
+};
+
 // Output frame size. Reels and TikToks are vertical-first; we target
 // 9:16 1080×1920 by default. The renderer can rescale to 1:1 (square
 // feed posts) or 16:9 (YouTube Shorts) at composition selection time.

@@ -1,17 +1,19 @@
-// FacebookMockup — Page post format. Header (logo + name + privacy
-// icon + timestamp), text body with see-more, optional image, action
-// row (Like / Comment / Share).
+"use client";
 
+import { useState } from "react";
 import type { MockupProps } from "./types";
-import { pickPrimaryText, truncate } from "./types";
+import { pickPrimaryText } from "./types";
 
-export function FacebookMockup({ business, content }: MockupProps) {
+export function FacebookMockup({ business, content, menu }: MockupProps) {
   const text = pickPrimaryText(content);
-  const isLong = text.length > 220;
+  const [expanded, setExpanded] = useState(false);
+  const TRUNC = 280;
+  const isLong = text.length > TRUNC;
+  const shown = expanded || !isLong ? text : text.slice(0, TRUNC).trimEnd() + "…";
 
   return (
     <div className="bg-white border-hairline border-[#dadde1] rounded-md overflow-hidden max-w-[560px] w-full">
-      <div className="px-md py-sm flex items-start gap-sm">
+      <div className="px-md py-sm flex items-start gap-sm relative">
         <Avatar business={business} />
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-semibold text-[#050505] truncate">
@@ -23,13 +25,32 @@ export function FacebookMockup({ business, content }: MockupProps) {
             <span>🌐</span>
           </div>
         </div>
-        <button type="button" className="text-[#65676b] text-xl leading-none">⋯</button>
+        <button
+          type="button"
+          onClick={menu?.onToggle}
+          disabled={!menu}
+          className="text-[#65676b] hover:text-[#050505] text-xl leading-none disabled:opacity-30"
+          aria-label="post actions"
+        >
+          ⋯
+        </button>
+        {menu?.open ? (
+          <div className="absolute right-md top-full mt-xs z-30">
+            {menu.content}
+          </div>
+        ) : null}
       </div>
 
       <div className="px-md pb-sm text-[15px] leading-[1.4] text-[#050505] whitespace-pre-wrap" dir="auto">
-        {truncate(text, 280)}
-        {isLong ? (
-          <span className="text-[#65676b] font-medium ml-xs">…See more</span>
+        {shown}
+        {isLong && !expanded ? (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="text-[#65676b] font-medium ml-xs"
+          >
+            …See more
+          </button>
         ) : null}
       </div>
 

@@ -1,44 +1,135 @@
 // InstagramPostMockup — square frame mimicking IG feed UI.
-// Header (avatar + handle), 1:1 image, action row (heart/comment/
-// share/bookmark), like count, caption with handle prefix and
-// truncated …more, hashtags color-shifted to IG link blue.
+// Header (avatar + handle + ⋯ menu trigger), 1:1 image (or carousel
+// scrubbed by prev/next arrows + dot indicator), action row,
+// like-by line, caption with "…more" inline toggle, hashtags blue.
 
+"use client";
+
+import { useState } from "react";
 import type { MockupProps } from "./types";
 import { pickPrimaryText, truncate } from "./types";
 
-export function InstagramPostMockup({ business, content }: MockupProps) {
-  const handle = business.handle ?? business.name.toLowerCase().replace(/\s+/g, "_");
-  const caption = pickPrimaryText(content);
+export function InstagramPostMockup({
+  business,
+  content,
+  menu,
+}: MockupProps) {
+  const handle =
+    business.handle ?? business.name.toLowerCase().replace(/\s+/g, "_");
+  const fullCaption = pickPrimaryText(content);
   const tags = content.hashtags ?? [];
+  const [expanded, setExpanded] = useState(false);
+
+  // Carousel: cycle through slides with prev/next arrows.
+  const slides = content.slides ?? [];
+  const isCarousel = slides.length > 1;
+  const [slideIdx, setSlideIdx] = useState(0);
+  const currentSlide = isCarousel ? slides[slideIdx] : null;
+  const displayedImage =
+    currentSlide?.imageUrl ?? content.imageUrl ?? slides[0]?.imageUrl;
+
+  const TRUNC = 110;
+  const isLong = fullCaption.length > TRUNC;
+  const captionShown = expanded || !isLong ? fullCaption : truncate(fullCaption, TRUNC);
 
   return (
-    <div className="bg-white border-hairline border-border rounded-md overflow-hidden max-w-[420px] w-full">
+    <div className="bg-white border-hairline border-[#dbdbdb] rounded-md overflow-hidden max-w-[440px] w-full">
       {/* Header */}
-      <div className="flex items-center gap-sm px-md py-sm">
+      <div className="flex items-center gap-sm px-md py-sm relative">
         <Avatar business={business} />
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-medium text-ink truncate">
+          <div className="text-[13px] font-semibold text-ink truncate">
             {handle}
           </div>
-          <div className="text-[11px] text-ink4">sponsored · just now</div>
+          <div className="text-[11px] text-ink4">just now</div>
         </div>
-        <div className="text-ink3 text-lg leading-none">⋯</div>
+        <button
+          type="button"
+          onClick={menu?.onToggle}
+          disabled={!menu}
+          className="text-ink2 hover:text-ink text-xl leading-none px-xs disabled:opacity-30 disabled:cursor-default"
+          aria-label="post actions"
+        >
+          ⋯
+        </button>
+        {menu?.open ? (
+          <div className="absolute right-md top-full mt-xs z-30">
+            {menu.content}
+          </div>
+        ) : null}
       </div>
 
-      {/* Image */}
-      <div className="aspect-square bg-surface flex items-center justify-center overflow-hidden">
-        {content.imageUrl ? (
+      {/* Image / carousel */}
+      <div className="relative aspect-square bg-surface flex items-center justify-center overflow-hidden">
+        {displayedImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={content.imageUrl}
+            src={displayedImage}
             alt=""
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="font-mono text-[10px] text-ink4 tracking-[0.2em]">
-            IMAGE PENDING
+          <div className="flex flex-col items-center gap-xs text-ink4">
+            <div className="font-mono text-[10px] tracking-[0.2em]">
+              IMAGE PENDING
+            </div>
+            <div className="text-[11px]">echo will draw this once approved</div>
           </div>
         )}
+
+        {/* Carousel UI overlays */}
+        {isCarousel ? (
+          <>
+            {slideIdx > 0 ? (
+              <ArrowBtn
+                direction="prev"
+                onClick={() => setSlideIdx((i) => Math.max(0, i - 1))}
+              />
+            ) : null}
+            {slideIdx < slides.length - 1 ? (
+              <ArrowBtn
+                direction="next"
+                onClick={() =>
+                  setSlideIdx((i) => Math.min(slides.length - 1, i + 1))
+                }
+              />
+            ) : null}
+            <div className="absolute top-md left-1/2 -translate-x-1/2 flex gap-xs">
+              {slides.map((_, i) => (
+                <span
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    i === slideIdx ? "bg-white" : "bg-white/50"
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="absolute top-md right-md font-mono text-[10px] tracking-[0.16em] text-white bg-black/45 backdrop-blur px-sm py-[2px] rounded-full">
+              {slideIdx + 1}/{slides.length}
+            </div>
+
+            {/* Slide caption overlay (headline + body of the current slide) */}
+            {currentSlide?.headline || currentSlide?.body ? (
+              <div className="absolute bottom-0 left-0 right-0 p-md text-white pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 100%)",
+                }}
+              >
+                {currentSlide.headline ? (
+                  <div className="text-[14px] font-semibold mb-xs leading-tight" dir="auto">
+                    {currentSlide.headline}
+                  </div>
+                ) : null}
+                {currentSlide.body ? (
+                  <div className="text-[12px] leading-relaxed line-clamp-3" dir="auto">
+                    {currentSlide.body}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        ) : null}
       </div>
 
       {/* Action row */}
@@ -51,18 +142,22 @@ export function InstagramPostMockup({ business, content }: MockupProps) {
       </div>
 
       {/* Likes */}
-      <div className="px-md text-[13px] font-medium text-ink">
-        liked by{" "}
-        <span className="font-medium">jane</span> and{" "}
-        <span className="font-medium">47 others</span>
+      <div className="px-md text-[13px] font-semibold text-ink">
+        liked by jane and 47 others
       </div>
 
-      {/* Caption */}
-      <div className="px-md pt-xs pb-sm text-[13px] leading-relaxed text-ink" dir="auto">
-        <span className="font-medium mr-xs">{handle}</span>
-        {truncate(caption, 130)}
-        {caption.length > 130 ? (
-          <span className="text-ink4"> more</span>
+      {/* Caption with inline …more */}
+      <div className="px-md pt-xs pb-sm text-[13px] leading-relaxed text-ink whitespace-pre-wrap" dir="auto">
+        <span className="font-semibold mr-xs">{handle}</span>
+        {captionShown}
+        {isLong && !expanded ? (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="text-ink4 hover:text-ink2 ml-xs"
+          >
+            more
+          </button>
         ) : null}
         {tags.length > 0 ? (
           <div className="text-[#385898] mt-xs">
@@ -104,8 +199,38 @@ function Avatar({ business }: { business: MockupProps["business"] }) {
 
 function IgIcon({ path }: { path: string }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d={path} />
     </svg>
+  );
+}
+
+function ArrowBtn({
+  direction,
+  onClick,
+}: {
+  direction: "prev" | "next";
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`absolute top-1/2 -translate-y-1/2 ${
+        direction === "prev" ? "left-sm" : "right-sm"
+      } w-7 h-7 rounded-full bg-white/90 backdrop-blur text-ink shadow-md flex items-center justify-center hover:bg-white transition-colors text-sm`}
+      aria-label={direction === "prev" ? "previous slide" : "next slide"}
+    >
+      {direction === "prev" ? "‹" : "›"}
+    </button>
   );
 }

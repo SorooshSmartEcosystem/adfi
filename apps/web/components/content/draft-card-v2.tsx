@@ -1,16 +1,22 @@
 "use client";
 
-// DraftCardV2 (revision 2) — minimal chrome. Just the mockup with a
-// quiet status pill in the corner and a single ⋯ menu that holds
-// every action. No more primary button + tertiary links — the user
-// wanted all actions consolidated. Tap the mockup to expand the
-// caption (show-more pattern). Carousel posts get prev/next arrows
-// directly on the mockup.
+// DraftCardV2 (revision 3) — no outer ADFI chrome. The platform
+// mockup IS the card. The ⋯ menu lives inside the platform's own
+// header (where real IG/X/LinkedIn UIs already have one) via the
+// `menu` prop on the mockup. A small floating status pill sits at
+// the top-left so the user still sees `review / scheduled / live`
+// without us building a wrapper around the post.
+//
+// Two view modes:
+//   - "mockup" (default): platform-authentic mockup
+//   - "list":             compact text row (caption + status + ⋯),
+//                          for users who want a dense feed scan
 
 import { useRef, useState } from "react";
 import { trpc } from "../../lib/trpc";
 import { PlatformMockup } from "./mockups";
 import type { DraftContent } from "./mockups";
+import { normalizeContent } from "./mockups/normalize";
 import { OrbLoader, STAGES_VIDEO_SCRIPT } from "../shared/orb-loader";
 import { ScriptPreview } from "./script-preview";
 
@@ -44,8 +50,6 @@ type ScriptForPreview = {
   design: Record<string, unknown>;
 };
 
-// Tiny status indicator. One word per state. No "needs your eyes"
-// noise repeated above the card already.
 function statusBlip(status: string): { text: string; color: string } {
   switch (status) {
     case "AWAITING_REVIEW":
@@ -69,15 +73,15 @@ export function DraftCardV2({
   draft,
   business,
   brandTokens,
+  view = "mockup",
 }: {
   draft: Draft;
   business: Business;
   brandTokens?: Record<string, string>;
+  view?: "mockup" | "list";
 }) {
   const utils = trpc.useUtils();
   const [showMenu, setShowMenu] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [carouselIdx, setCarouselIdx] = useState(0);
   const [draftedScript, setDraftedScript] = useState<ScriptForPreview | null>(null);
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -100,50 +104,12 @@ export function DraftCardV2({
 
   const isPending = approve.isPending || reject.isPending || regenerate.isPending;
 
-  const rawContent = (draft.content ?? {}) as DraftContent & {
-    slides?: { imageUrl?: string; headline?: string; body?: string }[];
-    coverSlide?: { imageUrl?: string; headline?: string };
-  };
   const platform = draft.platform as Parameters<typeof PlatformMockup>[0]["platform"];
   const format = (draft.format ?? "SINGLE_POST") as Parameters<
     typeof PlatformMockup
   >[0]["format"];
 
-  // Carousel handling — the mockup gets one slide at a time. We thread
-  // the current slide's image + headline through `imageUrl` + `caption`
-  // so existing mockups don't need to know about carousels.
-  const isCarousel = format === "CAROUSEL";
-  type CarouselSlide = {
-    imageUrl?: string;
-    headline?: string;
-    body?: string;
-  };
-  const slides: CarouselSlide[] = isCarousel
-    ? [
-        ...(rawContent.coverSlide ? [rawContent.coverSlide as CarouselSlide] : []),
-        ...((rawContent.slides ?? []) as CarouselSlide[]),
-      ]
-    : [];
-  const currentSlide =
-    isCarousel && slides.length > 0 ? slides[carouselIdx] : null;
-  const visibleContent: DraftContent =
-    isCarousel && currentSlide
-      ? {
-          ...rawContent,
-          imageUrl: currentSlide.imageUrl ?? rawContent.imageUrl,
-          caption:
-            currentSlide.headline ?? currentSlide.body ?? rawContent.caption,
-        }
-      : rawContent;
-
-  // Show-more: caption is truncated unless `expanded` is set. We pass
-  // the full caption to the mockup when expanded so user sees it all.
-  const fullCaption = visibleContent.caption ?? visibleContent.body ?? "";
-  const TRUNC = 140;
-  const isLong = fullCaption.length > TRUNC;
-  const displayedCaption = expanded || !isLong
-    ? fullCaption
-    : fullCaption.slice(0, TRUNC).trimEnd() + "…";
+  const normalized: DraftContent = normalizeContent(draft.content, format);
 
   const tokens = {
     bg: brandTokens?.bg ?? "#FAFAF7",
@@ -162,202 +128,225 @@ export function DraftCardV2({
     businessName: business.name,
   };
 
-  // Close menu on blur — small delay so click handler runs first.
   function scheduleMenuClose() {
     if (menuTimerRef.current) clearTimeout(menuTimerRef.current);
     menuTimerRef.current = setTimeout(() => setShowMenu(false), 140);
   }
 
-  return (
-    <div className="bg-bg border-hairline border-border rounded-lg overflow-hidden flex flex-col">
-      {/* Top bar — status pill + 3-dot menu */}
-      <div className="flex items-center justify-between px-md py-xs border-b-hairline border-border2">
-        <span
-          className="font-mono text-[10px] tracking-[0.2em] uppercase"
-          style={{ color: status.color }}
+  const menuContent = (
+    <div
+      className="bg-bg border-hairline border-border rounded-md p-xs min-w-[180px] shadow-lg"
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      {(draft.status === "AWAITING_REVIEW" || draft.status === "DRAFT") ? (
+        <>
+          <MenuItem
+            onClick={() => {
+              approve.mutate({ id: draft.id, variant: "primary" });
+              setShowMenu(false);
+            }}
+          >
+            approve
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              regenerate.mutate({ id: draft.id });
+              setShowMenu(false);
+            }}
+          >
+            regenerate
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              draftScript.mutate({ brief: textBrief(normalized) });
+              setShowMenu(false);
+            }}
+          >
+            make video
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              navigator.clipboard.writeText(textBrief(normalized));
+              setShowMenu(false);
+            }}
+          >
+            copy text
+          </MenuItem>
+          <MenuDivider />
+          <MenuItem
+            danger
+            onClick={() => {
+              reject.mutate({ id: draft.id });
+              setShowMenu(false);
+            }}
+          >
+            reject
+          </MenuItem>
+        </>
+      ) : null}
+      {draft.status === "APPROVED" ? (
+        <>
+          <MenuItem onClick={() => setShowMenu(false)}>edit schedule</MenuItem>
+          <MenuItem
+            onClick={() => {
+              navigator.clipboard.writeText(textBrief(normalized));
+              setShowMenu(false);
+            }}
+          >
+            copy text
+          </MenuItem>
+          <MenuDivider />
+          <MenuItem
+            danger
+            onClick={() => {
+              reject.mutate({ id: draft.id });
+              setShowMenu(false);
+            }}
+          >
+            unschedule
+          </MenuItem>
+        </>
+      ) : null}
+      {draft.status === "PUBLISHED" ? (
+        <>
+          <MenuItem onClick={() => setShowMenu(false)}>view live ↗</MenuItem>
+          <MenuItem
+            onClick={() => {
+              navigator.clipboard.writeText(textBrief(normalized));
+              setShowMenu(false);
+            }}
+          >
+            copy text
+          </MenuItem>
+        </>
+      ) : null}
+      {draft.status === "FAILED" ? (
+        <MenuItem
+          onClick={() => {
+            regenerate.mutate({ id: draft.id });
+            setShowMenu(false);
+          }}
         >
-          {status.text}
-        </span>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowMenu((v) => !v)}
-            onBlur={scheduleMenuClose}
-            disabled={isPending}
-            className="text-ink3 hover:text-ink text-lg leading-none px-xs disabled:opacity-30"
-            aria-label="actions"
-          >
-            ⋯
-          </button>
-          {showMenu ? (
-            <div
-              className="absolute right-0 top-full mt-xs bg-bg border-hairline border-border rounded-md p-xs z-20 min-w-[180px] shadow-lg"
-              onMouseDown={(e) => e.preventDefault() /* keep menu open */}
-            >
-              {(draft.status === "AWAITING_REVIEW" ||
-                draft.status === "DRAFT") ? (
-                <>
-                  <MenuItem
-                    onClick={() => {
-                      approve.mutate({ id: draft.id, variant: "primary" });
-                      setShowMenu(false);
-                    }}
-                  >
-                    approve
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      regenerate.mutate({ id: draft.id });
-                      setShowMenu(false);
-                    }}
-                  >
-                    regenerate
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      draftScript.mutate({ brief: textBrief(rawContent) });
-                      setShowMenu(false);
-                    }}
-                  >
-                    make video
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      navigator.clipboard.writeText(textBrief(rawContent));
-                      setShowMenu(false);
-                    }}
-                  >
-                    copy text
-                  </MenuItem>
-                  <MenuDivider />
-                  <MenuItem
-                    danger
-                    onClick={() => {
-                      reject.mutate({ id: draft.id });
-                      setShowMenu(false);
-                    }}
-                  >
-                    reject
-                  </MenuItem>
-                </>
-              ) : null}
-              {draft.status === "APPROVED" ? (
-                <>
-                  <MenuItem onClick={() => setShowMenu(false)}>
-                    edit schedule
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      navigator.clipboard.writeText(textBrief(rawContent));
-                      setShowMenu(false);
-                    }}
-                  >
-                    copy text
-                  </MenuItem>
-                  <MenuDivider />
-                  <MenuItem
-                    danger
-                    onClick={() => {
-                      reject.mutate({ id: draft.id });
-                      setShowMenu(false);
-                    }}
-                  >
-                    unschedule
-                  </MenuItem>
-                </>
-              ) : null}
-              {draft.status === "PUBLISHED" ? (
-                <>
-                  <MenuItem onClick={() => setShowMenu(false)}>
-                    view live ↗
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      navigator.clipboard.writeText(textBrief(rawContent));
-                      setShowMenu(false);
-                    }}
-                  >
-                    copy text
-                  </MenuItem>
-                </>
-              ) : null}
-              {draft.status === "FAILED" ? (
-                <MenuItem
-                  onClick={() => {
-                    regenerate.mutate({ id: draft.id });
-                    setShowMenu(false);
-                  }}
-                >
-                  retry
-                </MenuItem>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </div>
+          retry
+        </MenuItem>
+      ) : null}
+    </div>
+  );
 
-      {/* Mockup body */}
+  // ────────────────────────────────────────────────────────────────
+  // List view
+  // ────────────────────────────────────────────────────────────────
+  if (view === "list") {
+    const preview = (normalized.caption ?? normalized.body ?? normalized.hook ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return (
       <div
-        className={`relative ${isPending ? "opacity-40 transition-opacity" : ""}`}
+        className={`relative bg-bg border-hairline border-border rounded-md p-md ${
+          isPending ? "opacity-50" : ""
+        }`}
+        onBlur={scheduleMenuClose}
       >
-        <PlatformMockup
-          platform={platform}
-          format={format}
-          business={business}
-          content={{ ...visibleContent, caption: displayedCaption }}
-          mp4Url={motion?.mp4Url ?? null}
-        />
-
-        {/* Carousel prev/next arrows */}
-        {isCarousel && slides.length > 1 ? (
-          <>
-            <CarouselArrow
-              direction="prev"
-              disabled={carouselIdx === 0}
-              onClick={() => setCarouselIdx((i) => Math.max(0, i - 1))}
-            />
-            <CarouselArrow
-              direction="next"
-              disabled={carouselIdx === slides.length - 1}
-              onClick={() =>
-                setCarouselIdx((i) => Math.min(slides.length - 1, i + 1))
-              }
-            />
-            <div className="absolute top-md left-1/2 -translate-x-1/2 flex gap-xs">
-              {slides.map((_, i) => (
-                <span
-                  key={i}
-                  className={`w-1 h-1 rounded-full ${
-                    i === carouselIdx ? "bg-white" : "bg-white/40"
-                  }`}
-                />
-              ))}
-            </div>
-          </>
-        ) : null}
-
-        {/* Show-more link — quiet, only when caption truncated */}
-        {isLong ? (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="absolute bottom-md right-md font-mono text-[10px] text-ink4 hover:text-ink bg-bg/85 backdrop-blur px-sm py-[2px] rounded-full"
+        <div className="flex items-start gap-md">
+          <span
+            className="font-mono text-[10px] tracking-[0.2em] uppercase mt-[3px]"
+            style={{ color: status.color }}
           >
-            {expanded ? "show less" : "show more"}
-          </button>
+            {status.text}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink4 mb-xs">
+              {(format ?? "SINGLE_POST").toLowerCase().replace(/_/g, " ")} ·{" "}
+              {platform.toLowerCase()}
+            </div>
+            <p className="text-sm leading-relaxed text-ink line-clamp-2" dir="auto">
+              {preview || "—"}
+            </p>
+          </div>
+          <div className="relative flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowMenu((v) => !v)}
+              disabled={isPending}
+              className="text-ink3 hover:text-ink text-lg leading-none px-xs disabled:opacity-30"
+              aria-label="actions"
+            >
+              ⋯
+            </button>
+            {showMenu ? (
+              <div className="absolute right-0 top-full mt-xs z-20">
+                {menuContent}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        {isVideoRendering ? (
+          <div className="mt-sm pt-sm border-t-hairline border-border2 flex items-center justify-center">
+            <OrbLoader tone="alive" size="sm" stages={STAGES_VIDEO_SCRIPT} />
+          </div>
+        ) : null}
+        {(approve.error || reject.error || regenerate.error || draftScript.error) ? (
+          <div className="mt-xs font-mono text-[11px] text-urgent">
+            {approve.error?.message ??
+              reject.error?.message ??
+              regenerate.error?.message ??
+              draftScript.error?.message}
+          </div>
+        ) : null}
+        {draftedScript ? (
+          <ScriptPreview
+            draftId={draft.id}
+            script={draftedScript}
+            tokens={tokens}
+            onClose={() => setDraftedScript(null)}
+            onRendered={() => {
+              setDraftedScript(null);
+              utils.content.listDrafts.invalidate();
+            }}
+          />
         ) : null}
       </div>
+    );
+  }
 
-      {/* Inline render-progress strip */}
+  // ────────────────────────────────────────────────────────────────
+  // Mockup view (default)
+  // ────────────────────────────────────────────────────────────────
+  return (
+    <div
+      className={`relative flex flex-col items-center ${isPending ? "opacity-50 transition-opacity" : ""}`}
+      onBlur={scheduleMenuClose}
+    >
+      {/* Floating status pill — top-left, sits over the mockup so we
+          don't need an outer chrome box. */}
+      <span
+        className="absolute -top-xs left-0 font-mono text-[9px] tracking-[0.22em] uppercase bg-bg/95 backdrop-blur px-sm py-[3px] rounded-full border-hairline border-border z-20"
+        style={{ color: status.color }}
+      >
+        {status.text}
+      </span>
+
+      <PlatformMockup
+        platform={platform}
+        format={format}
+        business={business}
+        content={normalized}
+        mp4Url={motion?.mp4Url ?? null}
+        menu={{
+          open: showMenu,
+          onToggle: () => setShowMenu((v) => !v),
+          content: menuContent,
+        }}
+      />
+
       {isVideoRendering ? (
-        <div className="border-t-hairline border-border2 py-sm flex items-center justify-center">
+        <div className="w-full mt-sm flex items-center justify-center">
           <OrbLoader tone="alive" size="sm" stages={STAGES_VIDEO_SCRIPT} />
         </div>
       ) : null}
 
-      {/* Inline error strip */}
       {(approve.error || reject.error || regenerate.error || draftScript.error) ? (
-        <div className="px-md py-xs font-mono text-[11px] text-urgent border-t-hairline border-border2">
+        <div className="w-full mt-xs font-mono text-[11px] text-urgent text-center">
           {approve.error?.message ??
             reject.error?.message ??
             regenerate.error?.message ??
@@ -407,30 +396,6 @@ function MenuItem({
 
 function MenuDivider() {
   return <div className="my-xs h-px bg-border" />;
-}
-
-function CarouselArrow({
-  direction,
-  onClick,
-  disabled,
-}: {
-  direction: "prev" | "next";
-  onClick: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`absolute top-1/2 -translate-y-1/2 ${
-        direction === "prev" ? "left-md" : "right-md"
-      } w-9 h-9 rounded-full bg-white/90 backdrop-blur text-ink shadow-md flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-colors`}
-      aria-label={direction === "prev" ? "previous slide" : "next slide"}
-    >
-      {direction === "prev" ? "‹" : "›"}
-    </button>
-  );
 }
 
 function textBrief(content: DraftContent): string {

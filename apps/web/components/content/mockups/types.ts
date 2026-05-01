@@ -1,25 +1,27 @@
-// Shared types + helpers for platform mockups. Keeps each platform
-// component focused on its visual shell while pulling content from
-// the same shape.
+// Shared types + helpers for platform mockups.
 
+import type { ReactNode } from "react";
+
+// Normalized draft content — flat shape every mockup reads from.
+// Echo emits different shapes per format (SINGLE_POST has heroImage
+// + body + hook; CAROUSEL has coverSlide + bodySlides + caption;
+// EMAIL_NEWSLETTER has subject + sections + heroImage). The
+// normalizer in normalize.ts collapses all of those into this.
 export type DraftContent = {
-  // Common
   caption?: string;
   hook?: string;
   body?: string;
   hashtags?: string[];
-
-  // IG / FB / X
   imageUrl?: string;
-
-  // Carousel
+  // Carousel slides (cover + body + closer flattened in order).
   slides?: { imageUrl?: string; headline?: string; body?: string }[];
-
-  // Email newsletter
+  // Email
   subject?: string;
-
-  // Reel
-  scenes?: unknown[]; // VideoScript shape
+  preheader?: string;
+  sections?: { heading?: string; body: string }[];
+  cta?: { label: string; link?: string | null } | null;
+  // Reel scenes — informational only (the inline <video> is the real preview).
+  scenes?: unknown[];
 };
 
 export type MockupBusiness = {
@@ -30,27 +32,36 @@ export type MockupBusiness = {
   verified?: boolean;
 };
 
+// Action menu rendered inside the platform's own header (where the
+// `⋯` glyph already lives in real IG/X/LinkedIn UIs). Each mockup
+// renders the trigger; the parent owns the open/close state via
+// these props.
+export type MockupMenu = {
+  open: boolean;
+  onToggle: () => void;
+  // Rendered into a popover beneath the trigger when `open`.
+  content: ReactNode;
+};
+
 export type MockupProps = {
   business: MockupBusiness;
   content: DraftContent;
-  // Optional mp4 URL for reel/video playback. When present, an inline
-  // <video> renders inside the platform frame.
+  // Optional mp4 URL for reel/video playback.
   mp4Url?: string | null;
+  // Optional menu — when present, the platform's own ⋯ button opens it.
+  menu?: MockupMenu;
 };
 
-// Pick the best title/text for any content shape so mockups can do
-// reasonable rendering even when the agent's output shape varies.
 export function pickPrimaryText(content: DraftContent): string {
   return (
     content.caption ??
-    content.hook ??
     content.body ??
+    content.hook ??
     content.subject ??
     "draft"
   );
 }
 
-// Truncate with a "more" suffix that mimics each platform's behavior.
 export function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return text.slice(0, max - 1).trimEnd() + "…";

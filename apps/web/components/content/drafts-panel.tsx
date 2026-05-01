@@ -15,6 +15,7 @@ import type { PlatformValue } from "./platform-filter";
 
 export function DraftsPanel() {
   const [filter, setFilter] = useState<PlatformValue>("ALL");
+  const [view, setView] = useState<"mockup" | "list">("mockup");
 
   const platformArg =
     filter === "ALL"
@@ -58,8 +59,9 @@ export function DraftsPanel() {
 
   return (
     <div className="flex flex-col gap-md">
-      {/* Filter row — just an icon, right-aligned */}
-      <div className="flex items-center justify-end">
+      {/* Toolbar — view toggle (left) + filter (right) */}
+      <div className="flex items-center justify-between">
+        <ViewToggle value={view} onChange={setView} />
         <FilterButton value={filter} onChange={setFilter} />
       </div>
 
@@ -74,13 +76,91 @@ export function DraftsPanel() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-md md:grid-cols-2">
+        <div
+          className={
+            view === "list"
+              ? "flex flex-col gap-sm"
+              : "grid gap-lg md:grid-cols-2 justify-items-center"
+          }
+        >
           {items.map((d) => (
-            <DraftCardV2 key={d.id} draft={d} business={business} />
+            <DraftCardV2
+              key={d.id}
+              draft={d}
+              business={business}
+              view={view}
+            />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function ViewToggle({
+  value,
+  onChange,
+}: {
+  value: "mockup" | "list";
+  onChange: (v: "mockup" | "list") => void;
+}) {
+  return (
+    <div className="inline-flex bg-surface border-hairline border-border rounded-md p-[2px]">
+      <ToggleBtn
+        active={value === "mockup"}
+        onClick={() => onChange("mockup")}
+        label="mockup"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+      </ToggleBtn>
+      <ToggleBtn
+        active={value === "list"}
+        onClick={() => onChange("list")}
+        label="list"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <circle cx="4" cy="6" r="1" fill="currentColor" />
+          <circle cx="4" cy="12" r="1" fill="currentColor" />
+          <circle cx="4" cy="18" r="1" fill="currentColor" />
+        </svg>
+      </ToggleBtn>
+    </div>
+  );
+}
+
+function ToggleBtn({
+  active,
+  onClick,
+  label,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`flex items-center gap-xs px-sm py-[5px] rounded text-[11px] font-mono tracking-[0.16em] uppercase transition-colors ${
+        active
+          ? "bg-bg text-ink shadow-sm"
+          : "text-ink3 hover:text-ink"
+      }`}
+    >
+      {children}
+      <span>{label}</span>
+    </button>
   );
 }
 

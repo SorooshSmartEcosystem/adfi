@@ -1,30 +1,46 @@
-// TelegramMockup — channel post style. Single message bubble with
-// header (channel name + time + view count), body, optional image,
-// quiet "view" eye-icon footer. Telegram channels feel chat-y so the
-// frame is intentionally lighter than IG/X.
+"use client";
 
+import { useState } from "react";
 import type { MockupProps } from "./types";
 import { pickPrimaryText } from "./types";
 
-export function TelegramMockup({ business, content }: MockupProps) {
+export function TelegramMockup({ business, content, menu }: MockupProps) {
   const text = pickPrimaryText(content);
   const tags = content.hashtags ?? [];
+  const [expanded, setExpanded] = useState(false);
+  const TRUNC = 280;
+  const isLong = text.length > TRUNC;
+  const shown = expanded || !isLong ? text : text.slice(0, TRUNC).trimEnd() + "…";
 
   return (
     <div className="bg-[#e6ebee] p-md rounded-md max-w-[480px] w-full">
-      <div className="bg-white rounded-md overflow-hidden shadow-sm">
-        {/* Header */}
+      <div className="bg-white rounded-md overflow-hidden shadow-sm relative">
         <div className="flex items-center gap-sm px-md pt-md">
           <Avatar business={business} />
           <div className="flex-1 min-w-0">
             <div className="text-[14px] font-semibold text-[#222] truncate">
               {business.name}
             </div>
-            <div className="text-[11px] text-[#909499]">channel · 2.4k subscribers</div>
+            <div className="text-[11px] text-[#909499]">
+              channel · 2.4k subscribers
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={menu?.onToggle}
+            disabled={!menu}
+            className="text-[#909499] hover:text-[#222] text-lg leading-none disabled:opacity-30"
+            aria-label="post actions"
+          >
+            ⋯
+          </button>
+          {menu?.open ? (
+            <div className="absolute right-md top-full mt-xs z-30">
+              {menu.content}
+            </div>
+          ) : null}
         </div>
 
-        {/* Image */}
         {content.imageUrl ? (
           <div className="mt-sm bg-[#f0f0f0]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -32,9 +48,17 @@ export function TelegramMockup({ business, content }: MockupProps) {
           </div>
         ) : null}
 
-        {/* Body */}
         <div className="px-md pt-sm pb-md text-[14px] leading-relaxed text-[#222] whitespace-pre-wrap" dir="auto">
-          {text}
+          {shown}
+          {isLong && !expanded ? (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="text-[#168acd] ml-xs"
+            >
+              Read more
+            </button>
+          ) : null}
           {tags.length > 0 ? (
             <div className="mt-sm">
               {tags.slice(0, 6).map((t, i) => (
@@ -46,7 +70,6 @@ export function TelegramMockup({ business, content }: MockupProps) {
           ) : null}
         </div>
 
-        {/* Footer */}
         <div className="px-md pb-sm flex items-center gap-sm text-[11px] text-[#909499]">
           <span className="inline-flex items-center gap-xs">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -40,32 +40,41 @@ export function PlatformMockup({
   business,
   content,
   mp4Url,
+  menu,
 }: Props) {
   // Format-driven dispatch first
   if (format === "REEL_SCRIPT") {
-    return <InstagramReelMockup business={business} content={content} mp4Url={mp4Url} />;
+    return (
+      <InstagramReelMockup
+        business={business}
+        content={content}
+        mp4Url={mp4Url}
+        menu={menu}
+      />
+    );
   }
   if (format === "EMAIL_NEWSLETTER" || platform === "EMAIL") {
-    return <EmailMockup business={business} content={content} />;
+    return <EmailMockup business={business} content={content} menu={menu} />;
   }
 
   // Platform-driven dispatch
   switch (platform) {
     case "INSTAGRAM":
-      return <InstagramPostMockup business={business} content={content} />;
+      return (
+        <InstagramPostMockup business={business} content={content} menu={menu} />
+      );
     case "TWITTER":
-      return <TwitterMockup business={business} content={content} />;
+      return <TwitterMockup business={business} content={content} menu={menu} />;
     case "LINKEDIN":
-      return <LinkedInMockup business={business} content={content} />;
+      return <LinkedInMockup business={business} content={content} menu={menu} />;
     case "FACEBOOK":
-      return <FacebookMockup business={business} content={content} />;
+      return <FacebookMockup business={business} content={content} menu={menu} />;
     case "TELEGRAM":
-      return <TelegramMockup business={business} content={content} />;
+      return <TelegramMockup business={business} content={content} menu={menu} />;
     default:
-      // Fallback for unsupported platforms (Pinterest, website articles)
-      // — render the simplest readable post mockup so the feed never
-      // shows a broken card.
-      return <InstagramPostMockup business={business} content={content} />;
+      return (
+        <InstagramPostMockup business={business} content={content} menu={menu} />
+      );
   }
 }
 

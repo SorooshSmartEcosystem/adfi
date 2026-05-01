@@ -1,17 +1,20 @@
-// LinkedInMockup — professional post frame. Avatar + name + role line +
-// timestamp, post text with see-more, optional image, engagement row.
+"use client";
 
+import { useState } from "react";
 import type { MockupProps } from "./types";
-import { pickPrimaryText, truncate } from "./types";
+import { pickPrimaryText } from "./types";
 
-export function LinkedInMockup({ business, content }: MockupProps) {
+export function LinkedInMockup({ business, content, menu }: MockupProps) {
   const text = pickPrimaryText(content);
-  const isLong = text.length > 220;
+  const [expanded, setExpanded] = useState(false);
+  const TRUNC = 280;
+  const isLong = text.length > TRUNC;
+  const shown = expanded || !isLong ? text : text.slice(0, TRUNC).trimEnd() + "…";
 
   return (
     <div className="bg-white border-hairline border-[#dde1e6] rounded-md overflow-hidden max-w-[560px] w-full">
       <div className="px-md py-md">
-        <div className="flex items-start gap-sm mb-sm">
+        <div className="flex items-start gap-sm mb-sm relative">
           <Avatar business={business} />
           <div className="flex-1 min-w-0">
             <div className="text-[14px] font-semibold text-[#000000e6] truncate">
@@ -26,13 +29,32 @@ export function LinkedInMockup({ business, content }: MockupProps) {
               <span>🌐</span>
             </div>
           </div>
-          <button type="button" className="text-[#00000099] text-lg leading-none">⋯</button>
+          <button
+            type="button"
+            onClick={menu?.onToggle}
+            disabled={!menu}
+            className="text-[#00000099] hover:text-[#000000e6] text-xl leading-none disabled:opacity-30"
+            aria-label="post actions"
+          >
+            ⋯
+          </button>
+          {menu?.open ? (
+            <div className="absolute right-0 top-full mt-xs z-30">
+              {menu.content}
+            </div>
+          ) : null}
         </div>
 
         <div className="text-[14px] leading-[1.5] text-[#000000e6] whitespace-pre-wrap" dir="auto">
-          {truncate(text, 280)}
-          {isLong ? (
-            <span className="text-[#00000099] font-medium ml-xs">…see more</span>
+          {shown}
+          {isLong && !expanded ? (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="text-[#0a66c2] font-medium ml-xs"
+            >
+              …see more
+            </button>
           ) : null}
         </div>
       </div>
@@ -44,14 +66,12 @@ export function LinkedInMockup({ business, content }: MockupProps) {
         </div>
       ) : null}
 
-      {/* Engagement counts */}
       <div className="px-md pt-sm pb-xs flex items-center gap-xs text-[12px] text-[#00000099] border-t-hairline border-[#e9e9e9]">
         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#0a66c2] text-white text-[8px]">👍</span>
         <span>jane and 47 others</span>
         <span className="ml-auto">3 comments · 2 reposts</span>
       </div>
 
-      {/* Action bar */}
       <div className="grid grid-cols-4 border-t-hairline border-[#e9e9e9] text-[#00000099] text-[12px] font-medium">
         <Action label="Like" />
         <Action label="Comment" />

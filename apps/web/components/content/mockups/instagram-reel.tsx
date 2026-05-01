@@ -6,7 +6,7 @@
 import type { MockupProps } from "./types";
 import { pickPrimaryText } from "./types";
 
-export function InstagramReelMockup({ business, content, mp4Url }: MockupProps) {
+export function InstagramReelMockup({ business, content, mp4Url, menu }: MockupProps) {
   const handle = business.handle ?? business.name.toLowerCase().replace(/\s+/g, "_");
   const caption = pickPrimaryText(content);
   const tags = content.hashtags ?? [];
@@ -49,10 +49,26 @@ export function InstagramReelMockup({ business, content, mp4Url }: MockupProps) 
       />
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-white text-[12px]">
         <span className="font-semibold">Reels</span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94" />
-        </svg>
+        <div className="flex items-center gap-sm">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94" />
+          </svg>
+          <button
+            type="button"
+            onClick={menu?.onToggle}
+            disabled={!menu}
+            className="text-white/90 hover:text-white text-lg leading-none disabled:opacity-30 relative"
+            aria-label="post actions"
+          >
+            ⋯
+          </button>
+        </div>
       </div>
+      {menu?.open ? (
+        <div className="absolute right-3 top-10 z-30">
+          {menu.content}
+        </div>
+      ) : null}
 
       {/* Right action stack */}
       <div className="absolute right-2 bottom-24 flex flex-col gap-md text-white items-center">

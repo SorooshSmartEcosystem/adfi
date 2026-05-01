@@ -29,6 +29,19 @@ export const AVG_EVENT_COST_CENTS = {
 // 24k output tokens). Replaced once we log real token usage on each step.
 export const BRAND_KIT_GENERATION_CENTS = 40;
 
+// Motion-reel video — broken out so the breakdown panel can show
+// agent vs render separately. Total per video: ~2 cents.
+//   - Sonnet directive generation: ~1.5k input + 500 output tokens
+//     at Sonnet 4.6 prices = ~1.2 cents
+//   - Vercel compute: ~45s @ 2GB = 0.025 GB-hours, ~0.5 cents at the
+//     overage rate of $0.18/GB-hour (free within Pro included 1000
+//     GB-hours/month — this number is the marginal-after-quota cost)
+//   - Supabase upload + bandwidth: negligible (~5MB mp4)
+// Replace once we log real per-render token + compute time.
+export const VIDEO_AGENT_CENTS = 1.2;
+export const VIDEO_RENDER_CENTS = 0.8;
+export const VIDEO_TOTAL_CENTS = VIDEO_AGENT_CENTS + VIDEO_RENDER_CENTS;
+
 // Vapi voice — bundled per-minute price covering OpenAI realtime model +
 // Vapi platform fee + Twilio outbound. Approx 18¢/minute for our config.
 export const VAPI_CENTS = {

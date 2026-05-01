@@ -63,7 +63,7 @@ export default async function DashboardOverview() {
         <Metric
           label="variable cost"
           value={formatCents(overview.costs.variableCents)}
-          sublabel="anthropic + replicate + twilio + brandkit + vapi"
+          sublabel="anthropic + replicate + twilio + brandkit + vapi + video"
         />
         <Metric
           label="gross margin"
@@ -221,6 +221,11 @@ export default async function DashboardOverview() {
             label="vapi voice"
             value={`${overview.eventCounts.vapiCalls} calls`}
             sublabel={`${overview.eventCounts.vapiMinutes} min · ${formatCents(overview.costs.vapiCents)}`}
+          />
+          <Metric
+            label="videos generated"
+            value={overview.eventCounts.videosGenerated.toString()}
+            sublabel={`${formatCents(overview.costs.videoCents)} · ~2¢/video`}
           />
           <div className="flex flex-col gap-xs bg-surface border-hairline border-border rounded-lg p-lg">
             <p className="text-xs font-mono text-ink3 uppercase tracking-widest">

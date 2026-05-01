@@ -6,6 +6,9 @@ import {
   AVG_EVENT_COST_CENTS,
   BRAND_KIT_GENERATION_CENTS,
   VAPI_CENTS,
+  VIDEO_AGENT_CENTS,
+  VIDEO_RENDER_CENTS,
+  VIDEO_TOTAL_CENTS,
   estimateEventCostCents,
   FIXED_OVERHEAD_CENTS,
   PLAN_PRICING_CENTS,
@@ -225,6 +228,17 @@ export const adminRouter = router({
     const totalCallMinutes = Math.ceil(totalCallSeconds / 60);
     const vapiCents = totalCallMinutes * VAPI_CENTS.perMinute;
 
+    // Motion-reel videos — count successful video agent runs this
+    // month. Captures both the directive generation cost (Sonnet) and
+    // the compute cost of the Remotion render. We log
+    // `video_directive_generated` agent events on every video agent
+    // call in agents/video.ts, so the count of those events equals
+    // the number of videos requested.
+    const videoEvents = events.filter(
+      (e) => e.eventType === "video_directive_generated",
+    ).length;
+    const videoCents = Math.round(videoEvents * VIDEO_TOTAL_CENTS);
+
     const fixedCents =
       FIXED_OVERHEAD_CENTS.vercel +
       FIXED_OVERHEAD_CENTS.supabase +
@@ -235,7 +249,8 @@ export const adminRouter = router({
       replicateCents +
       twilioCents +
       brandKitGenCents +
-      vapiCents;
+      vapiCents +
+      videoCents;
     const totalCostCents = variableCostCents + fixedCents;
     const grossMarginCents = mrrCents - variableCostCents;
     const grossMarginPct =
@@ -282,6 +297,13 @@ export const adminRouter = router({
           totalMinutes: totalCallMinutes,
           unitCents: VAPI_CENTS.perMinute,
         },
+        videoCents,
+        videoBreakdown: {
+          videos: videoEvents,
+          agentUnitCents: VIDEO_AGENT_CENTS,
+          renderUnitCents: VIDEO_RENDER_CENTS,
+          totalUnitCents: VIDEO_TOTAL_CENTS,
+        },
         fixedCents,
         fixedBreakdown: FIXED_OVERHEAD_CENTS,
         variableCents: variableCostCents,
@@ -308,6 +330,7 @@ export const adminRouter = router({
         brandKitGenerations: brandKitVersionsThisMonth,
         vapiCalls: callsThisMonth.length,
         vapiMinutes: totalCallMinutes,
+        videosGenerated: videoEvents,
       },
     };
   }),
@@ -566,6 +589,9 @@ export const adminRouter = router({
     const totalCallMinutes = Math.ceil(
       callsThisPeriod.reduce((s, c) => s + (c.durationSeconds ?? 0), 0) / 60,
     );
+    const videoCount = events.filter(
+      (e) => e.eventType === "video_directive_generated",
+    ).length;
 
     return {
       period: { start: periodStart.toISOString(), end: new Date().toISOString() },
@@ -629,6 +655,13 @@ export const adminRouter = router({
           unit: "minutes",
           count: totalCallMinutes,
           unitCostCents: VAPI_CENTS.perMinute,
+        },
+        {
+          name: "Motion-reel video (Sonnet + render)",
+          costCents: Math.round(videoCount * VIDEO_TOTAL_CENTS),
+          unit: "videos",
+          count: videoCount,
+          unitCostCents: Math.round(VIDEO_TOTAL_CENTS),
         },
         {
           name: "Twilio — phone numbers",

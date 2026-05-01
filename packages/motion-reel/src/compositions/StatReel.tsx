@@ -1,31 +1,31 @@
-// StatReel — a big number counts up while a label sits above and a
-// context line sits below. Closing card with mark + business name.
+// StatReel — Same design language as QuoteReel: ink palette + accent
+// dot, corner HUD labels, display typography. Vertical 1080×1920.
 //
-// 8-second composition (240 frames @ 30fps):
-//   0.0s  brand mark fades in top-center, business name beneath
-//   0.8s  label types in (uppercase mono, e.g. "THIS WEEK")
-//   1.4s  big number starts counting up
-//   2.4s  number settles
-//   2.6s  context line types in
-//   5.5s  hold full state
-//   8.0s  end
-//
-// Use case: weekly stats, milestones, product specs.
+// Frame map (240 frames @ 30fps, 8 seconds):
+//   0.0s  ink backdrop fades up; HUD labels (01/01 + STAT) appear
+//   0.4s  pulsing accent dot top-left; mark fades into top-right
+//   0.8s  uppercase mono label slides up
+//   1.4s  big number scales + counts up; subtle accent underline draws in
+//   3.0s  context line word-reveals beneath the number
+//   5.5s  hold
+//   7.0s  closer — number compresses up, brand stamp grows in
+//   8.0s  end card
 
-import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
-import { TypewriterText } from "../primitives/TypewriterText";
+import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { WordReveal } from "../primitives/WordReveal";
 import { CounterNumber } from "../primitives/CounterNumber";
-import { FadeCard } from "../primitives/FadeCard";
 import { BrandMark } from "../primitives/BrandMark";
 import type { BrandTokens, StatContent } from "../types";
 
 type Props = { tokens: BrandTokens; content: StatContent };
 
-// Parse a string-or-number value. Strings like "$4.2k" / "98%" we
-// keep as static (the LLM/Echo decided the format); pure numbers we
-// animate as a counter from 0.
-function parseValue(v: number | string): { isNumeric: boolean; numeric: number; rawString: string } {
-  if (typeof v === "number") return { isNumeric: true, numeric: v, rawString: String(v) };
+function parseValue(v: number | string): {
+  isNumeric: boolean;
+  numeric: number;
+  rawString: string;
+} {
+  if (typeof v === "number")
+    return { isNumeric: true, numeric: v, rawString: String(v) };
   return { isNumeric: false, numeric: 0, rawString: v };
 }
 
@@ -33,114 +33,149 @@ export const StatReel: React.FC<Props> = ({ tokens, content }) => {
   const frame = useCurrentFrame();
   const { isNumeric, numeric, rawString } = parseValue(content.value);
 
-  // Label fade-in
-  const labelOpacity = interpolate(frame, [24, 38], [0, 1], {
+  const closerProgress = interpolate(frame, [200, 230], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
-  // Static value reveal (when value is a string, scale-in instead of count)
-  const valueOpacity = interpolate(frame, [42, 60], [0, 1], {
+  // Underline draw — subtle line below the big number, drawn left to right.
+  const underline = interpolate(frame, [70, 92], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
-  });
-  const valueScale = interpolate(frame, [42, 60], [0.92, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
     <AbsoluteFill
       style={{
-        background: tokens.bg,
+        background: tokens.ink,
         fontFamily:
           '-apple-system, "SF Pro Text", Inter, system-ui, sans-serif',
-        color: tokens.ink,
+        color: "#FFFFFF",
+        overflow: "hidden",
       }}
     >
-      {/* Soft tint backdrop */}
+      {/* Vignette for depth */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: `radial-gradient(ellipse at 50% 50%, ${tokens.surface} 0%, ${tokens.bg} 70%)`,
+          background: `radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.07) 0%, rgba(0,0,0,0) 60%)`,
         }}
       />
 
+      {/* Top-left HUD */}
       <div
         style={{
-          position: "relative",
-          width: "100%",
-          height: "100%",
-          padding: "140px 96px",
+          position: "absolute",
+          top: 64,
+          left: 64,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          opacity: interpolate(frame, [4, 18], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        <PulseDot color={tokens.alive ?? "#7CE896"} />
+        <span style={hudMonoStyle}>01 / 01</span>
+      </div>
+
+      {/* Top-right HUD */}
+      <div
+        style={{
+          position: "absolute",
+          top: 64,
+          right: 64,
+          opacity: interpolate(frame, [4, 18], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        <span style={hudMonoStyle}>STAT</span>
+      </div>
+
+      {/* MAIN — label + big number + context */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          padding: "0 96px",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          justifyContent: "center",
+          gap: 24,
+          opacity: 1 - closerProgress,
+          transform: `translateY(${closerProgress * -160}px)`,
         }}
       >
-        {/* Top: mark + business name */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-          <BrandMark markInner={tokens.markInner} size={72} startFrame={0} />
-          <div
-            style={{
-              fontSize: 22,
-              fontWeight: 500,
-              letterSpacing: "-0.01em",
-              color: tokens.ink,
-              opacity: interpolate(frame, [8, 22], [0, 1], {
-                extrapolateLeft: "clamp",
-                extrapolateRight: "clamp",
-              }),
-            }}
-          >
-            {tokens.businessName}
-          </div>
-        </div>
-
-        {/* Mid: label + huge number */}
+        {/* Mono label */}
         <div
           style={{
-            marginTop: 96,
+            fontFamily: '"SF Mono", "JetBrains Mono", monospace',
+            fontSize: 26,
+            letterSpacing: "0.22em",
+            color: tokens.alive ?? "#7CE896",
+            textTransform: "uppercase",
+            opacity: interpolate(frame, [16, 36], [0, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+              easing: Easing.out(Easing.cubic),
+            }),
+            transform: `translateY(${interpolate(
+              frame,
+              [16, 36],
+              [12, 0],
+              { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+            )}px)`,
+          }}
+        >
+          {content.label}
+        </div>
+
+        {/* Big number */}
+        <div
+          style={{
+            position: "relative",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 18,
-            flex: 1,
-            justifyContent: "center",
           }}
         >
-          <div
-            style={{
-              fontFamily: '"SF Mono", "JetBrains Mono", monospace',
-              fontSize: 26,
-              letterSpacing: "0.12em",
-              color: tokens.ink4,
-              opacity: labelOpacity,
-            }}
-          >
-            <TypewriterText startFrame={24} durationFrames={14}>
-              {content.label}
-            </TypewriterText>
-          </div>
-
           {isNumeric ? (
             <div
               style={{
-                fontSize: 220,
-                fontWeight: 500,
-                letterSpacing: "-0.04em",
+                fontSize: 280,
+                fontWeight: 600,
+                letterSpacing: "-0.05em",
                 lineHeight: 1,
-                color: tokens.ink,
-                opacity: interpolate(frame, [42, 56], [0, 1], {
+                color: "#FFFFFF",
+                opacity: interpolate(frame, [42, 60], [0, 1], {
                   extrapolateLeft: "clamp",
                   extrapolateRight: "clamp",
+                  easing: Easing.out(Easing.cubic),
                 }),
+                transform: `scale(${interpolate(
+                  frame,
+                  [42, 70],
+                  [0.85, 1],
+                  {
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                    easing: Easing.out(Easing.cubic),
+                  },
+                )})`,
               }}
             >
               <CounterNumber
                 value={numeric}
-                startFrame={42}
-                durationFrames={36}
+                startFrame={48}
+                durationFrames={42}
                 prefix={content.prefix ?? ""}
                 suffix={content.suffix ?? ""}
               />
@@ -148,13 +183,26 @@ export const StatReel: React.FC<Props> = ({ tokens, content }) => {
           ) : (
             <div
               style={{
-                fontSize: 220,
-                fontWeight: 500,
-                letterSpacing: "-0.04em",
+                fontSize: 280,
+                fontWeight: 600,
+                letterSpacing: "-0.05em",
                 lineHeight: 1,
-                color: tokens.ink,
-                opacity: valueOpacity,
-                transform: `scale(${valueScale})`,
+                color: "#FFFFFF",
+                opacity: interpolate(frame, [42, 60], [0, 1], {
+                  extrapolateLeft: "clamp",
+                  extrapolateRight: "clamp",
+                  easing: Easing.out(Easing.cubic),
+                }),
+                transform: `scale(${interpolate(
+                  frame,
+                  [42, 70],
+                  [0.85, 1],
+                  {
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                    easing: Easing.out(Easing.cubic),
+                  },
+                )})`,
               }}
             >
               {content.prefix ?? ""}
@@ -162,26 +210,118 @@ export const StatReel: React.FC<Props> = ({ tokens, content }) => {
               {content.suffix ?? ""}
             </div>
           )}
-        </div>
 
-        {/* Bottom: context */}
-        <FadeCard startFrame={84} durationFrames={20} travel={18}>
+          {/* Accent underline draws in left-to-right */}
           <div
             style={{
-              fontSize: 32,
-              lineHeight: 1.4,
-              color: tokens.ink2,
-              textAlign: "center",
-              maxWidth: 820,
-              fontWeight: 400,
+              marginTop: 16,
+              height: 4,
+              width: 320,
+              background: tokens.alive ?? "#7CE896",
+              transform: `scaleX(${underline})`,
+              transformOrigin: "left center",
+              borderRadius: 2,
             }}
+          />
+        </div>
+
+        {/* Context — word reveal */}
+        <div
+          style={{
+            marginTop: 28,
+            fontSize: 36,
+            fontWeight: 400,
+            lineHeight: 1.3,
+            letterSpacing: "-0.01em",
+            color: "rgba(255,255,255,0.78)",
+            textAlign: "center",
+            maxWidth: 820,
+          }}
+        >
+          <WordReveal
+            startFrame={108}
+            staggerFrames={3}
+            wordDurationFrames={14}
+            travel={10}
           >
-            <TypewriterText startFrame={92} durationFrames={56}>
-              {content.context}
-            </TypewriterText>
-          </div>
-        </FadeCard>
+            {content.context}
+          </WordReveal>
+        </div>
+      </div>
+
+      {/* CLOSER — brand stamp grows in */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 28,
+          opacity: closerProgress,
+          transform: `scale(${interpolate(
+            closerProgress,
+            [0, 1],
+            [0.92, 1],
+            { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+          )})`,
+        }}
+      >
+        <BrandMark
+          markInner={tokens.markInner}
+          size={140}
+          startFrame={200}
+          rings={true}
+        />
+        <div
+          style={{
+            fontSize: 44,
+            fontWeight: 500,
+            letterSpacing: "-0.015em",
+            color: "#FFFFFF",
+          }}
+        >
+          {tokens.businessName}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginTop: 8,
+          }}
+        >
+          <PulseDot color={tokens.alive ?? "#7CE896"} />
+          <span style={hudMonoStyle}>END</span>
+        </div>
       </div>
     </AbsoluteFill>
   );
 };
+
+const hudMonoStyle: React.CSSProperties = {
+  fontFamily: '"SF Mono", "JetBrains Mono", monospace',
+  fontSize: 18,
+  letterSpacing: "0.2em",
+  color: "rgba(255,255,255,0.45)",
+  textTransform: "uppercase",
+};
+
+function PulseDot({ color }: { color: string }) {
+  const frame = useCurrentFrame();
+  const scale = 1 + 0.25 * Math.sin(frame / 8);
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        background: color,
+        transform: `scale(${scale})`,
+        boxShadow: `0 0 12px ${color}66`,
+      }}
+    />
+  );
+}

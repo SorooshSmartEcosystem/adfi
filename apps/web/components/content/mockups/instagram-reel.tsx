@@ -3,6 +3,9 @@
 // placeholder. Side icon stack (like / comment / share / save / mark
 // + audio thumbnail), bottom caption with hashtags.
 
+"use client";
+
+import { useRef, useState } from "react";
 import type { MockupProps } from "./types";
 import { pickPrimaryText } from "./types";
 
@@ -10,6 +13,28 @@ export function InstagramReelMockup({ business, content, mp4Url, menu }: MockupP
   const handle = business.handle ?? business.name.toLowerCase().replace(/\s+/g, "_");
   const caption = pickPrimaryText(content);
   const tags = content.hashtags ?? [];
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [errored, setErrored] = useState(false);
+
+  function togglePlay() {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      // Try to play with audio. Some browsers reject autoplay-with-sound,
+      // so fall back to muted playback.
+      v.muted = false;
+      const p = v.play();
+      if (p && typeof p.then === "function") {
+        p.catch(() => {
+          v.muted = true;
+          v.play().catch(() => setErrored(true));
+        });
+      }
+    } else {
+      v.pause();
+    }
+  }
 
   return (
     <div
@@ -17,25 +42,57 @@ export function InstagramReelMockup({ business, content, mp4Url, menu }: MockupP
       style={{ aspectRatio: "9 / 16", maxWidth: 320 }}
     >
       {/* Video / placeholder */}
-      {mp4Url ? (
-        <video
-          src={mp4Url}
-          controls
-          playsInline
-          loop
-          muted
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+      {mp4Url && !errored ? (
+        <>
+          <video
+            ref={videoRef}
+            src={mp4Url}
+            playsInline
+            loop
+            preload="metadata"
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onError={() => setErrored(true)}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Tap-anywhere play/pause overlay. Bigger hit target than
+              native controls and works on mobile. Hides while playing
+              so the post is fully visible. */}
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label={playing ? "pause" : "play"}
+            className={`absolute inset-0 z-20 flex items-center justify-center ${
+              playing ? "opacity-0 hover:opacity-100" : "opacity-100"
+            } transition-opacity`}
+          >
+            <span className="w-16 h-16 rounded-full bg-black/50 backdrop-blur flex items-center justify-center">
+              {playing ? (
+                <span className="flex gap-[3px]">
+                  <span className="w-[4px] h-[18px] bg-white rounded-sm" />
+                  <span className="w-[4px] h-[18px] bg-white rounded-sm" />
+                </span>
+              ) : (
+                <span className="w-0 h-0 border-y-[10px] border-y-transparent border-l-[14px] border-l-white ml-[3px]" />
+              )}
+            </span>
+          </button>
+        </>
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-md text-white/70">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-md text-white/70 px-md text-center">
           <div className="w-16 h-16 rounded-full border-2 border-white/40 flex items-center justify-center">
             <div
               className="w-0 h-0 border-y-[10px] border-y-transparent border-l-[14px] border-l-white/70 ml-1"
             />
           </div>
           <div className="font-mono text-[10px] tracking-[0.2em]">
-            REEL · NOT RENDERED
+            {errored ? "REEL · UNAVAILABLE" : "REEL · NOT RENDERED"}
           </div>
+          {errored ? (
+            <div className="text-[11px] leading-relaxed text-white/60">
+              this video file is gone — re-render from the ⋯ menu.
+            </div>
+          ) : null}
         </div>
       )}
 

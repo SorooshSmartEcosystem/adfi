@@ -340,6 +340,14 @@ export function DraftCardV2({
             ) : null}
           </div>
         </div>
+        {draftScript.isPending ? (
+          <div className="mt-sm pt-sm border-t-hairline border-border2 flex items-center justify-center gap-sm">
+            <OrbLoader tone="alive" size="sm" stages={STAGES_VIDEO_SCRIPT} />
+            <span className="font-mono text-[11px] text-ink3">
+              sketching video script…
+            </span>
+          </div>
+        ) : null}
         {isVideoRendering ? (
           <div className="mt-sm pt-sm border-t-hairline border-border2 flex items-center justify-center">
             <OrbLoader tone="alive" size="sm" stages={STAGES_VIDEO_SCRIPT} />
@@ -414,6 +422,18 @@ export function DraftCardV2({
           <div className="absolute right-2 top-12 z-50">{menuContent}</div>
         ) : null}
       </div>
+
+      {/* Script-drafting loader — fires when user taps "make video".
+          Without this the user clicks and sees nothing for 5–15s
+          (Haiku call) and assumes the button is broken. */}
+      {draftScript.isPending ? (
+        <div className="w-full mt-sm flex items-center justify-center gap-sm">
+          <OrbLoader tone="alive" size="sm" stages={STAGES_VIDEO_SCRIPT} />
+          <span className="font-mono text-[11px] text-ink3">
+            sketching video script…
+          </span>
+        </div>
+      ) : null}
 
       {isVideoRendering ? (
         <div className="w-full mt-sm flex items-center justify-center">

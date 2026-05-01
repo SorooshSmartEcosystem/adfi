@@ -20,6 +20,51 @@ const paginationInput = z.object({
   cursor: z.string().uuid().optional(),
 });
 
+// Sniff format + platform from a free-text hint when the user left the
+// pills on "auto". Matches in both English and Farsi for the obvious
+// keywords. This isn't an LLM call — just plain regex — so the cost is
+// zero. If nothing is recognised, both fields stay undefined and the
+// downstream picker keeps its existing diversity heuristic.
+function inferIntentFromHint(hint?: string): {
+  format?: ContentFormat;
+  platform?: Platform;
+} {
+  if (!hint) return {};
+  const t = hint.toLowerCase();
+  let format: ContentFormat | undefined;
+  let platform: Platform | undefined;
+
+  // Format keywords
+  if (/\b(reel|short|tiktok|video clip)\b/.test(t) || /ریل|ویدیو/.test(hint)) {
+    format = ContentFormat.REEL_SCRIPT;
+  } else if (/\bcarousel\b|\bswipe\b|اسلاید|کروسل/.test(hint)) {
+    format = ContentFormat.CAROUSEL;
+  } else if (/\bnewsletter\b|\bemail\b|خبرنامه|ایمیل/.test(hint)) {
+    format = ContentFormat.EMAIL_NEWSLETTER;
+  } else if (/\bstory\b|\bstories\b|استوری/.test(hint)) {
+    format = ContentFormat.STORY_SEQUENCE;
+  } else if (/\bpost\b|\bsingle post\b|پست/.test(hint)) {
+    format = ContentFormat.SINGLE_POST;
+  }
+
+  // Platform keywords
+  if (/\binstagram\b|\big\b|اینستا/.test(hint)) {
+    platform = Platform.INSTAGRAM;
+  } else if (/\bfacebook\b|\bfb\b|فیسبوک/.test(hint)) {
+    platform = Platform.FACEBOOK;
+  } else if (/\blinkedin\b|لینکدین/.test(hint)) {
+    platform = Platform.LINKEDIN;
+  } else if (/\btwitter\b|\bx post\b|توییتر/.test(hint)) {
+    platform = Platform.TWITTER;
+  } else if (/\btelegram\b|تلگرام/.test(hint)) {
+    platform = Platform.TELEGRAM;
+  } else if (/\bemail\b|\bnewsletter\b|ایمیل|خبرنامه/.test(hint)) {
+    platform = Platform.EMAIL;
+  }
+
+  return { format, platform };
+}
+
 // Flatten an Echo draft body into a single Telegram message. Telegram cap is
 // 4096 chars. Mirrors the same shape the manual-publish "copy text" button
 // produces, so the channel sees the same thing the user would have copied.
@@ -162,11 +207,20 @@ export const contentRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        // If the user explicitly picked format/platform pills, honor them.
+        // Otherwise sniff the hint text for keywords like "reel" /
+        // "carousel" / "newsletter" so "make me an instagram reel
+        // about X" doesn't end up as a single post just because the
+        // pill was on auto.
+        const inferred = inferIntentFromHint(input.hint);
+        const format = input.format ?? inferred.format;
+        const platform = input.platform ?? inferred.platform;
+
         const draftId = await generateDailyContent(
           ctx.user.id,
           input.hint,
-          input.format,
-          input.platform,
+          format,
+          platform,
         );
         return { draftId };
       } catch (error) {

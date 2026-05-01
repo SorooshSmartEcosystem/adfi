@@ -75,21 +75,26 @@ export function DraftsPanel() {
             ask echo for one.
           </p>
         </div>
-      ) : (
-        <div
-          className={
-            view === "list"
-              ? "flex flex-col gap-sm"
-              : "grid gap-lg md:grid-cols-2 justify-items-center"
-          }
-        >
+      ) : view === "list" ? (
+        <div className="flex flex-col gap-sm">
           {items.map((d) => (
-            <DraftCardV2
+            <DraftCardV2 key={d.id} draft={d} business={business} view="list" />
+          ))}
+        </div>
+      ) : (
+        // Mockup grid uses CSS columns for masonry-style packing —
+        // cards have variable heights (a Reel is tall, an X post is
+        // short) and the column layout avoids the empty-row gaps a
+        // strict CSS grid would leave. Single column on mobile,
+        // 2 columns on md+.
+        <div className="columns-1 md:columns-2 gap-lg w-full">
+          {items.map((d) => (
+            <div
               key={d.id}
-              draft={d}
-              business={business}
-              view={view}
-            />
+              className="break-inside-avoid mb-lg w-full max-w-full overflow-hidden"
+            >
+              <DraftCardV2 draft={d} business={business} view="mockup" />
+            </div>
           ))}
         </div>
       )}

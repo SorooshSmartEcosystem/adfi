@@ -82,6 +82,7 @@ export function DraftCardV2({
 }) {
   const utils = trpc.useUtils();
   const [showMenu, setShowMenu] = useState(false);
+  const [listExpanded, setListExpanded] = useState(false);
   const [draftedScript, setDraftedScript] = useState<ScriptForPreview | null>(null);
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -133,103 +134,112 @@ export function DraftCardV2({
     menuTimerRef.current = setTimeout(() => setShowMenu(false), 140);
   }
 
+  // Build menu items based on status. Falls through a default case so
+  // REJECTED / AWAITING_PHOTOS / unknown don't render an empty popover.
+  const menuItems: React.ReactNode[] = [];
+  const copyItem = (
+    <MenuItem
+      key="copy"
+      onClick={() => {
+        navigator.clipboard.writeText(textBrief(normalized));
+        setShowMenu(false);
+      }}
+    >
+      copy text
+    </MenuItem>
+  );
+  const regenItem = (
+    <MenuItem
+      key="regen"
+      onClick={() => {
+        regenerate.mutate({ id: draft.id });
+        setShowMenu(false);
+      }}
+    >
+      regenerate
+    </MenuItem>
+  );
+  const rejectItem = (
+    <MenuItem
+      key="reject"
+      danger
+      onClick={() => {
+        reject.mutate({ id: draft.id });
+        setShowMenu(false);
+      }}
+    >
+      reject
+    </MenuItem>
+  );
+
+  if (draft.status === "AWAITING_REVIEW" || draft.status === "DRAFT") {
+    menuItems.push(
+      <MenuItem
+        key="approve"
+        onClick={() => {
+          approve.mutate({ id: draft.id, variant: "primary" });
+          setShowMenu(false);
+        }}
+      >
+        approve
+      </MenuItem>,
+      regenItem,
+      <MenuItem
+        key="video"
+        onClick={() => {
+          draftScript.mutate({ brief: textBrief(normalized) });
+          setShowMenu(false);
+        }}
+      >
+        make video
+      </MenuItem>,
+      copyItem,
+      <MenuDivider key="d1" />,
+      rejectItem,
+    );
+  } else if (draft.status === "APPROVED") {
+    menuItems.push(
+      copyItem,
+      regenItem,
+      <MenuDivider key="d1" />,
+      <MenuItem
+        key="unsched"
+        danger
+        onClick={() => {
+          reject.mutate({ id: draft.id });
+          setShowMenu(false);
+        }}
+      >
+        unschedule
+      </MenuItem>,
+    );
+  } else if (draft.status === "PUBLISHED") {
+    menuItems.push(copyItem);
+  } else if (draft.status === "FAILED") {
+    menuItems.push(
+      <MenuItem
+        key="retry"
+        onClick={() => {
+          regenerate.mutate({ id: draft.id });
+          setShowMenu(false);
+        }}
+      >
+        retry
+      </MenuItem>,
+      copyItem,
+    );
+  } else {
+    // REJECTED / AWAITING_PHOTOS / anything else — at minimum let the
+    // user copy the text and regenerate (or just dismiss).
+    menuItems.push(copyItem, regenItem);
+  }
+
   const menuContent = (
     <div
       className="bg-bg border-hairline border-border rounded-md p-xs min-w-[180px] shadow-lg"
       onMouseDown={(e) => e.preventDefault()}
     >
-      {(draft.status === "AWAITING_REVIEW" || draft.status === "DRAFT") ? (
-        <>
-          <MenuItem
-            onClick={() => {
-              approve.mutate({ id: draft.id, variant: "primary" });
-              setShowMenu(false);
-            }}
-          >
-            approve
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              regenerate.mutate({ id: draft.id });
-              setShowMenu(false);
-            }}
-          >
-            regenerate
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              draftScript.mutate({ brief: textBrief(normalized) });
-              setShowMenu(false);
-            }}
-          >
-            make video
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              navigator.clipboard.writeText(textBrief(normalized));
-              setShowMenu(false);
-            }}
-          >
-            copy text
-          </MenuItem>
-          <MenuDivider />
-          <MenuItem
-            danger
-            onClick={() => {
-              reject.mutate({ id: draft.id });
-              setShowMenu(false);
-            }}
-          >
-            reject
-          </MenuItem>
-        </>
-      ) : null}
-      {draft.status === "APPROVED" ? (
-        <>
-          <MenuItem onClick={() => setShowMenu(false)}>edit schedule</MenuItem>
-          <MenuItem
-            onClick={() => {
-              navigator.clipboard.writeText(textBrief(normalized));
-              setShowMenu(false);
-            }}
-          >
-            copy text
-          </MenuItem>
-          <MenuDivider />
-          <MenuItem
-            danger
-            onClick={() => {
-              reject.mutate({ id: draft.id });
-              setShowMenu(false);
-            }}
-          >
-            unschedule
-          </MenuItem>
-        </>
-      ) : null}
-      {draft.status === "PUBLISHED" ? (
-        <>
-          <MenuItem onClick={() => setShowMenu(false)}>view live ↗</MenuItem>
-          <MenuItem
-            onClick={() => {
-              navigator.clipboard.writeText(textBrief(normalized));
-              setShowMenu(false);
-            }}
-          >
-            copy text
-          </MenuItem>
-        </>
-      ) : null}
-      {draft.status === "FAILED" ? (
-        <MenuItem
-          onClick={() => {
-            regenerate.mutate({ id: draft.id });
-            setShowMenu(false);
-          }}
-        >
-          retry
-        </MenuItem>
-      ) : null}
+      {menuItems}
     </div>
   );
 
@@ -237,9 +247,18 @@ export function DraftCardV2({
   // List view
   // ────────────────────────────────────────────────────────────────
   if (view === "list") {
-    const preview = (normalized.caption ?? normalized.body ?? normalized.hook ?? "")
+    const fullText = (normalized.caption ?? normalized.body ?? normalized.hook ?? "")
       .replace(/\s+/g, " ")
       .trim();
+    const TRUNC = 140;
+    const isLong = fullText.length > TRUNC;
+    const preview = listExpanded || !isLong
+      ? fullText
+      : fullText.slice(0, TRUNC).trimEnd() + "…";
+    const thumbnail =
+      normalized.imageUrl ??
+      normalized.slides?.find((s) => s.imageUrl)?.imageUrl ??
+      null;
     return (
       <div
         className={`relative bg-bg border-hairline border-border rounded-md p-md ${
@@ -248,20 +267,48 @@ export function DraftCardV2({
         onBlur={scheduleMenuClose}
       >
         <div className="flex items-start gap-md">
-          <span
-            className="font-mono text-[10px] tracking-[0.2em] uppercase mt-[3px]"
-            style={{ color: status.color }}
-          >
-            {status.text}
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="font-mono text-[10px] tracking-[0.16em] uppercase text-ink4 mb-xs">
-              {(format ?? "SINGLE_POST").toLowerCase().replace(/_/g, " ")} ·{" "}
-              {platform.toLowerCase()}
+          {thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbnail}
+              alt=""
+              className="shrink-0 w-[56px] h-[56px] rounded-md object-cover bg-surface"
+            />
+          ) : (
+            <div className="shrink-0 w-[56px] h-[56px] rounded-md bg-surface border-hairline border-border flex items-center justify-center">
+              <span className="text-[10px] text-ink4 font-mono">img</span>
             </div>
-            <p className="text-sm leading-relaxed text-ink line-clamp-2" dir="auto">
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-xs flex-wrap mb-xs">
+              <span
+                className="font-mono text-[10px] tracking-[0.2em] uppercase"
+                style={{ color: status.color }}
+              >
+                {status.text}
+              </span>
+              <span className="text-[11px] text-ink4">
+                · {platform.toLowerCase()} ·{" "}
+                {(format ?? "SINGLE_POST").toLowerCase().replace(/_/g, " ")}
+              </span>
+            </div>
+            <p
+              className={`text-sm leading-relaxed text-ink ${
+                listExpanded ? "whitespace-pre-wrap" : "line-clamp-2"
+              }`}
+              dir="auto"
+            >
               {preview || "—"}
             </p>
+            {isLong ? (
+              <button
+                type="button"
+                onClick={() => setListExpanded((v) => !v)}
+                className="mt-xs text-[11px] font-mono text-ink4 hover:text-ink2"
+              >
+                {listExpanded ? "show less" : "show more"}
+              </button>
+            ) : null}
           </div>
           <div className="relative flex-shrink-0">
             <button
@@ -314,30 +361,40 @@ export function DraftCardV2({
   // ────────────────────────────────────────────────────────────────
   return (
     <div
-      className={`relative flex flex-col items-center ${isPending ? "opacity-50 transition-opacity" : ""}`}
+      className={`flex flex-col w-full max-w-full min-w-0 ${
+        isPending ? "opacity-50 transition-opacity" : ""
+      }`}
       onBlur={scheduleMenuClose}
     >
-      {/* Floating status pill — top-left, sits over the mockup so we
-          don't need an outer chrome box. */}
-      <span
-        className="absolute -top-xs left-0 font-mono text-[9px] tracking-[0.22em] uppercase bg-bg/95 backdrop-blur px-sm py-[3px] rounded-full border-hairline border-border z-20"
-        style={{ color: status.color }}
-      >
-        {status.text}
-      </span>
+      {/* Status label sits above the mockup — quiet, never overlapping
+          the post chrome. */}
+      <div className="flex items-center gap-sm mb-xs px-xs">
+        <span className="w-1 h-1 rounded-full" style={{ background: status.color }} />
+        <span
+          className="font-mono text-[10px] tracking-[0.22em] uppercase"
+          style={{ color: status.color }}
+        >
+          {status.text}
+        </span>
+        <span className="text-[10px] font-mono text-ink4 tracking-[0.16em] uppercase">
+          · {platform.toLowerCase()}
+        </span>
+      </div>
 
-      <PlatformMockup
-        platform={platform}
-        format={format}
-        business={business}
-        content={normalized}
-        mp4Url={motion?.mp4Url ?? null}
-        menu={{
-          open: showMenu,
-          onToggle: () => setShowMenu((v) => !v),
-          content: menuContent,
-        }}
-      />
+      <div className="w-full max-w-full overflow-hidden flex justify-center">
+        <PlatformMockup
+          platform={platform}
+          format={format}
+          business={business}
+          content={normalized}
+          mp4Url={motion?.mp4Url ?? null}
+          menu={{
+            open: showMenu,
+            onToggle: () => setShowMenu((v) => !v),
+            content: menuContent,
+          }}
+        />
+      </div>
 
       {isVideoRendering ? (
         <div className="w-full mt-sm flex items-center justify-center">

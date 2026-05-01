@@ -16,9 +16,13 @@ import { PCMonoLabel } from "../primitives/PCMonoLabel";
 import { StatusBar } from "../primitives/StatusBar";
 import { BrandMark } from "../primitives/BrandMark";
 import { CounterNumber } from "../primitives/CounterNumber";
-import type { BrandTokens, StatContent } from "../types";
+import type { BrandTokens, StatContent, VideoDesign } from "../types";
 
-type Props = { tokens: BrandTokens; content: StatContent };
+type Props = {
+  tokens: BrandTokens;
+  content: StatContent;
+  design?: VideoDesign;
+};
 
 function parseValue(v: number | string): {
   isNumeric: boolean;
@@ -30,8 +34,9 @@ function parseValue(v: number | string): {
   return { isNumeric: false, numeric: 0, rawString: v };
 }
 
-export const StatReel: React.FC<Props> = ({ tokens, content }) => {
+export const StatReel: React.FC<Props> = ({ tokens, content, design }) => {
   const frame = useCurrentFrame();
+  const d = resolveDesign(design);
   const { isNumeric, numeric, rawString } = parseValue(content.value);
 
   const outro = interpolate(frame, [225, 240], [1, 0], {
@@ -67,11 +72,7 @@ export const StatReel: React.FC<Props> = ({ tokens, content }) => {
 
       {/* Status bar */}
       <div style={{ position: "absolute", top: 56, left: 0, right: 0 }}>
-        <StatusBar
-          label="STRATEGIST · WEEKLY"
-          time={statusTime()}
-          startFrame={0}
-        />
+        <StatusBar label={d.statusLabel} time={statusTime()} startFrame={0} />
       </div>
 
       {/* CARD STACK */}
@@ -88,9 +89,9 @@ export const StatReel: React.FC<Props> = ({ tokens, content }) => {
         }}
       >
         {/* BIG NUMBER CARD — equivalent to landing's pc-kpi block */}
-        <PCCard startFrame={12} variant="default">
-          <PCMonoLabel tone="alive" style={{ marginBottom: 28 }}>
-            {content.label}
+        <PCCard startFrame={12} variant={d.style === "bold" ? "dark" : "default"}>
+          <PCMonoLabel tone={d.accent} style={{ marginBottom: 28 }}>
+            {d.hookLabel}
           </PCMonoLabel>
           <div
             style={{
@@ -160,9 +161,9 @@ export const StatReel: React.FC<Props> = ({ tokens, content }) => {
         </PCCard>
 
         {/* CONTEXT CARD */}
-        <PCCard startFrame={70} variant="default" width={880}>
+        <PCCard startFrame={70} variant={d.style === "warm" ? "amber" : "default"} width={880}>
           <PCMonoLabel tone="ink" style={{ marginBottom: 14 }}>
-            THIS WEEK'S STORY
+            {d.metaLabel}
           </PCMonoLabel>
           <div
             style={{
@@ -187,11 +188,11 @@ export const StatReel: React.FC<Props> = ({ tokens, content }) => {
             />
             <div style={{ flex: 1 }}>
               <PCMonoLabel
-                tone="alive"
+                tone={d.accent}
                 color="rgba(255,255,255,0.75)"
                 style={{ marginBottom: 6 }}
               >
-                YOUR WEEK
+                {d.closerLabel}
               </PCMonoLabel>
               <div
                 style={{
@@ -213,4 +214,16 @@ export const StatReel: React.FC<Props> = ({ tokens, content }) => {
 
 function statusTime(): string {
   return "SUN 6PM";
+}
+
+function resolveDesign(d?: VideoDesign): Required<VideoDesign> {
+  return {
+    style: d?.style ?? "minimal",
+    accent: d?.accent ?? "alive",
+    pace: d?.pace ?? "medium",
+    statusLabel: d?.statusLabel ?? "STRATEGIST · WEEKLY",
+    hookLabel: d?.hookLabel ?? "THIS WEEK",
+    metaLabel: d?.metaLabel ?? "THIS WEEK'S STORY",
+    closerLabel: d?.closerLabel ?? "YOUR WEEK",
+  };
 }

@@ -51,10 +51,35 @@ const ListContentSchema = z.object({
     .max(4),
 });
 
+// Design knobs — let the agent pick palette/pace/copy that match the
+// industry + brand voice + post mood. The renderer applies sensible
+// defaults if any field is omitted.
+const VideoDesignSchema = z.object({
+  style: z.enum(["minimal", "bold", "warm", "editorial"]),
+  accent: z.enum(["alive", "attn", "urgent", "ink"]),
+  pace: z.enum(["slow", "medium", "fast"]),
+  statusLabel: z.string().min(2).max(40),
+  hookLabel: z.string().min(2).max(40),
+  metaLabel: z.string().min(2).max(40),
+  closerLabel: z.string().min(2).max(40),
+});
+
 const VideoDirectiveSchema = z.discriminatedUnion("template", [
-  z.object({ template: z.literal("quote"), content: QuoteContentSchema }),
-  z.object({ template: z.literal("stat"), content: StatContentSchema }),
-  z.object({ template: z.literal("list"), content: ListContentSchema }),
+  z.object({
+    template: z.literal("quote"),
+    content: QuoteContentSchema,
+    design: VideoDesignSchema,
+  }),
+  z.object({
+    template: z.literal("stat"),
+    content: StatContentSchema,
+    design: VideoDesignSchema,
+  }),
+  z.object({
+    template: z.literal("list"),
+    content: ListContentSchema,
+    design: VideoDesignSchema,
+  }),
 ]);
 
 export type VideoDirective = z.infer<typeof VideoDirectiveSchema>;
@@ -99,10 +124,59 @@ VOICE
 LANGUAGE
   - Match the language of the brief. If the brief is in Farsi, every
     string in your output is in Farsi. Same for any non-English brand.
-    Never mix languages within a single video.
+    Never mix languages within a single video. Mono-label copy
+    (statusLabel/hookLabel/etc.) is also in the source language —
+    no English fallback strings.
+
+DESIGN KNOBS — pick these so the video feels distinct per business.
+The same template should look different for a fitness coach vs. a
+tax accountant vs. a ceramics studio. You're an art director, not
+just a copywriter.
+
+  style — overall aesthetic. Match the BRAND, not just the post:
+    - minimal: light cards, restrained type, slow pace. Good for
+      legal/financial/wellness/luxury — anyone whose brand voice
+      reads "calm, considered, precise".
+    - bold: dark hero card, big display type, faster pace. Good for
+      fitness/sports/youth brands/announcements/sales/launches.
+    - warm: amber/alive accents, more humanistic, soft pace. Good for
+      food/craft/family/community/handmade.
+    - editorial: magazine-style, italic accents, longer holds. Good
+      for design/architecture/fashion/considered storytelling.
+
+  accent — primary color used on dots, underlines, hero numbers:
+    - alive (green): growth, good news, default for stats trending up
+    - attn (amber): caution, opportunity, urgency, sale, deadline
+    - urgent (red): stop-scroll, problem, mistake-to-avoid
+    - ink (mono): no accent — most editorial, used with style=editorial
+
+  pace — motion timing:
+    - slow: meditative, reflective quotes, sleep/wellness brands
+    - medium: default for most posts
+    - fast: stat/announcement reels, sports/youth brands, sales
+
+  Mono labels (uppercase). These appear on the cards themselves:
+    - statusLabel: top-of-screen status. Pick what kind of moment
+      this is. e.g. "TODAY'S NOTE", "MORNING THOUGHT",
+      "WEEKLY UPDATE", "QUICK TIP", "BACKSTORY", "BIG NEWS".
+    - hookLabel: card 1's mono header above the main content.
+      e.g. "WROTE IN YOUR VOICE", "ON HONEST WORK", "WHY WE STARTED",
+      "THIS WEEK", "BEFORE YOU SCROLL".
+    - metaLabel: card 2's mono header. Frames the supporting context.
+      e.g. "POST PREVIEW", "BACKSTORY", "WHY IT MATTERS",
+      "WHAT'S NEXT", "QUICK CONTEXT".
+    - closerLabel: card 3's mono header on the brand stamp card.
+      e.g. "PUBLISHED", "SHARE THIS", "SAVE FOR LATER",
+      "TAG SOMEONE", "MORE COMING".
+
+  Pick labels that fit the brand voice + post type. A pottery studio's
+  hookLabel could be "FROM THE STUDIO". A fitness coach's hookLabel
+  could be "TODAY'S MISSION". A tax accountant's could be
+  "FRIENDLY REMINDER".
 
 OUTPUT
-  Strict JSON matching the schema. No prose around it.`;
+  Strict JSON matching the schema. Every design field required.
+  No prose around it.`;
 
 // ------------------- Public API -------------------
 export type VideoAgentInput = {

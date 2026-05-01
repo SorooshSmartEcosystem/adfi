@@ -51,6 +51,15 @@ export const Root: React.FC = () => {
               "every glaze tells a story. we just listen long enough to hear it.",
             attribution: "— rosa, founder",
           },
+          design: {
+            style: "warm" as const,
+            accent: "alive" as const,
+            pace: "medium" as const,
+            statusLabel: "FROM THE STUDIO",
+            hookLabel: "ON HONEST WORK",
+            metaLabel: "BACKSTORY",
+            closerLabel: "PUBLISHED",
+          },
         }}
       />
 
@@ -69,6 +78,15 @@ export const Root: React.FC = () => {
             label: "THIS WEEK",
             context:
               "your reels outperformed 80% of past posts. one designer booked a $4-8k project off a single dm.",
+          },
+          design: {
+            style: "minimal" as const,
+            accent: "alive" as const,
+            pace: "medium" as const,
+            statusLabel: "STRATEGIST · WEEKLY",
+            hookLabel: "REVENUE THIS WEEK",
+            metaLabel: "WHAT HAPPENED",
+            closerLabel: "YOUR WEEK",
           },
         }}
       />

@@ -68,6 +68,11 @@ export async function renderForDraft(args: {
         draftId: args.draftId,
         template: args.directive.template,
         content: args.directive.content,
+        // Pass the design knobs through so the renderer can apply
+        // them. Older drafts without design fields render with
+        // sensible defaults.
+        design:
+          "design" in args.directive ? args.directive.design : undefined,
       }),
     });
 

@@ -102,14 +102,60 @@ export type CarouselAsReelContent = {
   }[];
 };
 
+// Design knobs the video agent sets per post so the same design
+// system flexes to fit the industry, mood, and content type. All
+// optional — sensible defaults exist in the renderer.
+export type VideoDesign = {
+  // Overall aesthetic. Drives card variant ladder + typography weight.
+  //   minimal — all light cards, restrained type, slow pace
+  //   bold — dark hero card with big display type, faster pace
+  //   warm — amber/alive accents, more humanistic
+  //   editorial — magazine-style, italic accents, longer holds
+  style?: "minimal" | "bold" | "warm" | "editorial";
+  // Primary accent color used on dots, underlines, hero numbers.
+  //   alive — green (~ default growth / good news)
+  //   attn — amber (~ caution / opportunity / urgency)
+  //   urgent — red (~ stop-scroll, alarm)
+  //   ink — black/white (no accent — most editorial)
+  accent?: "alive" | "attn" | "urgent" | "ink";
+  // Motion pacing — affects stagger between card reveals + total
+  // duration of word-by-word reveals.
+  //   slow — meditative, ~10-12s
+  //   medium — default
+  //   fast — energetic, ~6-7s, more cards
+  pace?: "slow" | "medium" | "fast";
+  // Optional copy overrides for the mono labels in cards. Lets the
+  // agent adapt voice per post:
+  //   statusLabel: top-of-screen status. e.g. "ECHO · DRAFTED",
+  //                "TODAY'S NOTE", "MORNING THOUGHT".
+  //   hookLabel: card 1's mono header. e.g. "WROTE IN YOUR VOICE",
+  //              "QUICK REMINDER", "ON HONEST WORK".
+  //   metaLabel: card 2's mono header. e.g. "POST PREVIEW",
+  //              "BACKSTORY", "WHY IT MATTERS".
+  //   closerLabel: card 3's mono header. e.g. "PUBLISHED",
+  //                "SHARE THIS", "SAVE FOR LATER".
+  statusLabel?: string;
+  hookLabel?: string;
+  metaLabel?: string;
+  closerLabel?: string;
+};
+
 // Discriminator on the persisted `motion` field. Echo writes this to
 // ContentDraft; the render API picks the composition by `template`.
 export type MotionDirective =
-  | { template: "quote"; content: QuoteContent }
-  | { template: "stat"; content: StatContent }
-  | { template: "list"; content: ListContent }
-  | { template: "product-reveal"; content: ProductRevealContent }
-  | { template: "carousel-as-reel"; content: CarouselAsReelContent };
+  | { template: "quote"; content: QuoteContent; design?: VideoDesign }
+  | { template: "stat"; content: StatContent; design?: VideoDesign }
+  | { template: "list"; content: ListContent; design?: VideoDesign }
+  | {
+      template: "product-reveal";
+      content: ProductRevealContent;
+      design?: VideoDesign;
+    }
+  | {
+      template: "carousel-as-reel";
+      content: CarouselAsReelContent;
+      design?: VideoDesign;
+    };
 
 // Output frame size. Reels and TikToks are vertical-first; we target
 // 9:16 1080×1920 by default. The renderer can rescale to 1:1 (square

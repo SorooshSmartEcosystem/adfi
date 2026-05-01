@@ -35,6 +35,9 @@ type RenderBody = {
   draftId: string;
   template: string; // 'quote' | 'stat' | etc.
   content: Record<string, unknown>;
+  // Optional design knobs the video agent chose. Renderer fills in
+  // sensible defaults if any are missing.
+  design?: Record<string, unknown>;
 };
 
 const TEMPLATE_TO_COMPOSITION: Record<string, string> = {
@@ -109,7 +112,7 @@ export async function POST(request: NextRequest) {
       functionName,
       serveUrl,
       composition: compositionId,
-      inputProps: { tokens, content: body.content },
+      inputProps: { tokens, content: body.content, design: body.design ?? null },
       codec: "h264",
       privacy: "public",
       maxRetries: 1,

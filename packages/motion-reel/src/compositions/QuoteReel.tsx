@@ -12,17 +12,22 @@
 //
 // Use case: opinion takes, value statements, observations.
 
-import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
 import { PCCard } from "../primitives/PCCard";
 import { PCMonoLabel } from "../primitives/PCMonoLabel";
 import { StatusBar } from "../primitives/StatusBar";
 import { BrandMark } from "../primitives/BrandMark";
-import type { BrandTokens, QuoteContent } from "../types";
+import type { BrandTokens, QuoteContent, VideoDesign } from "../types";
 
-type Props = { tokens: BrandTokens; content: QuoteContent };
+type Props = {
+  tokens: BrandTokens;
+  content: QuoteContent;
+  design?: VideoDesign;
+};
 
-export const QuoteReel: React.FC<Props> = ({ tokens, content }) => {
+export const QuoteReel: React.FC<Props> = ({ tokens, content, design }) => {
   const frame = useCurrentFrame();
+  const d = resolveDesign(design);
 
   // Outro fade in last 0.5s
   const outro = interpolate(frame, [255, 270], [1, 0], {
@@ -59,11 +64,7 @@ export const QuoteReel: React.FC<Props> = ({ tokens, content }) => {
           right: 0,
         }}
       >
-        <StatusBar
-          label={`ECHO · DRAFTED`}
-          time={statusTime()}
-          startFrame={0}
-        />
+        <StatusBar label={d.statusLabel} time={statusTime()} startFrame={0} />
       </div>
 
       {/* CARD STACK — vertically centered, gap-aligned */}
@@ -80,9 +81,12 @@ export const QuoteReel: React.FC<Props> = ({ tokens, content }) => {
         }}
       >
         {/* CARD 1 — the quote */}
-        <PCCard startFrame={12} variant="default">
-          <PCMonoLabel tone="alive" style={{ marginBottom: 24 }}>
-            WROTE IN YOUR VOICE
+        <PCCard
+          startFrame={12}
+          variant={d.style === "bold" ? "dark" : "default"}
+        >
+          <PCMonoLabel tone={d.accent} style={{ marginBottom: 24 }}>
+            {d.hookLabel}
           </PCMonoLabel>
           <div
             style={{
@@ -113,10 +117,14 @@ export const QuoteReel: React.FC<Props> = ({ tokens, content }) => {
           ) : null}
         </PCCard>
 
-        {/* CARD 2 — meta context (varies by whether attribution exists) */}
-        <PCCard startFrame={68} variant="default" width={880}>
+        {/* CARD 2 — meta context */}
+        <PCCard
+          startFrame={d.style === "bold" ? 56 : 68}
+          variant={d.style === "warm" ? "amber" : "default"}
+          width={880}
+        >
           <PCMonoLabel tone="ink" style={{ marginBottom: 14 }}>
-            POST PREVIEW · INSTAGRAM
+            {d.metaLabel}
           </PCMonoLabel>
           <div
             style={{
@@ -126,17 +134,12 @@ export const QuoteReel: React.FC<Props> = ({ tokens, content }) => {
               fontWeight: 400,
             }}
           >
-            i'll publish this when your audience is most active. tagging
-            it for your{" "}
-            <span style={{ color: tokens.ink, fontWeight: 500 }}>
-              brand voice
-            </span>{" "}
-            archive.
+            i'll publish this when your audience is most active.
           </div>
         </PCCard>
 
         {/* CARD 3 — brand stamp / closer */}
-        <PCCard startFrame={130} variant="dark" width={880}>
+        <PCCard startFrame={d.style === "bold" ? 110 : 130} variant="dark" width={880}>
           <div
             style={{
               display: "flex",
@@ -147,16 +150,16 @@ export const QuoteReel: React.FC<Props> = ({ tokens, content }) => {
             <BrandMark
               markInner={tokens.markInner}
               size={64}
-              startFrame={130}
+              startFrame={d.style === "bold" ? 110 : 130}
               rings={false}
             />
             <div style={{ flex: 1 }}>
               <PCMonoLabel
-                tone="alive"
+                tone={d.accent}
                 color="rgba(255,255,255,0.75)"
                 style={{ marginBottom: 6 }}
               >
-                PUBLISHED
+                {d.closerLabel}
               </PCMonoLabel>
               <div
                 style={{
@@ -181,4 +184,19 @@ export const QuoteReel: React.FC<Props> = ({ tokens, content }) => {
 // moment matching when small-business owners might check their drafts.
 function statusTime(): string {
   return "11:02AM";
+}
+
+// Fill in defaults for any missing design knob. The agent should
+// always provide all fields, but old drafts persisted before the
+// design knob landed need sane fallbacks.
+function resolveDesign(d?: VideoDesign): Required<VideoDesign> {
+  return {
+    style: d?.style ?? "minimal",
+    accent: d?.accent ?? "alive",
+    pace: d?.pace ?? "medium",
+    statusLabel: d?.statusLabel ?? "ECHO · DRAFTED",
+    hookLabel: d?.hookLabel ?? "WROTE IN YOUR VOICE",
+    metaLabel: d?.metaLabel ?? "POST PREVIEW · INSTAGRAM",
+    closerLabel: d?.closerLabel ?? "PUBLISHED",
+  };
 }

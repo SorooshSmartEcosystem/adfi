@@ -23,10 +23,22 @@ const isAuthed = middleware(async ({ ctx, next }) => {
   let currentBusinessId = ctx.currentBusinessId;
   if (!currentBusinessId) {
     // Self-heal: bootstrap a default Business from legacy User profile
-    // fields so every authed user has at least one. Only fires once
-    // per user lifetime; subsequent requests skip this entire branch.
-    const profile = await ctx.db.user.findUnique({
+    // fields so every authed user has at least one.
+    //
+    // CRITICAL: the User row must exist before we can create a Business
+    // (FK constraint on user_id). Brand-new Supabase auth users land
+    // here before user.me's self-heal has run, so we upsert the User
+    // row first. Without this, every authed call by a fresh sign-up
+    // throws Invalid `prisma.business.create()` invocation in a loop
+    // that locks the app — the dashboard layout error-boundaries the
+    // failure and the user can't even reach /signout.
+    const profile = await ctx.db.user.upsert({
       where: { id: ctx.user.id },
+      update: {},
+      create: {
+        id: ctx.user.id,
+        email: ctx.user.email ?? `${ctx.user.id}@no-email.adfi`,
+      },
       select: {
         email: true,
         businessName: true,
@@ -39,12 +51,12 @@ const isAuthed = middleware(async ({ ctx, next }) => {
       data: {
         userId: ctx.user.id,
         name:
-          profile?.businessName?.trim() ||
-          profile?.email?.split("@")[0] ||
+          profile.businessName?.trim() ||
+          profile.email?.split("@")[0] ||
           "my business",
-        description: profile?.businessDescription ?? null,
-        logoUrl: profile?.businessLogoUrl ?? null,
-        websiteUrl: profile?.businessWebsiteUrl ?? null,
+        description: profile.businessDescription ?? null,
+        logoUrl: profile.businessLogoUrl ?? null,
+        websiteUrl: profile.businessWebsiteUrl ?? null,
       },
     });
     await ctx.db.user.update({

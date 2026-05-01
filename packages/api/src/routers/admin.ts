@@ -23,6 +23,29 @@ function startOfMonth(): Date {
   return d;
 }
 
+// Period helper used by financialsOverview / financialsPerService.
+// Defaults to a rolling 30-day window — looking at "this calendar
+// month" on May 1st gave a fully-empty dashboard, which was useless.
+// 30d shows actual recent usage regardless of where we are in the month.
+type Period = "7d" | "30d" | "month" | "all";
+
+function periodStartFor(period: Period): Date {
+  const now = Date.now();
+  switch (period) {
+    case "7d":
+      return new Date(now - 7 * 24 * 60 * 60 * 1000);
+    case "month":
+      return startOfMonth();
+    case "all":
+      // Practical "all time" — start of 2024. Anything older was
+      // pre-prod test data that shouldn't bias the dashboard.
+      return new Date(Date.UTC(2024, 0, 1));
+    case "30d":
+    default:
+      return new Date(now - 30 * 24 * 60 * 60 * 1000);
+  }
+}
+
 export const adminRouter = router({
   listUsers: adminProc
     .input(
@@ -140,8 +163,18 @@ export const adminRouter = router({
       throw OrbError.VALIDATION("Moderation tooling not yet live");
     }),
 
-  financialsOverview: adminProc.input(z.void()).query(async ({ ctx }) => {
-    const periodStart = startOfMonth();
+  financialsOverview: adminProc
+    .input(
+      z
+        .object({
+          period: z.enum(["7d", "30d", "month", "all"]).default("30d"),
+        })
+        .optional()
+        .default({ period: "30d" }),
+    )
+    .query(async ({ ctx, input }) => {
+    const period = input.period;
+    const periodStart = periodStartFor(period);
     const now = new Date();
 
     // Users + subscriptions + businesses (multi-business adds Business
@@ -289,7 +322,11 @@ export const adminRouter = router({
       mrrCents > 0 ? (grossMarginCents / mrrCents) * 100 : 0;
 
     return {
-      period: { start: periodStart.toISOString(), end: now.toISOString() },
+      period: {
+        kind: period,
+        start: periodStart.toISOString(),
+        end: now.toISOString(),
+      },
       users: {
         total: totalUsers,
         trialing: trialCount,
@@ -577,8 +614,18 @@ export const adminRouter = router({
       };
     }),
 
-  financialsPerService: adminProc.input(z.void()).query(async ({ ctx }) => {
-    const periodStart = startOfMonth();
+  financialsPerService: adminProc
+    .input(
+      z
+        .object({
+          period: z.enum(["7d", "30d", "month", "all"]).default("30d"),
+        })
+        .optional()
+        .default({ period: "30d" }),
+    )
+    .query(async ({ ctx, input }) => {
+    const period = input.period;
+    const periodStart = periodStartFor(period);
 
     const events = await ctx.db.agentEvent.findMany({
       where: { createdAt: { gte: periodStart } },
@@ -632,7 +679,11 @@ export const adminRouter = router({
     ).length;
 
     return {
-      period: { start: periodStart.toISOString(), end: new Date().toISOString() },
+      period: {
+        kind: period,
+        start: periodStart.toISOString(),
+        end: new Date().toISOString(),
+      },
       services: [
         {
           name: "Anthropic (Strategist)",

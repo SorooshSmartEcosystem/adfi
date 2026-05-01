@@ -2,6 +2,20 @@ import Link from "next/link";
 import { trpcServer } from "../../lib/trpc-server";
 import { formatCents } from "@orb/api";
 
+type Period = "7d" | "30d" | "month" | "all";
+
+function parsePeriod(value: string | string[] | undefined): Period {
+  if (value === "7d" || value === "month" || value === "all") return value;
+  return "30d";
+}
+
+const PERIOD_LABELS: Record<Period, string> = {
+  "7d": "last 7 days",
+  "30d": "last 30 days",
+  month: "this month",
+  all: "all-time",
+};
+
 function Metric({
   label,
   value,
@@ -32,24 +46,47 @@ function Metric({
   );
 }
 
-export default async function DashboardOverview() {
+export default async function DashboardOverview({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string | string[] }>;
+}) {
+  const { period: periodParam } = await searchParams;
+  const period = parsePeriod(periodParam);
+
   const trpc = await trpcServer();
   const [overview, perService] = await Promise.all([
-    trpc.admin.financialsOverview(),
-    trpc.admin.financialsPerService(),
+    trpc.admin.financialsOverview({ period }),
+    trpc.admin.financialsPerService({ period }),
   ]);
 
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-2xl">
       <div className="flex flex-col gap-sm">
         <p className="text-xs font-mono text-ink3 uppercase tracking-widest">
-          this month
+          {PERIOD_LABELS[period]}
         </p>
         <h1 className="text-2xl font-medium">financial overview</h1>
         <p className="text-xs font-mono text-ink4">
           {new Date(overview.period.start).toLocaleDateString()} →{" "}
           {new Date(overview.period.end).toLocaleDateString()}
         </p>
+
+        <div className="flex items-center gap-md mt-sm">
+          {(["7d", "30d", "month", "all"] as const).map((p) => (
+            <Link
+              key={p}
+              href={p === "30d" ? "/dashboard" : `/dashboard?period=${p}`}
+              className={`text-xs font-mono transition-colors ${
+                period === p
+                  ? "text-ink"
+                  : "text-ink3 hover:text-ink"
+              }`}
+            >
+              {PERIOD_LABELS[p]}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Top-line metrics */}

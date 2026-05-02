@@ -33,6 +33,11 @@ import { IconListScene } from "../presets/editorial-bold/IconListScene";
 import { NumberedDiagramScene } from "../presets/editorial-bold/NumberedDiagramScene";
 import { EditorialOpenerScene } from "../presets/editorial-bold/EditorialOpenerScene";
 import { EditorialClosingScene } from "../presets/editorial-bold/EditorialClosingScene";
+// Phase 3 — structural variety scenes
+import { PhoneMockupScene } from "../presets/editorial-bold/PhoneMockupScene";
+import { MetricTileGridScene } from "../presets/editorial-bold/MetricTileGridScene";
+import { ChatThreadScene } from "../presets/editorial-bold/ChatThreadScene";
+import { TerminalScene } from "../presets/editorial-bold/TerminalScene";
 import { GrainOverlay } from "../primitives/GrainOverlay";
 import { WipeReveal } from "../transitions/WipeReveal";
 import { ColorFlash } from "../transitions/ColorFlash";
@@ -136,6 +141,23 @@ const SceneSwitch: React.FC<{
     case "editorial-closer":
       return (
         <EditorialClosingScene tokens={tokens} scene={scene} design={design} />
+      );
+    // ── Phase 3 — structural variety ─────────────────────────────
+    case "phone-mockup":
+      return (
+        <PhoneMockupScene tokens={tokens} scene={scene} design={design} />
+      );
+    case "metric-tile-grid":
+      return (
+        <MetricTileGridScene tokens={tokens} scene={scene} design={design} />
+      );
+    case "chat-thread":
+      return (
+        <ChatThreadScene tokens={tokens} scene={scene} design={design} />
+      );
+    case "terminal":
+      return (
+        <TerminalScene tokens={tokens} scene={scene} design={design} />
       );
     default:
       // Unknown scene type — render an empty frame rather than crashing.

@@ -296,6 +296,10 @@ export type {
   NumberedDiagramShape,
   EditorialOpenerShape,
   EditorialClosingShape,
+  PhoneMockupShape,
+  MetricTileGridShape,
+  ChatThreadShape,
+  TerminalShape,
 } from "./presets/types";
 
 import type {
@@ -304,6 +308,10 @@ import type {
   NumberedDiagramShape,
   EditorialOpenerShape,
   EditorialClosingShape,
+  PhoneMockupShape,
+  MetricTileGridShape,
+  ChatThreadShape,
+  TerminalShape,
 } from "./presets/types";
 
 export type Scene =
@@ -321,7 +329,12 @@ export type Scene =
   | IconListShape
   | NumberedDiagramShape
   | EditorialOpenerShape
-  | EditorialClosingShape;
+  | EditorialClosingShape
+  // structural variety scenes (Phase 3)
+  | PhoneMockupShape
+  | MetricTileGridShape
+  | ChatThreadShape
+  | TerminalShape;
 
 // The whole script. Persisted on ContentDraft.motion (alongside the
 // older single-template `MotionDirective` for backward compat — both

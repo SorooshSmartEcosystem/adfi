@@ -239,6 +239,66 @@ const EditorialClosingSchema = z.object({
   duration: z.number().min(2).max(4),
 });
 
+// ── Phase 3 — structural variety scenes ─────────────────────────
+
+const PhoneMockupSchema = z.object({
+  type: z.literal("phone-mockup"),
+  kind: z.enum(["message", "notification", "feed"]),
+  body: trim(180),
+  author: trimOpt(40).optional(),
+  caption: trimOpt(120).optional(),
+  duration: z.number().min(3).max(7),
+});
+
+const MetricTileGridSchema = z.object({
+  type: z.literal("metric-tile-grid"),
+  title: trimOpt(80).optional(),
+  tiles: z
+    .array(
+      z.object({
+        label: trim(40),
+        value: z.union([z.number(), z.string()]),
+        prefix: trimOpt(8).optional(),
+        suffix: trimOpt(8).optional(),
+        delta: trimOpt(20).optional(),
+      }),
+    )
+    .min(2)
+    .max(4),
+  duration: z.number().min(3).max(7),
+});
+
+const ChatThreadSchema = z.object({
+  type: z.literal("chat-thread"),
+  title: trimOpt(60).optional(),
+  messages: z
+    .array(
+      z.object({
+        sender: z.enum(["you", "them"]),
+        text: trim(200),
+      }),
+    )
+    .min(2)
+    .max(4),
+  duration: z.number().min(4).max(8),
+});
+
+const TerminalSchema = z.object({
+  type: z.literal("terminal"),
+  title: trimOpt(60).optional(),
+  prompt: trimOpt(4).optional(),
+  lines: z
+    .array(
+      z.object({
+        text: trim(140),
+        kind: z.enum(["command", "output", "error"]),
+      }),
+    )
+    .min(3)
+    .max(8),
+  duration: z.number().min(3).max(8),
+});
+
 // AGENT scene schema — editorial-bold scenes only. Anthropic's
 // structured output has a 24-optional-parameter cap; including the
 // 9 legacy scenes pushes us to 27. Keeping the agent schema small
@@ -258,6 +318,11 @@ const SceneSchema = z.discriminatedUnion("type", [
   IconListSchema,
   NumberedDiagramSchema,
   EditorialClosingSchema,
+  // structural variety (Phase 3)
+  PhoneMockupSchema,
+  MetricTileGridSchema,
+  ChatThreadSchema,
+  TerminalSchema,
 ]);
 
 
@@ -385,6 +450,69 @@ back-compat with old persisted scripts.
     - cta: optional CTA pill. ≤80 chars.
     - duration: 2-3s.
 
+==============================================================
+STRUCTURAL VARIETY SCENES — USE THESE CONSTANTLY
+==============================================================
+
+Don't make every reel five text scenes in a row. The 4 scenes below
+are STRUCTURAL — they look fundamentally different from text-only
+scenes and MUST appear in most reels. A 5-scene reel should usually
+contain at least ONE structural scene, often two.
+
+Pick by content type:
+
+6. phone-mockup — Show content happening on a phone. Use when the
+   brief implies a customer message, a product feature, a posted
+   update, or a notification.
+   { type: "phone-mockup", kind, body, author?, caption?, duration }
+   - kind: "message" | "notification" | "feed"
+     * "message": single chat bubble appearing — quote a customer
+       reaction, a DM, an inbound question
+     * "notification": phone notification banner — alerts, updates,
+       "new signup", launches
+     * "feed": single feed post tile — show what a post looks like
+   - body: the content displayed inside the phone (≤180 chars)
+   - author: sender name or app name. Default "you"
+   - caption: optional headline above the phone
+   - duration: 4-6s.
+
+7. metric-tile-grid — KPI dashboard with 2-4 tiles. Use when the
+   brief has multiple comparable numbers ("we hit X traders, Y
+   volume, Z markets") or "by-the-numbers" content.
+   { type: "metric-tile-grid", title?, tiles: [{label, value, prefix?, suffix?, delta?}], duration }
+   - 2-4 tiles. Each: label, value (numeric counts up), optional
+     prefix/suffix (units only — "$", "%", "k"), optional delta
+     ("+12%" or "-3%" — renderer colors based on sign).
+   - title: optional uppercase header.
+   - duration: 4-6s.
+
+8. chat-thread — Fake messenger thread with 2-4 alternating bubbles
+   between "you" and "them". Use for testimonials, customer
+   questions, support exchanges, or conversational explainers.
+   { type: "chat-thread", title?, messages: [{sender: "you"|"them", text}], duration }
+   - 2-4 messages. Bubbles type in sequentially with typing
+     indicator first.
+   - title: optional header above the thread.
+   - duration: 5-7s.
+
+9. terminal — Black terminal window with monospace text typing in
+   line by line. Use for crypto / dev / SaaS / fintech content where
+   "we shipped this" or "look at the data" is the message.
+   { type: "terminal", title?, prompt?, lines: [{text, kind: "command"|"output"|"error"}], duration }
+   - 3-8 lines. Mix command + output for realism.
+   - prompt: "$" by default, ">" for PowerShell-style.
+   - duration: 4-7s.
+
+Picking rules:
+- Crypto / fintech / SaaS / dev brand → strongly prefer
+  terminal + metric-tile-grid; sprinkle phone-mockup sparingly.
+- Coach / wellness / family brand → prefer chat-thread (testimonials)
+  and phone-mockup (kind: "message"); avoid terminal.
+- Renovation / luxury / craft brand → prefer phone-mockup
+  (kind: "feed") for "post a photo" content; avoid terminal.
+- ANY brand celebrating a milestone → metric-tile-grid is great.
+- ANY brand quoting a customer → chat-thread.
+
 Editorial-bold composition arc:
   scene 1: editorial-opener  (mark + spotlight + headline)
   scenes 2..N-1: bold-statement, icon-list, numbered-diagram, or any
@@ -433,8 +561,10 @@ Every reel follows this 4–6 scene arc:
   [editorial-opener → 2-4 body scenes → editorial-closer]
 
 Body scenes are picked from: bold-statement, icon-list,
-numbered-diagram. Mix at least two scene types when possible — back-
-to-back same-type scenes read as repetitive.
+numbered-diagram, phone-mockup, metric-tile-grid, chat-thread,
+terminal. **At LEAST one body scene MUST be a structural scene
+(phone-mockup / metric-tile-grid / chat-thread / terminal)** — back-
+to-back text scenes read as a slide deck.
 
 A good 18-22s script:
   editorial-opener  → bold-statement  → bold-statement  →

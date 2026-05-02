@@ -84,6 +84,63 @@ export type EditorialClosingShape = {
   duration: number;
 };
 
+// Phone mockup — vertical phone frame with one of three "kinds" of
+// content animating inside.
+export type PhoneMockupShape = {
+  type: "phone-mockup";
+  kind: "message" | "notification" | "feed";
+  // The content that types/displays inside the phone screen.
+  body: string;
+  // Author / sender / app name. Optional. Default "you" or "App".
+  author?: string;
+  // Optional caption above the phone.
+  caption?: string;
+  duration: number;
+};
+
+// KPI tile grid — 2-4 tiles in a 1- or 2-column grid.
+export type MetricTileGridShape = {
+  type: "metric-tile-grid";
+  title?: string;
+  tiles: Array<{
+    label: string;
+    value: number | string;
+    prefix?: string;
+    suffix?: string;
+    // Optional delta. Renderer reads first character: "+" → accent
+    // color, "-" → urgent red, otherwise muted.
+    delta?: string;
+  }>;
+  duration: number;
+};
+
+// Chat thread — 2-4 alternating messages between "you" and "them".
+export type ChatThreadShape = {
+  type: "chat-thread";
+  title?: string;
+  messages: Array<{
+    sender: "you" | "them";
+    text: string;
+  }>;
+  duration: number;
+};
+
+// Terminal — fake monospace terminal with lines typing in.
+export type TerminalShape = {
+  type: "terminal";
+  title?: string;
+  // Default "$". Use ">" for PowerShell-style.
+  prompt?: string;
+  lines: Array<{
+    text: string;
+    // "command" → prompt-prefixed, ink color
+    // "output" → no prefix, muted color
+    // "error" → no prefix, red color
+    kind: "command" | "output" | "error";
+  }>;
+  duration: number;
+};
+
 export type Preset = {
   name: PresetName;
   // Human-readable description for prompt + docs.

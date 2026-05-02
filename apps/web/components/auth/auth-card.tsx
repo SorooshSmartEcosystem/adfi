@@ -29,6 +29,8 @@ function detectKind(value: string): "email" | "phone" | "invalid" {
 
 export function AuthCard({ mode }: { mode: Mode }) {
   const [input, setInput] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -46,6 +48,26 @@ export function AuthCard({ mode }: { mode: Mode }) {
     const supabase = createBrowserClient();
     const nextParam = mode === "signup" ? "?next=/onboarding" : "";
     const emailRedirectTo = `${window.location.origin}/auth/callback${nextParam}`;
+
+    // Password fallback — used by the Meta App Review test account
+    // (passwordless via magic link doesn't fit a reviewer's workflow
+    // since they can't open our Gmail). When the user explicitly opens
+    // the password field and types one in, we route through
+    // signInWithPassword instead of OTP.
+    if (kind === "email" && showPassword && password) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: input.trim(),
+        password,
+      });
+      if (error) {
+        setErrorMessage(error.message);
+        setStatus("error");
+      } else {
+        // Hard nav so middleware sees the new session cookie.
+        window.location.href = "/dashboard";
+      }
+      return;
+    }
 
     const { error } =
       kind === "email"
@@ -151,14 +173,46 @@ export function AuthCard({ mode }: { mode: Mode }) {
           disabled={status === "sending"}
         />
 
+        {showPassword ? (
+          <input
+            id="auth-password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="px-md py-[12px] bg-bg border-hairline border-border rounded-md text-ink focus:outline-none focus:border-ink mb-md"
+            disabled={status === "sending"}
+          />
+        ) : null}
+
         <button
           type="submit"
-          disabled={status === "sending" || !input}
+          disabled={status === "sending" || !input || (showPassword && !password)}
           className="w-full bg-ink text-white py-[13px] rounded-full text-md font-medium disabled:opacity-40"
         >
-          {status === "sending" ? "one second..." : submitLabel}
+          {status === "sending"
+            ? "one second..."
+            : showPassword
+              ? "sign in"
+              : submitLabel}
         </button>
       </form>
+
+      {/* Quiet password fallback. Used by Meta App Review reviewers
+          (and anyone else who explicitly wants password auth). Hidden
+          by default so the magic-link path stays the obvious one. */}
+      {input.includes("@") ? (
+        <button
+          type="button"
+          onClick={() => setShowPassword((v) => !v)}
+          className="text-xs text-ink4 hover:text-ink2 mt-md block mx-auto"
+        >
+          {showPassword
+            ? "use magic link instead"
+            : "sign in with password"}
+        </button>
+      ) : null}
 
       {status === "error" && errorMessage ? (
         <p className="text-sm text-urgent font-mono mt-md text-center" role="alert">

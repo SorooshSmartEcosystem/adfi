@@ -225,5 +225,6 @@ function resolveDesign(d?: VideoDesign): Required<VideoDesign> {
     hookLabel: d?.hookLabel ?? "THIS WEEK",
     metaLabel: d?.metaLabel ?? "THIS WEEK'S STORY",
     closerLabel: d?.closerLabel ?? "YOUR WEEK",
+    mood: d?.mood ?? "confident",
   };
 }

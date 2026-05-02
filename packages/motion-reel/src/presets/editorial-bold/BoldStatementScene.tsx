@@ -26,6 +26,8 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { fitText } from "../../motion/fitText";
+import { brandSignature } from "../../motion/brandSignature";
+import { getMoodConfig, adjustSaturation } from "../../motion/mood";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { BoldStatementShape as BaseShape } from "../types";
 
@@ -54,17 +56,28 @@ export const BoldStatementScene: React.FC<Props> = ({
   sceneIndex,
 }) => {
   const frame = useCurrentFrame();
-  const easing = paceEasing(design.pace);
-  const stagger = paceStaggerFrames(design.pace);
-  const accent = accentColor(design.accent, tokens);
+  const baseEasing = paceEasing(design.pace);
+  const baseStagger = paceStaggerFrames(design.pace);
+  const mood = getMoodConfig(design.mood);
+  const sig = brandSignature(tokens.businessName);
 
-  // editorial-bold ALWAYS uses white background regardless of style.
-  const bg = "#FFFFFF";
-  const ink = "#0F0F0F";
-  const inkLight = "#5A5A5A";
+  // Mood adjusts accent saturation + stagger pacing.
+  const rawAccent = accentColor(design.accent, tokens);
+  const accent = adjustSaturation(rawAccent, mood.accentSaturation);
+  const stagger = Math.round(baseStagger * mood.paceFactor);
+  const easing = baseEasing;
 
-  // Pick layout variant — agent override wins, otherwise rotate by
-  // scene index (or by hero-hash if no index passed).
+  // BrandKit-aware backgrounds. Two brands with different palettes
+  // now actually look different. Falls back to editorial-bold's
+  // white-on-black defaults only when BrandKit doesn't supply a
+  // value.
+  const bg = mood.bgTint || tokens.bg || "#FFFFFF";
+  const ink = tokens.ink || "#0F0F0F";
+  const inkLight = tokens.ink3 || "#5A5A5A";
+
+  // Layout rotation seeded by brand signature so two brands cycle
+  // variants in different orders. Same brand always renders the
+  // same scene the same way (deterministic).
   const variants: NonNullable<BoldStatementShape["layout"]>[] = [
     "centered",
     "left-anchored",
@@ -73,7 +86,10 @@ export const BoldStatementScene: React.FC<Props> = ({
   const idx =
     sceneIndex ??
     [...scene.hero].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-  const layout = scene.layout ?? variants[idx % variants.length] ?? "centered";
+  const layout =
+    scene.layout ??
+    variants[(idx + sig.seed) % variants.length] ??
+    "centered";
 
   // Decide which word in `hero` is the emphasis. Default: last word.
   const heroLines = scene.hero.split(/\n/);
@@ -212,8 +228,14 @@ export const BoldStatementScene: React.FC<Props> = ({
         <div
           style={{
             fontSize: heroFontSize,
-            fontWeight: 800,
-            letterSpacing: "-0.04em",
+            // Mood drives weight; signature flavor adjusts tracking.
+            fontWeight: mood.displayWeight,
+            letterSpacing:
+              sig.typographyFlavor === "tight"
+                ? "-0.05em"
+                : sig.typographyFlavor === "loose"
+                  ? "-0.02em"
+                  : "-0.04em",
             lineHeight: 0.95,
             color: ink,
             textAlign: heroAlign,
@@ -248,10 +270,18 @@ export const BoldStatementScene: React.FC<Props> = ({
             // animation budget where the eye is meant to land.
             if (isEmphasis) {
               const letters = [...token];
+              const fontStyle =
+                mood.emphasisItalic ||
+                sig.typographyFlavor === "editorial"
+                  ? ("italic" as const)
+                  : ("normal" as const);
               return (
-                <span key={i} style={{ display: "inline-block" }}>
+                <span
+                  key={i}
+                  style={{ display: "inline-block", fontStyle }}
+                >
                   {letters.map((letter, li) => {
-                    const letterStart = start + li * 1.2;
+                    const letterStart = start + li * mood.letterStagger;
                     const opacity = interpolate(
                       frame,
                       [letterStart, letterStart + stagger * 0.9],

@@ -19,6 +19,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { fitText } from "../../motion/fitText";
+import { getMoodConfig, adjustSaturation } from "../../motion/mood";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { NumberedDiagramShape } from "../types";
 
@@ -36,13 +37,18 @@ export const NumberedDiagramScene: React.FC<Props> = ({
   design,
 }) => {
   const frame = useCurrentFrame();
-  const easing = paceEasing(design.pace);
-  const stagger = paceStaggerFrames(design.pace);
-  const accent = accentColor(design.accent, tokens);
+  const baseEasing = paceEasing(design.pace);
+  const baseStagger = paceStaggerFrames(design.pace);
+  const mood = getMoodConfig(design.mood);
+  const easing = baseEasing;
+  const stagger = Math.round(baseStagger * mood.paceFactor);
 
-  const bg = "#FFFFFF";
-  const ink = "#0F0F0F";
-  const inkLight = "#5A5A5A";
+  const rawAccent = accentColor(design.accent, tokens);
+  const accent = adjustSaturation(rawAccent, mood.accentSaturation);
+
+  const bg = mood.bgTint || tokens.bg || "#FFFFFF";
+  const ink = tokens.ink || "#0F0F0F";
+  const inkLight = tokens.ink3 || "#5A5A5A";
 
   const callouts = scene.callouts.slice(0, 3);
   const titleOpacity = interpolate(frame, [4, 4 + stagger], [0, 1], {

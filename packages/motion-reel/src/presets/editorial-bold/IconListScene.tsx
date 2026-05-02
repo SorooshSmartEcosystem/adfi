@@ -20,6 +20,7 @@ import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { Icon } from "../../primitives/Icon";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { fitText } from "../../motion/fitText";
+import { getMoodConfig, adjustSaturation } from "../../motion/mood";
 import { isIconName, type IconName } from "../../icons";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { IconListShape } from "../types";
@@ -34,13 +35,18 @@ type Props = {
 
 export const IconListScene: React.FC<Props> = ({ tokens, scene, design }) => {
   const frame = useCurrentFrame();
-  const easing = paceEasing(design.pace);
-  const stagger = paceStaggerFrames(design.pace);
-  const accent = accentColor(design.accent, tokens);
+  const baseEasing = paceEasing(design.pace);
+  const baseStagger = paceStaggerFrames(design.pace);
+  const mood = getMoodConfig(design.mood);
+  const easing = baseEasing;
+  const stagger = Math.round(baseStagger * mood.paceFactor);
 
-  const bg = "#FFFFFF";
-  const ink = "#0F0F0F";
-  const inkLight = "#5A5A5A";
+  const rawAccent = accentColor(design.accent, tokens);
+  const accent = adjustSaturation(rawAccent, mood.accentSaturation);
+
+  const bg = mood.bgTint || tokens.bg || "#FFFFFF";
+  const ink = tokens.ink || "#0F0F0F";
+  const inkLight = tokens.ink3 || "#5A5A5A";
 
   const items = scene.items.slice(0, 6);
   const titleOpacity = interpolate(frame, [4, 4 + stagger], [0, 1], {

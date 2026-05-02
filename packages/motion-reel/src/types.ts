@@ -138,6 +138,22 @@ export type VideoDesign = {
   hookLabel?: string;
   metaLabel?: string;
   closerLabel?: string;
+  // Per-post mood. Agent picks based on brief + brand voice:
+  //   confident  — default. heavy display, snappy reveals
+  //   calm       — slower stagger, lighter weight, restrained accent
+  //   energetic  — fast pace, full-saturation accent, bouncy easing
+  //   urgent     — fast pace, urgent-red accent flashes, sharper cuts
+  //   contemplative — long holds, italic accents, muted palette
+  //   celebratory — sparkle motifs, full-saturation accent, playful pace
+  // Renderer reads this to modulate pace, accent saturation,
+  // transition picks, and typography choices per scene.
+  mood?:
+    | "confident"
+    | "calm"
+    | "energetic"
+    | "urgent"
+    | "contemplative"
+    | "celebratory";
 };
 
 // Discriminator on the persisted `motion` field. Echo writes this to

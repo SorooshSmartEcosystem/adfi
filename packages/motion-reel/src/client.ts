@@ -29,6 +29,14 @@ export {
   paceStaggerFrames,
   type Pace,
 } from "./motion/pace";
+export { brandSignature, type BrandSignature } from "./motion/brandSignature";
+export {
+  getMoodConfig,
+  adjustSaturation,
+  MOOD_CONFIGS,
+  type Mood,
+  type MoodConfig,
+} from "./motion/mood";
 
 // Icon system + data-bar scene (Phase 1.5)
 export { Icon } from "./primitives/Icon";

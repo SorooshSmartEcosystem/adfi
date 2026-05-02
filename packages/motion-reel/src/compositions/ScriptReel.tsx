@@ -201,6 +201,7 @@ function resolveDesign(d?: VideoDesign): Required<VideoDesign> {
     hookLabel: d?.hookLabel ?? "BIG IDEA",
     metaLabel: d?.metaLabel ?? "WHY IT MATTERS",
     closerLabel: d?.closerLabel ?? "MORE COMING",
+    mood: d?.mood ?? "confident",
   };
 }
 

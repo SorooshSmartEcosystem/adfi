@@ -209,6 +209,16 @@ const VideoDesignSchema = z.object({
   hookLabel: longish(60),
   metaLabel: longish(60),
   closerLabel: longish(60),
+  mood: z
+    .enum([
+      "confident",
+      "calm",
+      "energetic",
+      "urgent",
+      "contemplative",
+      "celebratory",
+    ])
+    .optional(),
 });
 
 const RouterPresetNameZ = z.enum([

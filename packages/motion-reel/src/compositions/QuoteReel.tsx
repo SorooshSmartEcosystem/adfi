@@ -198,5 +198,6 @@ function resolveDesign(d?: VideoDesign): Required<VideoDesign> {
     hookLabel: d?.hookLabel ?? "WROTE IN YOUR VOICE",
     metaLabel: d?.metaLabel ?? "POST PREVIEW · INSTAGRAM",
     closerLabel: d?.closerLabel ?? "PUBLISHED",
+    mood: d?.mood ?? "confident",
   };
 }

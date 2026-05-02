@@ -269,6 +269,17 @@ const VideoDesignSchema = z.object({
   hookLabel: trim(60),
   metaLabel: trim(60),
   closerLabel: trim(60),
+  // Per-post mood. Drives renderer's typography weight, accent
+  // saturation, pace multiplier, and italic emphasis. Required so
+  // every script gets a deliberate energy choice.
+  mood: z.enum([
+    "confident",
+    "calm",
+    "energetic",
+    "urgent",
+    "contemplative",
+    "celebratory",
+  ]),
 });
 
 const PresetNameZ = z.enum([
@@ -462,6 +473,30 @@ Pace: slow | medium | fast
   - slow: meditative quotes, wellness brands
   - medium: most posts (default)
   - fast: stat reels, sports/youth, sales/launches
+
+Mood (REQUIRED): pick ONE per script. Mood drives the renderer's
+typography weight, accent saturation, animation pace, and italic
+treatment. Two posts from the same brand should have DIFFERENT moods
+when the briefs are different. Pick by reading the brief AND the
+brand voice:
+
+  confident — default. Founder takes, opinion pieces, statements.
+              Heavy display, snappy reveals.
+  calm      — wellness, family, soft brands. Slower stagger, lighter
+              weight, restrained accent.
+  energetic — launches, drops, "we shipped X", celebrations of work.
+              Fast pace, full-saturation accent, bouncy easing.
+  urgent    — alerts, urgent CTAs, "stop doing X", warnings,
+              deadline-driven posts. Fast pace, sharper cuts,
+              high-saturation accent.
+  contemplative — deep thoughts, philosophical takes, quote-driven
+                  posts. Long holds, italic accent, muted palette.
+  celebratory — milestones, anniversaries, achievements, thank-yous.
+                Sparkle motifs, full-saturation accent, playful pace.
+
+Pick mood by the brief's energy first, brand voice second. A pottery
+studio with warm voice posting "we hit 200 sales" is celebratory,
+NOT calm — even though the brand is calm overall.
 
 Mono labels (uppercase). Match brand voice:
   - statusLabel: top-of-screen status. "TODAY'S NOTE",

@@ -42,13 +42,28 @@ const StatSceneSchema = z.object({
   duration: z.number().min(2).max(5),
 });
 
+// Contrast values are visually big — the renderer fits them inside a
+// half-screen card. 40 chars is the practical ceiling before they
+// wrap awkwardly. Haiku occasionally emits 22-30 char values like
+// "$3,500/month" which we'd rather render slightly truncated than
+// reject outright; the .transform trims anything past the cap.
+const trim = (max: number) =>
+  z
+    .string()
+    .min(1)
+    .transform((s) => (s.length > max ? s.slice(0, max) : s));
+
 const ContrastSceneSchema = z.object({
   type: z.literal("contrast"),
-  leftLabel: z.string().min(2).max(40),
-  leftValue: z.string().min(1).max(20),
-  rightLabel: z.string().min(2).max(40),
-  rightValue: z.string().min(1).max(20),
-  caption: z.string().max(140).optional(),
+  leftLabel: trim(40),
+  leftValue: trim(40),
+  rightLabel: trim(40),
+  rightValue: trim(40),
+  caption: z
+    .string()
+    .max(200)
+    .transform((s) => (s.length > 160 ? s.slice(0, 160) : s))
+    .optional(),
   duration: z.number().min(2).max(5),
 });
 
@@ -156,8 +171,9 @@ SCENE TYPES
    { type: "contrast", leftLabel, leftValue, rightLabel, rightValue,
      caption?, duration }
    - left side is the focal/positive; right side is the comparison.
-   - values are short strings (≤20 chars). e.g. "51%" vs "20%".
-   - caption: optional one-liner under both sides ≤140 chars.
+   - values are short strings (≤40 chars). Punchier is better — "51%"
+     beats "fifty-one percent". Single phrase, no full sentences.
+   - caption: optional one-liner under both sides ≤160 chars.
 
 4. quote — Pull quote with word-by-word reveal.
    { type: "quote", quote, emphasis?, attribution?, duration }

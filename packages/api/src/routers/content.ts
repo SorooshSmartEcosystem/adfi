@@ -34,16 +34,30 @@ function inferIntentFromHint(hint?: string): {
   let format: ContentFormat | undefined;
   let platform: Platform | undefined;
 
-  // Format keywords
-  if (/\b(reel|short|tiktok|video clip)\b/.test(t) || /ریل|ویدیو/.test(hint)) {
+  // Format keywords. Order matters — match specific formats before
+  // the catch-all "post". "video"/"clip" route to a reel since that's
+  // the only short-form motion format in the product.
+  if (
+    /\b(reel|reels|short|shorts|tiktok|video|clip|movie)\b/.test(t) ||
+    /ریل|ویدیو|کلیپ/.test(hint)
+  ) {
     format = ContentFormat.REEL_SCRIPT;
-  } else if (/\bcarousel\b|\bswipe\b|اسلاید|کروسل/.test(hint)) {
+  } else if (
+    /\b(carousel|swipe|deck|slideshow|slide deck)\b/.test(t) ||
+    /اسلاید|کروسل/.test(hint)
+  ) {
     format = ContentFormat.CAROUSEL;
-  } else if (/\bnewsletter\b|\bemail\b|خبرنامه|ایمیل/.test(hint)) {
+  } else if (
+    /\b(newsletter|mailer|broadcast|email blast)\b/.test(t) ||
+    /خبرنامه|ایمیل/.test(hint)
+  ) {
     format = ContentFormat.EMAIL_NEWSLETTER;
-  } else if (/\bstory\b|\bstories\b|استوری/.test(hint)) {
+  } else if (/\b(story|stories|insta story)\b/.test(t) || /استوری/.test(hint)) {
     format = ContentFormat.STORY_SEQUENCE;
-  } else if (/\bpost\b|\bsingle post\b|پست/.test(hint)) {
+  } else if (
+    /\b(post|single post|caption|tweet|status)\b/.test(t) ||
+    /پست/.test(hint)
+  ) {
     format = ContentFormat.SINGLE_POST;
   }
 

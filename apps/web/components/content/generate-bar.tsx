@@ -40,6 +40,7 @@ const PLACEHOLDERS = [
 
 export function GenerateBar() {
   const router = useRouter();
+  const utils = trpc.useUtils();
   const [text, setText] = useState("");
   const [format, setFormat] = useState<string>("auto");
   const [platform, setPlatform] = useState<string>("auto");
@@ -56,6 +57,11 @@ export function GenerateBar() {
 
   const generate = trpc.content.generate.useMutation({
     onSuccess: () => {
+      // Invalidate the drafts feed so the new post appears immediately
+      // — router.refresh alone only re-runs server components, the
+      // client-side tRPC cache for listDrafts has its own staleTime
+      // and won't refetch unless explicitly told to.
+      utils.content.listDrafts.invalidate();
       router.refresh();
       setText("");
     },

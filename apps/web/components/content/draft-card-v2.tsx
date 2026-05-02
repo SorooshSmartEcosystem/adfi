@@ -418,28 +418,26 @@ export function DraftCardV2({
             }}
           />
         </div>
+        {/* Video work-in-progress overlay — blurs the mockup while
+            the script is being drafted (Haiku call, 5–15s) or while
+            Lambda is rendering the mp4. Sits inside the mockup
+            container so it scopes to that one card. */}
+        {draftScript.isPending || isVideoRendering ? (
+          <div className="absolute inset-0 z-30 flex items-center justify-center backdrop-blur-sm bg-bg/55">
+            <div className="flex flex-col items-center gap-sm">
+              <OrbLoader tone="alive" size="md" stages={STAGES_VIDEO_SCRIPT} />
+              <span className="font-mono text-[11px] text-ink2 tracking-[0.16em] uppercase">
+                {isVideoRendering
+                  ? "rendering video"
+                  : "sketching video script"}
+              </span>
+            </div>
+          </div>
+        ) : null}
         {showMenu ? (
           <div className="absolute right-2 top-12 z-50">{menuContent}</div>
         ) : null}
       </div>
-
-      {/* Script-drafting loader — fires when user taps "make video".
-          Without this the user clicks and sees nothing for 5–15s
-          (Haiku call) and assumes the button is broken. */}
-      {draftScript.isPending ? (
-        <div className="w-full mt-sm flex items-center justify-center gap-sm">
-          <OrbLoader tone="alive" size="sm" stages={STAGES_VIDEO_SCRIPT} />
-          <span className="font-mono text-[11px] text-ink3">
-            sketching video script…
-          </span>
-        </div>
-      ) : null}
-
-      {isVideoRendering ? (
-        <div className="w-full mt-sm flex items-center justify-center">
-          <OrbLoader tone="alive" size="sm" stages={STAGES_VIDEO_SCRIPT} />
-        </div>
-      ) : null}
 
       {(approve.error || reject.error || regenerate.error || draftScript.error) ? (
         <div className="w-full mt-xs font-mono text-[11px] text-urgent text-center">

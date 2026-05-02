@@ -435,6 +435,14 @@ export function DraftCardV2({
             menu={{
               onToggle: () => setShowMenu((v) => !v),
             }}
+            onCreateVideo={
+              format === "REEL_SCRIPT"
+                ? () => {
+                    draftScript.mutate({ brief: textBrief(normalized) });
+                  }
+                : undefined
+            }
+            videoBusy={draftScript.isPending || isVideoRendering}
           />
         </div>
         {/* Video work-in-progress overlay — blurs the mockup while

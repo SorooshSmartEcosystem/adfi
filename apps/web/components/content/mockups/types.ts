@@ -76,6 +76,14 @@ export type MockupProps = {
   mp4Url?: string | null;
   // Optional menu — when present, the platform's own ⋯ button opens it.
   menu?: MockupMenu;
+  // Reel mockup only: callback to create the video when no mp4Url
+  // exists. Wires the empty-state placeholder into a real button so
+  // the user can tap once to render — no menu hunt required.
+  onCreateVideo?: () => void;
+  // True while the video script is being drafted or rendered. The
+  // reel mockup uses this to show "creating video…" on the placeholder
+  // so the user gets feedback their tap landed.
+  videoBusy?: boolean;
 };
 
 export function pickPrimaryText(content: DraftContent): string {

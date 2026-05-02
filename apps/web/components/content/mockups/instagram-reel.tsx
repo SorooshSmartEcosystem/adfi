@@ -9,7 +9,14 @@ import { useRef, useState } from "react";
 import type { MockupProps } from "./types";
 import { pickPrimaryText } from "./types";
 
-export function InstagramReelMockup({ business, content, mp4Url, menu }: MockupProps) {
+export function InstagramReelMockup({
+  business,
+  content,
+  mp4Url,
+  menu,
+  onCreateVideo,
+  videoBusy,
+}: MockupProps) {
   const handle = business.handle ?? business.name.toLowerCase().replace(/\s+/g, "_");
   const caption = pickPrimaryText(content);
   const tags = content.hashtags ?? [];
@@ -79,21 +86,53 @@ export function InstagramReelMockup({ business, content, mp4Url, menu }: MockupP
           </button>
         </>
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-md text-white/70 px-md text-center">
-          <div className="w-16 h-16 rounded-full border-2 border-white/40 flex items-center justify-center">
-            <div
-              className="w-0 h-0 border-y-[10px] border-y-transparent border-l-[14px] border-l-white/70 ml-1"
-            />
-          </div>
-          <div className="font-mono text-[10px] tracking-[0.2em]">
-            {errored ? "REEL · UNAVAILABLE" : "REEL · NOT RENDERED"}
-          </div>
-          {errored ? (
-            <div className="text-[11px] leading-relaxed text-white/60">
-              this video file is gone — re-render from the ⋯ menu.
-            </div>
+        // Empty state — when there's no mp4 (or it's broken) we make
+        // the whole 9:16 area a single button that triggers video
+        // creation. No more "play button does nothing" confusion.
+        <button
+          type="button"
+          onClick={onCreateVideo}
+          disabled={!onCreateVideo || videoBusy}
+          className="absolute inset-0 flex flex-col items-center justify-center gap-md text-white px-md text-center disabled:cursor-default group"
+          aria-label={videoBusy ? "creating video" : "create video"}
+        >
+          <span
+            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+              videoBusy
+                ? "bg-white/15 border-2 border-white/30 animate-pulse"
+                : onCreateVideo
+                  ? "bg-white/20 border-2 border-white/60 group-hover:bg-white/30 group-hover:scale-105"
+                  : "bg-white/10 border-2 border-white/30"
+            }`}
+          >
+            {videoBusy ? (
+              <span className="font-mono text-[10px] tracking-[0.2em] text-white/85">
+                ⏳
+              </span>
+            ) : (
+              <span className="w-0 h-0 border-y-[12px] border-y-transparent border-l-[18px] border-l-white ml-[3px]" />
+            )}
+          </span>
+          <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-white/85">
+            {videoBusy
+              ? "creating video…"
+              : errored
+                ? "video unavailable"
+                : onCreateVideo
+                  ? "tap to create video"
+                  : "no video yet"}
+          </span>
+          {errored && !videoBusy ? (
+            <span className="text-[11px] leading-relaxed text-white/60 max-w-[240px]">
+              the previous render's gone. tap to make a fresh one.
+            </span>
           ) : null}
-        </div>
+          {!errored && onCreateVideo && !videoBusy ? (
+            <span className="text-[10px] leading-relaxed text-white/55">
+              ~10 seconds · ~1¢
+            </span>
+          ) : null}
+        </button>
       )}
 
       {/* Top gradient overlay */}

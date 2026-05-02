@@ -496,10 +496,21 @@ export async function generateDailyContent(
     },
   });
 
-  // Block on image generation — fire-and-forget gets killed by Vercel
-  // when the serverless function returns. generateImageSafe inside never
-  // throws, so this can't fail the draft.
-  await backfillImagesForDraft(draft.id, userId, platform);
+  // Image backfill is intentionally NOT awaited. Replicate calls run
+  // 30-120s including 429 backoff for multi-image formats (carousels,
+  // reels with 6-8 beats), and blocking the response here means the
+  // user stares at a spinner for that whole window even though the
+  // text draft is already saved. Fluid Compute keeps the function
+  // instance alive long enough for background promises to finish on
+  // typical hardware; if it dies mid-flight the user can re-trigger
+  // by tapping "regenerate images" on the draft. generateImageSafe
+  // never throws so the unhandled-rejection guard is just defensive.
+  void backfillImagesForDraft(draft.id, userId, platform).catch((err) => {
+    console.error(
+      `[echo] background image backfill failed for draft ${draft.id}:`,
+      err,
+    );
+  });
 
   return draft.id;
 }

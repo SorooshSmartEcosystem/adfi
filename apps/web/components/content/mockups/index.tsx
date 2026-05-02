@@ -41,6 +41,8 @@ export function PlatformMockup({
   content,
   mp4Url,
   menu,
+  onCreateVideo,
+  videoBusy,
 }: Props) {
   // Format-driven dispatch first
   if (format === "REEL_SCRIPT") {
@@ -50,6 +52,8 @@ export function PlatformMockup({
         content={content}
         mp4Url={mp4Url}
         menu={menu}
+        onCreateVideo={onCreateVideo}
+        videoBusy={videoBusy}
       />
     );
   }

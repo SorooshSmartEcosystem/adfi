@@ -46,6 +46,16 @@ export function DraftsPanel() {
     {
       staleTime: 30 * 1000,
       refetchOnWindowFocus: false,
+      // Poll every 8s if any draft is still waiting on images. Image
+      // backfill runs in the background after generate returns, so
+      // images flow in over the next 30-90s without us blocking the
+      // response — but the UI needs to refetch to actually see them.
+      // Once everything is settled, polling stops.
+      refetchInterval: (query) => {
+        const items = query.state.data?.items ?? [];
+        const hasPendingImages = items.some(hasMissingImages);
+        return hasPendingImages ? 8000 : false;
+      },
     },
   );
 
@@ -238,6 +248,49 @@ function ToggleBtn({
       <span>{label}</span>
     </button>
   );
+}
+
+// True if a draft is still waiting for at least one image. Used by
+// the auto-poll to know when to stop refetching.
+function hasMissingImages(d: { format?: string | null; content: unknown }): boolean {
+  const c = d.content as Record<string, unknown> | null;
+  if (!c || typeof c !== "object") return false;
+  const fmt = d.format ?? "SINGLE_POST";
+
+  if (fmt === "SINGLE_POST" || fmt === "EMAIL_NEWSLETTER") {
+    const hero = c.heroImage as { url?: string } | undefined;
+    return !hero?.url && Boolean(
+      // Only consider it "pending" if Echo asked for an image
+      // (otherwise text-only drafts would loop forever).
+      (c as { imagePrompt?: string }).imagePrompt ??
+        (c as { heroImagePrompt?: string }).heroImagePrompt,
+    );
+  }
+
+  if (fmt === "CAROUSEL") {
+    const cover = c.coverSlide as { imageUrl?: string; visualDirection?: string } | undefined;
+    if (cover?.visualDirection && !cover.imageUrl) return true;
+    const body = (c.bodySlides as Array<{
+      template?: string;
+      visualDirection?: string;
+      imageUrl?: string;
+    }>) ?? [];
+    return body.some(
+      (s) => s.template === "image_cue" && s.visualDirection && !s.imageUrl,
+    );
+  }
+
+  if (fmt === "REEL_SCRIPT") {
+    const beats = (c.beats as Array<{ bRoll?: string; imageUrl?: string }>) ?? [];
+    return beats.some((b) => b.bRoll && !b.imageUrl);
+  }
+
+  if (fmt === "STORY_SEQUENCE") {
+    const frames = (c.frames as Array<{ visualDirection?: string; imageUrl?: string }>) ?? [];
+    return frames.some((f) => f.visualDirection && !f.imageUrl);
+  }
+
+  return false;
 }
 
 function initialsFor(name: string): string {

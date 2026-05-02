@@ -3,6 +3,7 @@
 // closer beat before the brand stamp.
 
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { fitText } from "../motion/fitText";
 import type { BrandTokens, PunchlineScene as PunchlineShape, VideoDesign } from "../types";
 
 type Props = {
@@ -66,13 +67,21 @@ export const PunchlineScene: React.FC<Props> = ({ tokens, scene, design }) => {
       >
         <div
           style={{
-            fontSize: 88,
+            fontSize: fitText({
+              text: scene.line,
+              maxSize: 96,
+              minSize: 44,
+              advance: 0.55,
+              maxLines: 4,
+            }),
             fontWeight: 600,
             lineHeight: 1.12,
             letterSpacing: "-0.03em",
             color: ink,
             maxWidth: 920,
             textAlign: "left",
+            wordBreak: "break-word",
+            overflowWrap: "anywhere",
           }}
         >
           {parts.map((p, i) =>

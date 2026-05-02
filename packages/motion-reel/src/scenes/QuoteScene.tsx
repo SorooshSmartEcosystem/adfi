@@ -4,6 +4,7 @@
 
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { WordReveal } from "../primitives/WordReveal";
+import { fitText } from "../motion/fitText";
 import type { BrandTokens, QuoteSceneShape, VideoDesign } from "../types";
 
 type Props = {
@@ -76,7 +77,13 @@ export const QuoteScene: React.FC<Props> = ({ tokens, scene, design }) => {
 
         <div
           style={{
-            fontSize: 64,
+            fontSize: fitText({
+              text: scene.quote,
+              maxSize: 72,
+              minSize: 38,
+              advance: 0.55,
+              maxLines: 5,
+            }),
             fontWeight: 500,
             lineHeight: 1.18,
             letterSpacing: "-0.025em",

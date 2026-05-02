@@ -5,6 +5,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { PCMonoLabel } from "../primitives/PCMonoLabel";
 import { paceEasing, paceStaggerFrames } from "../motion/pace";
+import { fitText } from "../motion/fitText";
 import type { BrandTokens, HookScene as HookSceneShape, VideoDesign } from "../types";
 
 type Props = {
@@ -88,7 +89,12 @@ export const HookScene: React.FC<Props> = ({ tokens, scene, design }) => {
 
         <div
           style={{
-            fontSize: 320,
+            fontSize: fitText({
+              text: scene.headline,
+              maxSize: 320,
+              minSize: 96,
+              maxLines: scene.headline.length > 22 ? 3 : 2,
+            }),
             fontWeight: 700,
             letterSpacing: "-0.06em",
             lineHeight: 0.9,
@@ -96,6 +102,9 @@ export const HookScene: React.FC<Props> = ({ tokens, scene, design }) => {
             opacity: headlineOpacity,
             transform: `scale(${headlineScale})`,
             textAlign: "center",
+            wordBreak: "break-word",
+            overflowWrap: "anywhere",
+            maxWidth: "100%",
           }}
         >
           {scene.headline}

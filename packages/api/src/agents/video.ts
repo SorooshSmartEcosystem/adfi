@@ -169,7 +169,16 @@ SCENE TYPES
 2. stat — Single labeled metric with animated counter.
    { type: "stat", value: number|string, prefix?, suffix?, label, duration }
    - value: numeric (animates from 0) or pre-formatted string ("4.2k").
-   - label: uppercase mono caption above. e.g. "PROFITABLE TRADERS".
+   - prefix: a CURRENCY OR UNIT MARK ONLY. Valid: "$", "€", "£", "+",
+     "-", "~". One or two characters max. NOT a description, NOT
+     context. WRONG: "approximately", "into crypto ETPs", "of users".
+   - suffix: a UNIT OR ABBREVIATION MARK ONLY. Valid: "%", "x", "k",
+     "M", "B", "/mo", "ºC", " hrs". 1–4 characters max. NOT a
+     description. WRONG: "into crypto ETPs", "of customers", "users".
+     If the brief needs descriptive context, put it in the LABEL
+     instead, or use a punchline scene.
+   - label: uppercase mono caption above. e.g. "PROFITABLE TRADERS",
+     "WEEKLY ACTIVE USERS", "INTO CRYPTO ETPs".
    - duration: 2-3s.
 
 3. contrast — Two-up A vs B comparison.
@@ -261,6 +270,37 @@ Mono labels (uppercase). Match brand voice:
   - metaLabel: card 2 mono header. "BACKSTORY", "WHY IT MATTERS".
   - closerLabel: closer mono header. "SHARE THIS", "TAG SOMEONE",
     "MORE COMING".
+
+==============================================================
+GROUNDING — DO NOT INVENT FACTS
+==============================================================
+
+You write the SCRIPT, not the data. Every specific number, dollar
+amount, percentage, year, ticker, brand name, and proper noun in your
+output MUST come from the brief. If the brief doesn't contain a
+specific number, do not invent one — restructure the scene to use a
+qualitative claim instead.
+
+WRONG (invented "$46.7B" and "2025" — neither was in the brief):
+  brief: "Crypto ETF inflows are huge"
+  scene: { type: "stat", value: "$46.7B", label: "INTO CRYPTO ETFs IN 2025" }
+
+RIGHT (qualitative — no fabricated number):
+  brief: "Crypto ETF inflows are huge"
+  scene: { type: "punchline", line: "crypto ETFs broke every inflow record this cycle." }
+
+If the brief contains a phrase like "we hit $50K in February", you may
+quote that exact figure verbatim in a stat scene. Otherwise pick a
+hook + punchline + brand-stamp arc with no numbers.
+
+Spelling: copy proper nouns and tickers from the brief verbatim.
+ETFs are "ETFs" not "ETPs". Bitcoin is "Bitcoin" not "BTC" unless the
+brief uses the abbreviation. Brand names match the casing in the
+brief.
+
+Dates: do not invent a year. If the brief is undated, write in
+present tense ("this week", "right now", "today") instead of naming
+a year.
 
 ==============================================================
 VOICE

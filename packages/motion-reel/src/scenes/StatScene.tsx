@@ -6,6 +6,7 @@ import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { PCMonoLabel } from "../primitives/PCMonoLabel";
 import { CounterNumber } from "../primitives/CounterNumber";
 import { paceEasing, paceStaggerFrames } from "../motion/pace";
+import { fitText } from "../motion/fitText";
 import type { BrandTokens, StatSceneShape, VideoDesign } from "../types";
 
 type Props = {
@@ -98,7 +99,20 @@ export const StatScene: React.FC<Props> = ({ tokens, scene, design }) => {
 
         <div
           style={{
-            fontSize: 280,
+            // The agent occasionally crams unit-like text (instead of
+            // a literal "%" or "$") into prefix/suffix, producing
+            // strings like "46.7Binto crypto ETPs". fitText prevents
+            // those long mistakes from blowing the frame apart while
+            // we tighten the prompt server-side.
+            fontSize: fitText({
+              text:
+                String(scene.value) +
+                (scene.prefix ?? "") +
+                (scene.suffix ?? ""),
+              maxSize: 280,
+              minSize: 88,
+              maxLines: 2,
+            }),
             fontWeight: 700,
             letterSpacing: "-0.05em",
             lineHeight: 1,
@@ -110,6 +124,10 @@ export const StatScene: React.FC<Props> = ({ tokens, scene, design }) => {
               [0, 1],
               { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
             ),
+            wordBreak: "break-word",
+            overflowWrap: "anywhere",
+            textAlign: "center",
+            maxWidth: "100%",
           }}
         >
           {isNumeric ? (

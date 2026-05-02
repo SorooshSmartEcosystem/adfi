@@ -46,50 +46,15 @@ const trimOpt = (max: number) =>
     .string()
     .transform((s) => (s.length > max ? s.slice(0, max) : s));
 
-// Curated icon names. Mirrors `motion-reel/src/icons/index.ts`. Kept
-// as a literal union here so the agent's structured-output schema
-// constrains the model to the exact names we ship; an unrecognised
-// name would otherwise fall through to "no icon" silently.
-const IconNameZ = z.enum([
-  "dollar",
-  "percent",
-  "trending-up",
-  "trending-down",
-  "chart-bar",
-  "chart-line",
-  "coin",
-  "wallet",
-  "credit-card",
-  "bank",
-  "rocket",
-  "target",
-  "sparkle",
-  "lightbulb",
-  "alert",
-  "fire",
-  "lightning",
-  "check",
-  "x",
-  "heart",
-  "message",
-  "share",
-  "users",
-  "bookmark",
-  "globe",
-  "clock",
-  "calendar",
-  "mail",
-  "phone",
-  "lock",
-  "shield",
-  "search",
-  "star",
-  "play",
-  "pause",
-  "arrow-right",
-  "arrow-up",
-  "arrow-down",
-]);
+// Icon names — taught in the prompt's ICON LIBRARY section, NOT
+// constrained by the agent's structured-output schema. A 38-value
+// z.enum compiles into a giant grammar tree that, when referenced
+// in 5+ scenes' optional icon/motif fields, blows past Anthropic's
+// grammar-size limit ("compiled grammar is too large"). Storing as
+// a plain trimmed string keeps the grammar small; the renderer's
+// `isIconName()` validates at runtime and falls back to a sensible
+// default for any unrecognised value (so no breakage).
+const IconNameZ = trim(40);
 
 const HookSceneSchema = z.object({
   type: z.literal("hook"),

@@ -6,6 +6,19 @@ Format note: write changes from the user's perspective in plain English. "Users 
 
 ## [Unreleased]
 
+### Added (motion-reel · 2026-05-02 — Phase 2 / preset architecture)
+- **Preset system shipped** — each brand gets its own visual world (palette + type pair + scene catalog + motion language) instead of every reel looking the same.
+- **`editorial-bold` preset complete** — 5 new scenes inspired by founder/business reels (Empire Labs style):
+  - `editorial-opener` — brand motif at top with accent spotlight beam, headline below
+  - `bold-statement` — mixed-weight composition, ONE accent-color punchline word
+  - `icon-list` — 3-6 pillars with circle-iconed entries, optional highlight row
+  - `numbered-diagram` — center diamond + 2-3 numbered callouts with leader lines
+  - `editorial-closer` — same motif from opener (continuity glyph) + business name + CTA pill
+- Visual rules locked: white bg always, ink + 1 accent (no third color), heavy SF Pro Display 800, -0.04em tracking, generous whitespace, mixed-weight type composition.
+- Deterministic preset picker (`pickPreset`) maps industry + brand voice → preset name. Today routes all industries to editorial-bold; branches in place for Phase 3 presets (dashboard-tech, soft-minimal, luxury, studio-craft, documentary) to plug in.
+- Agent prompt updated: editorial-bold catalog is now the preferred default; legacy hook/stat/quote/etc. become fallback-only.
+- Both agent + router schemas validate the new scene shapes; `VideoScript.preset` field added.
+
 ### Added (motion-reel · 2026-05-02 — Phase 1.5)
 - **Icon system + bar chart scene + responsive type.** Reels now render with topical icons (38-icon curated set across finance / growth / alert / social / misc) instead of pure text. Hook scenes show a low-opacity backdrop icon behind the headline; stat scenes show a small accent icon above the label, drawn on with a stroke animation.
 - **New `data-bar` scene type** — animated horizontal bar chart for 2-5 comparable numbers. Replaces stat scenes that used to cram multiple data points into one suffix.

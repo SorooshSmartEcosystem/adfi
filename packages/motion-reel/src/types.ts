@@ -271,6 +271,25 @@ export type BrandStampScene = {
   duration: SceneDurationSeconds;
 };
 
+// Preset-aware scene shapes — pulled from presets/types.ts (a pure
+// .ts module so the API package can resolve them without needing
+// JSX support in its tsconfig).
+export type {
+  BoldStatementShape,
+  IconListShape,
+  NumberedDiagramShape,
+  EditorialOpenerShape,
+  EditorialClosingShape,
+} from "./presets/types";
+
+import type {
+  BoldStatementShape,
+  IconListShape,
+  NumberedDiagramShape,
+  EditorialOpenerShape,
+  EditorialClosingShape,
+} from "./presets/types";
+
 export type Scene =
   | HookScene
   | StatSceneShape
@@ -280,7 +299,13 @@ export type Scene =
   | PunchlineScene
   | ListSceneShape
   | HashtagScene
-  | BrandStampScene;
+  | BrandStampScene
+  // editorial-bold preset
+  | BoldStatementShape
+  | IconListShape
+  | NumberedDiagramShape
+  | EditorialOpenerShape
+  | EditorialClosingShape;
 
 // The whole script. Persisted on ContentDraft.motion (alongside the
 // older single-template `MotionDirective` for backward compat — both
@@ -291,6 +316,19 @@ export type VideoScript = {
   // Inherited per-post design choices. Same shape as before but used
   // for per-scene defaults too.
   design?: VideoDesign;
+  // Optional preset name. Picked by pickPreset() based on the
+  // brand's industry + voice; user can override per video. When set,
+  // the renderer applies preset-level visual treatment (e.g. forces
+  // white background for editorial-bold) on top of the scene
+  // components themselves.
+  preset?:
+    | "editorial-bold"
+    | "dashboard-tech"
+    | "soft-minimal"
+    | "luxury"
+    | "studio-craft"
+    | "documentary"
+    | "generic";
 };
 
 // Output frame size. Reels and TikToks are vertical-first; we target

@@ -180,6 +180,65 @@ const BrandStampSceneSchema = z.object({
   duration: z.number().min(2).max(4),
 });
 
+// ─────────────────────────────────────────────────────────────────
+// editorial-bold preset scenes (Phase 2)
+// ─────────────────────────────────────────────────────────────────
+
+const BoldStatementSchema = z.object({
+  type: z.literal("bold-statement"),
+  lead: trimOpt(80).optional(),
+  hero: trim(120),
+  emphasis: trimOpt(40).optional(),
+  trail: trimOpt(80).optional(),
+  duration: z.number().min(2).max(6),
+});
+
+const IconListSchema = z.object({
+  type: z.literal("icon-list"),
+  title: trimOpt(80).optional(),
+  items: z
+    .array(
+      z.object({
+        icon: IconNameZ,
+        label: trim(40),
+      }),
+    )
+    .min(3)
+    .max(6),
+  highlightIndex: z.number().int().min(0).max(5).optional(),
+  duration: z.number().min(3).max(7),
+});
+
+const NumberedDiagramSchema = z.object({
+  type: z.literal("numbered-diagram"),
+  title: trimOpt(60).optional(),
+  center: trim(48),
+  callouts: z
+    .array(
+      z.object({
+        label: trim(60),
+      }),
+    )
+    .min(2)
+    .max(3),
+  duration: z.number().min(3).max(6),
+});
+
+const EditorialOpenerSchema = z.object({
+  type: z.literal("editorial-opener"),
+  motif: IconNameZ.optional(),
+  headline: trim(140),
+  emphasis: trimOpt(40).optional(),
+  duration: z.number().min(2).max(5),
+});
+
+const EditorialClosingSchema = z.object({
+  type: z.literal("editorial-closer"),
+  motif: IconNameZ.optional(),
+  cta: trimOpt(120).optional(),
+  duration: z.number().min(2).max(4),
+});
+
 const SceneSchema = z.discriminatedUnion("type", [
   HookSceneSchema,
   StatSceneSchema,
@@ -190,6 +249,12 @@ const SceneSchema = z.discriminatedUnion("type", [
   ListSceneSchema,
   HashtagSceneSchema,
   BrandStampSceneSchema,
+  // editorial-bold preset
+  BoldStatementSchema,
+  IconListSchema,
+  NumberedDiagramSchema,
+  EditorialOpenerSchema,
+  EditorialClosingSchema,
 ]);
 
 const VideoDesignSchema = z.object({
@@ -202,9 +267,20 @@ const VideoDesignSchema = z.object({
   closerLabel: trim(60),
 });
 
+const PresetNameZ = z.enum([
+  "editorial-bold",
+  "dashboard-tech",
+  "soft-minimal",
+  "luxury",
+  "studio-craft",
+  "documentary",
+  "generic",
+]);
+
 const VideoScriptSchema = z.object({
   scenes: z.array(SceneSchema).min(3).max(8),
   design: VideoDesignSchema,
+  preset: PresetNameZ.optional(),
 });
 
 export type VideoScript = z.infer<typeof VideoScriptSchema>;
@@ -300,6 +376,86 @@ SCENE TYPES
    { type: "brand-stamp", cta?, duration }
    - cta: short CTA pill. e.g. "DM 'feed' for the list".
    - duration: 2-3s. ALWAYS the last scene.
+
+==============================================================
+EDITORIAL-BOLD PRESET SCENES (preferred default)
+==============================================================
+
+The 5 scenes below are the editorial-bold preset's catalog. They
+produce reels in the visual style of strong founder/business
+content: white background, heavy black display type, one accent
+color for emphasis, recurring brand motif as continuity glyph,
+generous whitespace.
+
+PREFER these over the legacy hook/stat/quote/punchline scenes for
+any reel where the brand voice is confident, sharp, opinionated, or
+educational. Use the legacy scenes as fallback only.
+
+10. editorial-opener — The opening beat. A small recurring brand
+    motif at the top casts an accent-colored spotlight beam toward
+    the headline below. Used as scene 1.
+    { type: "editorial-opener", motif?, headline, emphasis?, duration }
+    - motif: an icon name from the ICON LIBRARY. Pick ONE icon that
+      represents the brand or topic — that same icon MUST appear in
+      the editorial-closer for continuity. e.g. "lightbulb",
+      "target", "trending-up", "sparkle".
+    - headline: the opening statement. 2-8 words ideal. Mixed-weight
+      composition.
+    - emphasis: ONE word from headline to colorize as the accent
+      punchline. The most important word.
+    - duration: 2-3s.
+
+11. bold-statement — The workhorse body scene. Mixed-weight
+    composition: small lead phrase at top, HUGE heavy display
+    statement, optional small trailing phrase. ONE word in the
+    statement gets the accent color (the punchline).
+    { type: "bold-statement", lead?, hero, emphasis?, trail?, duration }
+    - lead: optional small phrase at top, ≤40 chars. Sets context.
+      e.g. "Most" or "The truth is".
+    - hero: the big statement. 2-8 words. Required.
+      e.g. "billion-dollar companies looked stupid".
+    - emphasis: optional word from hero to highlight in accent color.
+      Default: last word.
+    - trail: optional small phrase at bottom, ≤40 chars.
+    - duration: 3-5s. The scene needs time to breathe.
+
+12. icon-list — Vertical pillar list with circle icons. 3-6 entries
+    each with an icon + label. Used for "X principles", "X reasons",
+    "X benefits" content.
+    { type: "icon-list", title?, items: [{icon, label}], highlightIndex?, duration }
+    - title: optional uppercase header above the list, ≤80 chars.
+    - items: 3-6 entries. Each must specify an icon name from the
+      ICON LIBRARY plus a short label (≤40 chars).
+    - highlightIndex: optional 0-indexed row to highlight with an
+      accent panel. Use sparingly — at most one row per scene.
+    - duration: 4-7s. More items needs more time.
+
+13. numbered-diagram — Concept diagram with 2-3 numbered callouts
+    pointing at a center concept. Used for explainers where the
+    argument has a clear structure ("two things matter", "three
+    forces", etc).
+    { type: "numbered-diagram", title?, center, callouts: [{label}], duration }
+    - title: optional header above the diagram.
+    - center: the central concept the callouts point at.
+      ≤24 chars displays cleanly.
+    - callouts: 2-3 entries. Each is a short label (≤60 chars).
+      Order matters — callout 1 is top-right, 2 is bottom-right,
+      3 is bottom-left.
+    - duration: 4-6s.
+
+14. editorial-closer — The closing beat. Brand motif sits at the
+    center, business name in heavy display type below, optional CTA
+    pill. ALWAYS last scene when using editorial-bold preset.
+    { type: "editorial-closer", motif?, cta?, duration }
+    - motif: SAME icon name as the editorial-opener. Continuity glyph.
+    - cta: optional CTA pill. ≤80 chars.
+    - duration: 2-3s.
+
+Editorial-bold composition arc:
+  scene 1: editorial-opener  (mark + spotlight + headline)
+  scenes 2..N-1: bold-statement, icon-list, numbered-diagram, or any
+                 mix of those (avoid same scene type twice in a row)
+  scene N: editorial-closer  (mark + business name + CTA)
 
 ==============================================================
 ICON LIBRARY
@@ -439,6 +595,57 @@ OUTPUT
 Strict JSON matching the schema. Every scene has type + duration.
 Every design field required. No prose around the JSON.`;
 
+// ------------------- Preset picker (mirrors motion-reel/presets/pickPreset) -------------------
+// Local copy because @orb/motion-reel imports React-Remotion which
+// can't be loaded server-side at this point in the API package.
+// Keep in sync with packages/motion-reel/src/presets/pickPreset.ts.
+
+function pickPresetForBrief(args: {
+  industry?: string | null;
+  brandVoice?: string | null;
+}): string {
+  const text = [args.industry ?? "", args.brandVoice ?? ""]
+    .join(" ")
+    .toLowerCase();
+  if (!text.trim()) return "editorial-bold";
+
+  // Until other presets ship, every match maps to editorial-bold.
+  // The branches stay so future presets can plug in by replacing the
+  // return value.
+  if (
+    /\b(fintech|finance|crypto|trading|invest|saas|software|developer|api|data|analytics)\b/.test(
+      text,
+    )
+  ) {
+    return "editorial-bold"; // future: dashboard-tech
+  }
+  if (
+    /\b(wellness|yoga|meditation|coach|coaching|therap|mindful|family|parent)\b/.test(
+      text,
+    )
+  ) {
+    return "editorial-bold"; // future: soft-minimal
+  }
+  if (
+    /\b(luxury|fashion|jewel|hotel|resort|fine dining|interior|architect)\b/.test(
+      text,
+    )
+  ) {
+    return "editorial-bold"; // future: luxury
+  }
+  if (
+    /\b(pottery|ceramic|craft|handmade|maker|woodwork|baker|chef|artisan)\b/.test(
+      text,
+    )
+  ) {
+    return "editorial-bold"; // future: studio-craft
+  }
+  if (/\b(education|teach|tutor|news|journal|history|nonprofit)\b/.test(text)) {
+    return "editorial-bold"; // future: documentary
+  }
+  return "editorial-bold";
+}
+
 // ------------------- Public API -------------------
 export type VideoAgentInput = {
   brief: string;
@@ -465,7 +672,18 @@ export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript>
     : "";
   const industryBlock = args.industry ? `\n\nIndustry: ${args.industry}` : "";
 
-  const userMessage = `Content brief:\n${args.brief}${voiceBlock}${businessBlock}${industryBlock}${langDirective}`;
+  // Pick a preset deterministically from industry + voice. The picker
+  // is in @orb/motion-reel/presets; we duplicate the cheap regex
+  // here to avoid a cross-package import inside the API agent.
+  const preset = pickPresetForBrief({
+    industry: args.industry ?? null,
+    brandVoice: args.brandVoice
+      ? JSON.stringify(args.brandVoice).slice(0, 400)
+      : null,
+  });
+  const presetBlock = `\n\n=== PRESET: ${preset} ===\nUse the editorial-bold scene catalog (editorial-opener, bold-statement, icon-list, numbered-diagram, editorial-closer) as the DEFAULT. Mix in legacy scenes (hook, stat, contrast, quote, punchline, list, hashtags, brand-stamp, data-bar) only when editorial-bold scenes can't carry the brief.`;
+
+  const userMessage = `Content brief:\n${args.brief}${voiceBlock}${businessBlock}${industryBlock}${presetBlock}${langDirective}`;
 
   const response = await anthropic().messages.create({
     // Haiku is plenty for structured scriptwriting from a fully-

@@ -160,28 +160,120 @@ A second commit on top of Phase 1, prompted by user feedback that
   the type.
 - Mono labels for support text; display sans for hero text.
 
-## Phase 2 — animation depth + style presets + remaining scenes (planned)
+## Phase 2 — preset architecture + editorial-bold preset (shipped 2026-05-02)
 
-Goal: layer real motion-design vocabulary on the Phase 1 foundation,
-extend the style palette beyond minimal/bold/warm/editorial, and
-adopt pace + icons across remaining scenes.
+The big realization: text-only frames + grain + transitions doesn't
+match what professional reels actually look like. Different brands
+need different visual worlds (Empire Labs ≠ a fintech dashboard ≠
+a pottery studio ≠ a luxury hotel). Phase 2 introduces a
+**preset system** — each preset is a complete visual world with its
+own palette, type pair, scene catalog, and motion language. The
+agent picks one preset per business based on industry + voice;
+every scene is then rendered from that preset's catalog.
 
-### Planned files
+### What shipped (editorial-bold preset)
 
 ```
-packages/motion-reel/src/
-├── primitives/
-│   ├── KineticLine.tsx              # word-by-word reveal, variable timing
-│   ├── KenBurns.tsx                 # slow pan + zoom on a still image
-│   └── MaskReveal.tsx               # clip-path reveal in any direction
-├── scenes/
-│   └── ImageCueScene.tsx            # NEW scene type — Ken-Burns + caption
-└── styles/
-    ├── flat.ts                      # NEW preset — pure flat, no shadows, sharp corners
-    ├── radius.ts                    # NEW preset — soft rounded everything, pillowy
-    ├── luxury.ts                    # NEW preset — serif accents, deep ink + gold tones
-    └── liquidglass.ts               # NEW preset — glassmorphism, frosted cards
+packages/motion-reel/src/presets/
+├── types.ts                          # Preset, PresetName, scene shapes
+├── pickPreset.ts                     # deterministic industry+voice → preset
+├── index.ts                          # public exports
+└── editorial-bold/
+    ├── index.ts                      # preset config (palette, type, scenes)
+    ├── BoldStatementScene.tsx        # mixed-weight headline + accent word
+    ├── IconListScene.tsx             # 3-6 pillars with circle icons
+    ├── NumberedDiagramScene.tsx      # diamond center + 2-3 leader callouts
+    ├── EditorialOpenerScene.tsx      # brand motif + spotlight + headline
+    └── EditorialClosingScene.tsx     # motif + business name + CTA
 ```
+
+### Editorial-bold visual recipe (locked)
+
+- **Background:** white (#FFFFFF), always — overrides any `style` knob
+- **Palette:** black (#0F0F0F) ink + 1 BrandKit accent. No third color.
+- **Typography:** SF Pro Display heavy (800) for hero, Inter medium for support
+- **Letter-spacing:** -0.04em on display, tight editorial feel
+- **Composition:** mixed-weight on every scene (small lead phrase + huge hero + small trail). Generous whitespace.
+- **Continuity:** the same brand motif icon appears in `editorial-opener` and `editorial-closer` for visual through-line
+- **Emphasis:** ONE word per scene gets the accent color (the punchline)
+
+### Scene catalog
+
+| Scene | Use for |
+|---|---|
+| `editorial-opener` | Scene 1. Brand motif + spotlight + headline |
+| `bold-statement` | Body workhorse. Mixed-weight statement, accent word |
+| `icon-list` | 3-6 pillar list with circle icons |
+| `numbered-diagram` | Concept diagram, 2-3 numbered callouts |
+| `editorial-closer` | Last scene. Motif + business name + CTA |
+
+### Agent + router schema
+
+Both `packages/api/src/agents/video.ts` and
+`packages/api/src/routers/motion-reel.ts` updated:
+- 5 new scene types added to the discriminated union
+- `VideoScript.preset` field added (optional)
+- Agent prompt now includes the editorial-bold scene catalog and
+  marks it as the preferred default
+- A local `pickPresetForBrief` helper in agents/video.ts mirrors
+  the renderer's pickPreset (regex-only, no LLM call)
+
+### Picker logic (today)
+
+Until other presets ship, ALL industry buckets currently route to
+`editorial-bold`. The branches stay so future presets plug in by
+swapping the return value. The 6 target buckets:
+
+| Industry keywords | Future preset |
+|---|---|
+| fintech, crypto, saas, software, dev, api, data | dashboard-tech |
+| wellness, yoga, coaching, therapy, mindful, family | soft-minimal |
+| luxury, fashion, jewelry, hotel, resort, fine dining | luxury |
+| pottery, ceramic, craft, handmade, baker, chef, artisan | studio-craft |
+| education, news, journal, history, nonprofit | documentary |
+| (everything else) | editorial-bold |
+
+### Cost
+
+Same as Phase 1.5 — every scene is pure code-as-video. No new LLM
+calls, no extra image gen (yet — photo scenes ship in Phase 2.5).
+
+### Phase 2.5 (next) — photo-driven editorial scenes + audio
+
+```
+packages/motion-reel/src/presets/editorial-bold/
+├── PhotoCutoutScene.tsx       # AI-gen subject + accent stroke aura + text
+├── HeroPhotoScene.tsx         # full-bleed AI-gen photo + bold text overlay
+└── ComparisonSplitScene.tsx   # two cards side-by-side with photos
+```
+
+Plus the audio layer:
+```
+packages/motion-reel/src/audio/
+├── narration.ts               # ElevenLabs TTS (per-brand voice picked in onboarding)
+├── loops/{slow,medium,fast}.mp3
+├── stings/{hook,beat,data,end}.mp3
+└── AudioLayer.tsx             # Remotion <Audio> mixer
+```
+
+Per-reel cost after Phase 2.5: ~$0.08-0.10 (mostly the TTS narration).
+
+## Phase 3 — remaining 5 presets + voice cloning (planned)
+
+After editorial-bold + Phase 2.5 photo scenes + audio layer, build
+the remaining 5 presets:
+
+```
+packages/motion-reel/src/presets/
+├── dashboard-tech/    # dark mode, terminal mono, animated charts
+├── soft-minimal/      # cream bg, slim serif, generous whitespace
+├── luxury/            # deep navy + gold, slim editorial serif
+├── studio-craft/      # warm cream, paper texture, organic photos
+└── documentary/       # slow Ken-Burns, lower-third captions
+```
+
+Each preset has its own scene catalog (5-8 scenes per preset). The
+picker swaps the return values in pickPreset.ts as each preset ships.
 
 ### Style presets
 

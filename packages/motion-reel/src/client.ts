@@ -30,12 +30,31 @@ export {
   type Pace,
 } from "./motion/pace";
 
-// Icon system + new data-bar scene (text → graphics upgrade)
+// Icon system + data-bar scene (Phase 1.5)
 export { Icon } from "./primitives/Icon";
 export { BackdropIcon } from "./primitives/BackdropIcon";
 export { DataBarScene } from "./scenes/DataBarScene";
 export { ICONS, ICON_CATEGORIES, isIconName, type IconName } from "./icons";
 export { fitText } from "./motion/fitText";
+
+// Phase 2 — editorial-bold preset
+export {
+  editorialBoldPreset,
+  BoldStatementScene,
+  IconListScene,
+  NumberedDiagramScene,
+  EditorialOpenerScene,
+  EditorialClosingScene,
+  pickPreset,
+  type Preset,
+  type PresetName,
+  type PresetSceneName,
+  type BoldStatementShape,
+  type IconListShape,
+  type NumberedDiagramShape,
+  type EditorialOpenerShape,
+  type EditorialClosingShape,
+} from "./presets";
 
 export type {
   BrandTokens,

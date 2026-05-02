@@ -152,6 +152,53 @@ const SceneSchema = z.discriminatedUnion("type", [
     cta: longish(180).optional(),
     duration: z.number().min(1).max(8),
   }),
+  // ── editorial-bold preset ────────────────────────────────────
+  z.object({
+    type: z.literal("bold-statement"),
+    lead: longish(120).optional(),
+    hero: longish(180),
+    emphasis: longish(60).optional(),
+    trail: longish(120).optional(),
+    duration: z.number().min(1).max(8),
+  }),
+  z.object({
+    type: z.literal("icon-list"),
+    title: longish(120).optional(),
+    items: z
+      .array(
+        z.object({
+          icon: RouterIconNameZ,
+          label: longish(60),
+        }),
+      )
+      .min(2)
+      .max(8),
+    highlightIndex: z.number().int().min(0).max(7).optional(),
+    duration: z.number().min(1).max(10),
+  }),
+  z.object({
+    type: z.literal("numbered-diagram"),
+    title: longish(120).optional(),
+    center: longish(80),
+    callouts: z
+      .array(z.object({ label: longish(120) }))
+      .min(1)
+      .max(4),
+    duration: z.number().min(1).max(8),
+  }),
+  z.object({
+    type: z.literal("editorial-opener"),
+    motif: RouterIconNameZ.optional(),
+    headline: longish(200),
+    emphasis: longish(60).optional(),
+    duration: z.number().min(1).max(7),
+  }),
+  z.object({
+    type: z.literal("editorial-closer"),
+    motif: RouterIconNameZ.optional(),
+    cta: longish(180).optional(),
+    duration: z.number().min(1).max(6),
+  }),
 ]);
 
 const VideoDesignSchema = z.object({
@@ -164,9 +211,20 @@ const VideoDesignSchema = z.object({
   closerLabel: longish(60),
 });
 
+const RouterPresetNameZ = z.enum([
+  "editorial-bold",
+  "dashboard-tech",
+  "soft-minimal",
+  "luxury",
+  "studio-craft",
+  "documentary",
+  "generic",
+]);
+
 const VideoScriptSchema = z.object({
   scenes: z.array(SceneSchema).min(2).max(10),
   design: VideoDesignSchema,
+  preset: RouterPresetNameZ.optional(),
 });
 
 // =============================================================

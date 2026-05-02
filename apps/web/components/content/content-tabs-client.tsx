@@ -12,26 +12,17 @@
 
 import { useState } from "react";
 import { DraftsPanel } from "./drafts-panel";
-import { WeekGrid } from "./week-grid";
+import { ContentCalendar } from "./content-calendar";
 import { PerformancePanel } from "./performance-panel";
 
-export type Tab = "feed" | "week" | "performance";
-
-type WeekSlot = Parameters<typeof WeekGrid>[0]["slots"][number];
+export type Tab = "feed" | "calendar" | "performance";
 
 type Props = {
   initialTab: Tab;
-  weekRangeLabel: string;
-  weekSlots: WeekSlot[];
   headerSlot?: React.ReactNode;
 };
 
-export function ContentTabsClient({
-  initialTab,
-  weekRangeLabel,
-  weekSlots,
-  headerSlot,
-}: Props) {
+export function ContentTabsClient({ initialTab, headerSlot }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab);
   // Track which tabs have been viewed so we don't unmount + remount
   // the data-fetching panels every time. First view is lazy; after
@@ -39,7 +30,7 @@ export function ContentTabsClient({
   // hot-cached for instant switches.
   const [seen, setSeen] = useState<Record<Tab, boolean>>({
     feed: initialTab === "feed",
-    week: initialTab === "week",
+    calendar: initialTab === "calendar",
     performance: initialTab === "performance",
   });
 
@@ -52,7 +43,11 @@ export function ContentTabsClient({
     <>
       <div className="flex items-center gap-lg hairline-bottom pb-sm">
         <TabBtn label="feed" active={tab === "feed"} onClick={() => go("feed")} />
-        <TabBtn label="week" active={tab === "week"} onClick={() => go("week")} />
+        <TabBtn
+          label="calendar"
+          active={tab === "calendar"}
+          onClick={() => go("calendar")}
+        />
         <TabBtn
           label="performance"
           active={tab === "performance"}
@@ -65,10 +60,8 @@ export function ContentTabsClient({
       <div className={tab === "feed" ? "" : "hidden"}>
         {seen.feed ? <DraftsPanel /> : null}
       </div>
-      <div className={tab === "week" ? "" : "hidden"}>
-        {seen.week ? (
-          <WeekGrid rangeLabel={weekRangeLabel} slots={weekSlots} />
-        ) : null}
+      <div className={tab === "calendar" ? "" : "hidden"}>
+        {seen.calendar ? <ContentCalendar /> : null}
       </div>
       <div className={tab === "performance" ? "" : "hidden"}>
         {seen.performance ? <PerformancePanel /> : null}

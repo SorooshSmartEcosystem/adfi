@@ -118,11 +118,21 @@ export function DraftCardV2({
   const regenerate = trpc.content.regenerateDraft.useMutation({
     onSuccess: () => utils.content.listDrafts.invalidate(),
   });
+  const publish = trpc.content.publishDraft.useMutation({
+    onSuccess: () => {
+      utils.content.listDrafts.invalidate();
+      utils.content.listPosts.invalidate();
+    },
+  });
   const draftScript = trpc.motionReel.draftScript.useMutation({
     onSuccess: (s) => setDraftedScript(s as ScriptForPreview),
   });
 
-  const isPending = approve.isPending || reject.isPending || regenerate.isPending;
+  const isPending =
+    approve.isPending ||
+    reject.isPending ||
+    regenerate.isPending ||
+    publish.isPending;
 
   const platform = draft.platform as Parameters<typeof PlatformMockup>[0]["platform"];
   const format = (draft.format ?? "SINGLE_POST") as Parameters<
@@ -202,6 +212,23 @@ export function DraftCardV2({
       >
         approve
       </MenuItem>,
+      <MenuItem
+        key="publish-now"
+        onClick={async () => {
+          // Skip the review queue entirely — approve first, then
+          // publish in the same gesture. publishDraft requires
+          // status=APPROVED so we need both calls.
+          setShowMenu(false);
+          try {
+            await approve.mutateAsync({ id: draft.id, variant: "primary" });
+            publish.mutate({ id: draft.id });
+          } catch {
+            // approve.error already surfaces in the inline error strip
+          }
+        }}
+      >
+        publish now
+      </MenuItem>,
       regenItem,
       <MenuItem
         key="video"
@@ -218,6 +245,15 @@ export function DraftCardV2({
     );
   } else if (draft.status === "APPROVED") {
     menuItems.push(
+      <MenuItem
+        key="publish-now"
+        onClick={() => {
+          publish.mutate({ id: draft.id });
+          setShowMenu(false);
+        }}
+      >
+        publish now
+      </MenuItem>,
       copyItem,
       regenItem,
       <MenuDivider key="d1" />,
@@ -372,11 +408,12 @@ export function DraftCardV2({
             <OrbLoader tone="alive" size="sm" stages={STAGES_VIDEO_SCRIPT} />
           </div>
         ) : null}
-        {(approve.error || reject.error || regenerate.error || draftScript.error) ? (
+        {(approve.error || reject.error || regenerate.error || publish.error || draftScript.error) ? (
           <div className="mt-xs font-mono text-[11px] text-urgent">
             {approve.error?.message ??
               reject.error?.message ??
               regenerate.error?.message ??
+              publish.error?.message ??
               draftScript.error?.message}
           </div>
         ) : null}
@@ -493,11 +530,12 @@ export function DraftCardV2({
         ) : null}
       </div>
 
-      {(approve.error || reject.error || regenerate.error || draftScript.error) ? (
+      {(approve.error || reject.error || regenerate.error || publish.error || draftScript.error) ? (
         <div className="w-full mt-xs font-mono text-[11px] text-urgent text-center">
           {approve.error?.message ??
             reject.error?.message ??
             regenerate.error?.message ??
+            publish.error?.message ??
             draftScript.error?.message}
         </div>
       ) : null}

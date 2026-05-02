@@ -100,9 +100,71 @@ packages/motion-reel/src/
 
 ---
 
-## Phase 2 — animation depth + new scene types (planned)
+## Phase 1.5 — icons + bar chart + responsive type (shipped 2026-05-02)
 
-Goal: layer real motion-design vocabulary on the Phase 1 foundation.
+A second commit on top of Phase 1, prompted by user feedback that
+"text-only on a wash" still read as "AI PowerPoint" even after grain
++ transitions.
+
+### What shipped
+
+- **Icon registry** (`icons/index.ts`) — 38 curated 24×24 stroke icons
+  in 5 categories (finance, growth, alert, social, misc). Single
+  source of truth for what icons the agent can pick. Each icon is
+  1–4 SVG paths, designed for 2px stroke at any display size.
+- **`primitives/Icon.tsx`** — renders an icon by name. Supports
+  optional draw-on animation (stroke-dashoffset over N frames).
+- **`primitives/BackdropIcon.tsx`** — giant outline icon at low
+  opacity, sits behind hero text. Anchorable to any corner or
+  centered.
+- **`scenes/DataBarScene.tsx`** — new scene type. Animated horizontal
+  bar chart with 2–5 bars. Each bar grows from 0 to its proportional
+  share of the largest value while the value counts up. One bar
+  height (8px), one color (accent), thin lines, tabular-nums values.
+- **`motion/fitText.ts`** — picks a font size from character count +
+  container width + line budget so display text never overflows.
+  Wired into Hook (320 → 96 floor), Stat (280 → 88 floor), Punchline
+  (96 → 44 floor), Quote (72 → 38 floor) scenes.
+
+### Schema changes
+
+- All scenes get an optional `icon?: IconName` field. Hook renders it
+  as a backdrop; Stat renders it small above the label. (Other scenes
+  ignore for now; will adopt in Phase 2 as appropriate.)
+- New scene type: `data-bar` with `bars: { label, value, prefix?, suffix? }[]`.
+- Both the agent's `VideoScriptSchema` and the router's
+  `VideoScriptSchema` (input validator on `renderScript`) updated.
+
+### Prompt changes
+
+- New `ICON LIBRARY` section in `VIDEO_SYSTEM_PROMPT` listing the 5
+  category buckets and picking rules. Agent only picks icons when the
+  scene subject is a clean match — empty space over a wrong icon.
+- New `data-bar` entry in scene catalog. Used when the brief has 2–5
+  comparable numbers (e.g. "Bitcoin $48B, Ether $12B, Solana $4B")
+  instead of cramming into one stat scene's suffix.
+- Tightened stat scene rules: `prefix`/`suffix` are CURRENCY/UNIT
+  marks ONLY ("$", "%", "k"), not descriptive context. Fixes the
+  "46.7Binto crypto ETPs" output the agent was producing.
+- New `GROUNDING — DO NOT INVENT FACTS` section forbidding fabricated
+  numbers / years / tickers / proper nouns. Agent restructures
+  qualitatively if the brief has no specific data.
+
+### Visual rules (locked)
+
+- Minimal palette: every visual element pulls from BrandTokens (ink +
+  one accent picked by `design.accent`). No new colors introduced
+  per element.
+- Thin strokes: icons at 2px, bar tracks at 8px height, no fills.
+- Generous whitespace: BackdropIcon at 5–10% opacity, never above
+  the type.
+- Mono labels for support text; display sans for hero text.
+
+## Phase 2 — animation depth + style presets + remaining scenes (planned)
+
+Goal: layer real motion-design vocabulary on the Phase 1 foundation,
+extend the style palette beyond minimal/bold/warm/editorial, and
+adopt pace + icons across remaining scenes.
 
 ### Planned files
 
@@ -110,13 +172,35 @@ Goal: layer real motion-design vocabulary on the Phase 1 foundation.
 packages/motion-reel/src/
 ├── primitives/
 │   ├── KineticLine.tsx              # word-by-word reveal, variable timing
-│   ├── DrawSVG.tsx                  # stroke-dashoffset SVG path animation
 │   ├── KenBurns.tsx                 # slow pan + zoom on a still image
 │   └── MaskReveal.tsx               # clip-path reveal in any direction
-└── scenes/
-    ├── ImageCueScene.tsx            # NEW scene type — Ken-Burns + caption strip
-    └── DataBarScene.tsx             # NEW scene type — animated bar chart
+├── scenes/
+│   └── ImageCueScene.tsx            # NEW scene type — Ken-Burns + caption
+└── styles/
+    ├── flat.ts                      # NEW preset — pure flat, no shadows, sharp corners
+    ├── radius.ts                    # NEW preset — soft rounded everything, pillowy
+    ├── luxury.ts                    # NEW preset — serif accents, deep ink + gold tones
+    └── liquidglass.ts               # NEW preset — glassmorphism, frosted cards
 ```
+
+### Style presets
+
+The `style` enum gains four values: `flat`, `radius`, `luxury`,
+`liquidglass`. Each preset is a config object that adjusts:
+
+- **Card chrome** (corner radius, shadow, hairline)
+- **Type pair** (display + editorial fonts)
+- **Color treatment** (palette tint, accent saturation)
+- **Background recipe** (gradient, glass, flat)
+- **Stroke language** (icon stroke width, bar height, divider style)
+
+`flat` (zero radius, no shadow, hard edges) suits b2b SaaS / tech.
+`radius` (16-24px radius everywhere, soft shadows) suits consumer /
+wellness / family.
+`luxury` (slim serif, deep navy + gold, generous letter-spacing) suits
+high-end retail / fashion / hospitality.
+`liquidglass` (semi-transparent cards over blurred background, subtle
+specular highlight) suits modern fintech / design / DTC.
 
 ### Schema changes
 

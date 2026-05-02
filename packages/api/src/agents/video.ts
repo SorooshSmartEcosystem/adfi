@@ -46,10 +46,56 @@ const trimOpt = (max: number) =>
     .string()
     .transform((s) => (s.length > max ? s.slice(0, max) : s));
 
+// Curated icon names. Mirrors `motion-reel/src/icons/index.ts`. Kept
+// as a literal union here so the agent's structured-output schema
+// constrains the model to the exact names we ship; an unrecognised
+// name would otherwise fall through to "no icon" silently.
+const IconNameZ = z.enum([
+  "dollar",
+  "percent",
+  "trending-up",
+  "trending-down",
+  "chart-bar",
+  "chart-line",
+  "coin",
+  "wallet",
+  "credit-card",
+  "bank",
+  "rocket",
+  "target",
+  "sparkle",
+  "lightbulb",
+  "alert",
+  "fire",
+  "lightning",
+  "check",
+  "x",
+  "heart",
+  "message",
+  "share",
+  "users",
+  "bookmark",
+  "globe",
+  "clock",
+  "calendar",
+  "mail",
+  "phone",
+  "lock",
+  "shield",
+  "search",
+  "star",
+  "play",
+  "pause",
+  "arrow-right",
+  "arrow-up",
+  "arrow-down",
+]);
+
 const HookSceneSchema = z.object({
   type: z.literal("hook"),
   headline: trim(60),
   subtitle: trimOpt(180).optional(),
+  icon: IconNameZ.optional(),
   duration: z.number().min(2).max(6),
 });
 
@@ -59,7 +105,26 @@ const StatSceneSchema = z.object({
   prefix: trimOpt(16).optional(),
   suffix: trimOpt(16).optional(),
   label: trim(60),
+  icon: IconNameZ.optional(),
   duration: z.number().min(2).max(5),
+});
+
+const DataBarSceneSchema = z.object({
+  type: z.literal("data-bar"),
+  title: trimOpt(80).optional(),
+  bars: z
+    .array(
+      z.object({
+        label: trim(40),
+        value: z.union([z.number(), z.string()]),
+        prefix: trimOpt(8).optional(),
+        suffix: trimOpt(8).optional(),
+      }),
+    )
+    .min(2)
+    .max(5),
+  caption: trimOpt(180).optional(),
+  duration: z.number().min(3).max(8),
 });
 
 const ContrastSceneSchema = z.object({
@@ -118,6 +183,7 @@ const BrandStampSceneSchema = z.object({
 const SceneSchema = z.discriminatedUnion("type", [
   HookSceneSchema,
   StatSceneSchema,
+  DataBarSceneSchema,
   ContrastSceneSchema,
   QuoteSceneSchema,
   PunchlineSceneSchema,
@@ -167,7 +233,8 @@ SCENE TYPES
      the brief is genuinely just a quote.
 
 2. stat — Single labeled metric with animated counter.
-   { type: "stat", value: number|string, prefix?, suffix?, label, duration }
+   { type: "stat", value: number|string, prefix?, suffix?, label,
+     icon?, duration }
    - value: numeric (animates from 0) or pre-formatted string ("4.2k").
    - prefix: a CURRENCY OR UNIT MARK ONLY. Valid: "$", "€", "£", "+",
      "-", "~". One or two characters max. NOT a description, NOT
@@ -179,9 +246,22 @@ SCENE TYPES
      instead, or use a punchline scene.
    - label: uppercase mono caption above. e.g. "PROFITABLE TRADERS",
      "WEEKLY ACTIVE USERS", "INTO CRYPTO ETPs".
+   - icon: optional icon name (see ICON LIBRARY below).
    - duration: 2-3s.
 
-3. contrast — Two-up A vs B comparison.
+3. data-bar — Animated horizontal bar chart for COMPARISON data.
+   { type: "data-bar", title?, bars: [{label, value, prefix?, suffix?}],
+     caption?, duration }
+   - 2–5 bars. Each bar has its own label + value. Renderer normalizes
+     the largest as 100% and scales the others proportionally.
+   - Use when you have multiple comparable numbers from the brief
+     (e.g. "Bitcoin $48B, Ether $12B, Solana $4B"). Replaces a stat
+     scene that would have crammed multiple data points into one.
+   - title: optional uppercase mono header above the bars.
+   - caption: optional one-liner under the chart.
+   - duration: 4-6s typical so each bar has time to grow.
+
+4. contrast — Two-up A vs B comparison.
    { type: "contrast", leftLabel, leftValue, rightLabel, rightValue,
      caption?, duration }
    - left side is the focal/positive; right side is the comparison.
@@ -189,7 +269,7 @@ SCENE TYPES
      beats "fifty-one percent". Single phrase, no full sentences.
    - caption: optional one-liner under both sides ≤160 chars.
 
-4. quote — Pull quote with word-by-word reveal.
+5. quote — Pull quote with word-by-word reveal.
    { type: "quote", quote, emphasis?, attribution?, duration }
    - quote ≤200 chars. Two sentences max.
    - emphasis: optional word/phrase from the quote. (Visual emphasis
@@ -197,29 +277,63 @@ SCENE TYPES
      surface this hint when it picks one.)
    - duration: 3-5s.
 
-5. punchline — The line that lands. One sentence, often with a key
+6. punchline — The line that lands. One sentence, often with a key
    word emphasized.
    { type: "punchline", line, emphasis?, duration }
    - line ≤140 chars. ONE idea.
    - emphasis: the key word. Renderer color-shifts + bolds it.
    - duration: 3-4s.
 
-6. list — Numbered enumeration. 2-4 items.
+7. list — Numbered enumeration. 2-4 items.
    { type: "list", title, items: [{headline, body?}], duration }
    - title ≤80 chars.
    - items: 2-4 entries. headlines punchy (4-6 words). body optional.
    - duration: 5-7s for 3 items.
 
-7. hashtags — Tag cloud + optional CTA caption.
+8. hashtags — Tag cloud + optional CTA caption.
    { type: "hashtags", hashtags: string[], caption?, duration }
    - 3-8 tags. With or without "#" prefix.
    - caption: one-line CTA above. Optional.
    - duration: 2-3s. Always near the end.
 
-8. brand-stamp — Closer. Brand mark + business name + optional CTA.
+9. brand-stamp — Closer. Brand mark + business name + optional CTA.
    { type: "brand-stamp", cta?, duration }
    - cta: short CTA pill. e.g. "DM 'feed' for the list".
    - duration: 2-3s. ALWAYS the last scene.
+
+==============================================================
+ICON LIBRARY
+==============================================================
+
+Hook and stat scenes accept an optional "icon" field. Pick ONE name
+from the curated set below per scene, ONLY when the topic is a clean
+match. If nothing fits, omit the field — empty space is better than
+a wrong icon.
+
+Pick by topic:
+
+  finance / commerce → dollar, percent, trending-up, trending-down,
+                       chart-bar, chart-line, coin, wallet,
+                       credit-card, bank
+  growth / momentum  → rocket, target, sparkle, lightbulb, star,
+                       trending-up
+  alert / urgency    → alert, fire, lightning, x
+  status / outcome   → check, x
+  social / community → heart, message, share, users, bookmark
+  comms / contact    → mail, phone, message
+  time / planning    → clock, calendar
+  trust / safety     → lock, shield
+  navigation / cta   → arrow-right, arrow-up, arrow-down, play, search
+  global / reach     → globe
+
+Picking rules:
+- Match the SCENE subject, not the brand. A pottery studio's
+  "$2,400 in sales" stat scene uses "dollar", not "coin".
+- Only one icon per scene. The hook icon, if used, sits as a ghost
+  backdrop; the stat icon sits small above the label.
+- If the brief is poetic / abstract / a quote, omit the icon.
+- Don't pick an icon just to fill space — a blank scene is
+  intentional and reads as confident.
 
 ==============================================================
 SCRIPT STRUCTURE

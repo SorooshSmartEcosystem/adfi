@@ -6,7 +6,14 @@ Format note: write changes from the user's perspective in plain English. "Users 
 
 ## [Unreleased]
 
-### Changed (motion-reel · 2026-05-02)
+### Added (motion-reel · 2026-05-02 — Phase 1.5)
+- **Icon system + bar chart scene + responsive type.** Reels now render with topical icons (38-icon curated set across finance / growth / alert / social / misc) instead of pure text. Hook scenes show a low-opacity backdrop icon behind the headline; stat scenes show a small accent icon above the label, drawn on with a stroke animation.
+- **New `data-bar` scene type** — animated horizontal bar chart for 2-5 comparable numbers. Replaces stat scenes that used to cram multiple data points into one suffix.
+- **Responsive font sizing** via new `motion/fitText` util — Hook / Stat / Punchline / Quote scenes now scale text to fit any string length up to the frame width. No more "99th percentile" overflowing the canvas.
+- Tightened agent prompt: stat `prefix` / `suffix` are CURRENCY/UNIT marks ONLY ("$", "%", "k", "M", "B"), descriptive context goes in label or punchline scene. New `GROUNDING — DO NOT INVENT FACTS` section forbids fabricated numbers, years, tickers, proper nouns; agent restructures qualitatively when the brief has no specific data.
+- All visual elements stay on the BrandKit palette (ink + one accent), thin strokes, generous whitespace.
+
+### Changed (motion-reel · 2026-05-02 · Phase 1)
 - **Phase 1 of the motion-reel redesign shipped** — the engine now produces visually varied reels instead of "every scene looks identical." Same code-as-video architecture, same ~1.1¢ per video, just better motion design.
   - **Pace knob is functional.** `slow` / `medium` / `fast` actually changes scene durations (×1.35 / ×1.0 / ×0.75) and animation feel (cubic / back(1.2) / back(1.6) easings). Was decorative before.
   - **Scene transitions** — every scene gets a deterministic transition layered into its first ~12 frames: wipe-down on the first scene to set the rhythm, then a 4-way rotation (wipe-left / blur-dip / color-flash / match-cut dot) by index. No more hard-cut between every scene.

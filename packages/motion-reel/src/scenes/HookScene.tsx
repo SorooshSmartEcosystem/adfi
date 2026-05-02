@@ -4,8 +4,10 @@
 
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { PCMonoLabel } from "../primitives/PCMonoLabel";
+import { BackdropIcon } from "../primitives/BackdropIcon";
 import { paceEasing, paceStaggerFrames } from "../motion/pace";
 import { fitText } from "../motion/fitText";
+import { isIconName } from "../icons";
 import type { BrandTokens, HookScene as HookSceneShape, VideoDesign } from "../types";
 
 type Props = {
@@ -70,6 +72,19 @@ export const HookScene: React.FC<Props> = ({ tokens, scene, design }) => {
           } 0%, transparent 60%)`,
         }}
       />
+
+      {/* Topical backdrop icon — ghost behind the headline. Brand-bound
+          color: uses the same accent the headline uses, but at 5%
+          opacity so it never competes with the type. */}
+      {isIconName(scene.icon) ? (
+        <BackdropIcon
+          name={scene.icon}
+          color={accent}
+          opacity={isLight ? 0.07 : 0.1}
+          size={1300}
+          anchor="center"
+        />
+      ) : null}
 
       <div
         style={{

@@ -28,11 +28,55 @@ const longish = (max: number) =>
     .min(1)
     .transform((s) => (s.length > max ? s.slice(0, max) : s));
 
+// Mirrored from the agent's IconNameZ. Used as input validation
+// when the renderScript mutation accepts an agent-emitted script.
+const RouterIconNameZ = z.enum([
+  "dollar",
+  "percent",
+  "trending-up",
+  "trending-down",
+  "chart-bar",
+  "chart-line",
+  "coin",
+  "wallet",
+  "credit-card",
+  "bank",
+  "rocket",
+  "target",
+  "sparkle",
+  "lightbulb",
+  "alert",
+  "fire",
+  "lightning",
+  "check",
+  "x",
+  "heart",
+  "message",
+  "share",
+  "users",
+  "bookmark",
+  "globe",
+  "clock",
+  "calendar",
+  "mail",
+  "phone",
+  "lock",
+  "shield",
+  "search",
+  "star",
+  "play",
+  "pause",
+  "arrow-right",
+  "arrow-up",
+  "arrow-down",
+]);
+
 const SceneSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("hook"),
     headline: longish(80),
     subtitle: longish(200).optional(),
+    icon: RouterIconNameZ.optional(),
     duration: z.number().min(1).max(10),
   }),
   z.object({
@@ -41,7 +85,25 @@ const SceneSchema = z.discriminatedUnion("type", [
     prefix: longish(16).optional(),
     suffix: longish(16).optional(),
     label: longish(80),
+    icon: RouterIconNameZ.optional(),
     duration: z.number().min(1).max(10),
+  }),
+  z.object({
+    type: z.literal("data-bar"),
+    title: longish(120).optional(),
+    bars: z
+      .array(
+        z.object({
+          label: longish(60),
+          value: z.union([z.number(), z.string()]),
+          prefix: longish(16).optional(),
+          suffix: longish(16).optional(),
+        }),
+      )
+      .min(1)
+      .max(6),
+    caption: longish(200).optional(),
+    duration: z.number().min(1).max(12),
   }),
   z.object({
     type: z.literal("contrast"),

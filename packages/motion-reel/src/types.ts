@@ -174,12 +174,21 @@ export type SceneDurationSeconds = number; // ≤6 typical, ≤8 hard cap
 
 // Scene shapes. Each is intentionally small — 1-3 slot fields. Heavy
 // design choices live in BrandTokens + VideoDesign, not per-scene.
+// Optional icon name shared across every scene shape. Pulled from
+// the curated registry in `icons/index.ts`. When the agent picks an
+// icon, the renderer drops it as a small accent or as a low-opacity
+// backdrop depending on the scene type.
+export type IconRef = string;
+
 export type HookScene = {
   type: "hook";
   // The big stat or word. Up to ~8 chars renders as display.
   headline: string;
   // Optional one-line subtitle. ≤80 chars.
   subtitle?: string;
+  // Optional topical icon. If set, the renderer shows it as a
+  // ghost backdrop behind the headline.
+  icon?: IconRef;
   duration: SceneDurationSeconds;
 };
 
@@ -190,6 +199,21 @@ export type StatSceneShape = {
   suffix?: string;
   // Mono caption above the number. e.g. "PROFITABLE TRADERS".
   label: string;
+  // Optional topical icon. Renderer drops it small above the label.
+  icon?: IconRef;
+  duration: SceneDurationSeconds;
+};
+
+export type DataBarSceneShape = {
+  type: "data-bar";
+  title?: string;
+  bars: Array<{
+    label: string;
+    value: number | string;
+    suffix?: string;
+    prefix?: string;
+  }>;
+  caption?: string;
   duration: SceneDurationSeconds;
 };
 
@@ -250,6 +274,7 @@ export type BrandStampScene = {
 export type Scene =
   | HookScene
   | StatSceneShape
+  | DataBarSceneShape
   | ContrastScene
   | QuoteSceneShape
   | PunchlineScene

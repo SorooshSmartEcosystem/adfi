@@ -20,6 +20,7 @@
 import { AbsoluteFill, Sequence, useVideoConfig } from "remotion";
 import { HookScene } from "../scenes/HookScene";
 import { StatScene } from "../scenes/StatScene";
+import { DataBarScene } from "../scenes/DataBarScene";
 import { ContrastScene } from "../scenes/ContrastScene";
 import { QuoteScene } from "../scenes/QuoteScene";
 import { PunchlineScene } from "../scenes/PunchlineScene";
@@ -86,6 +87,8 @@ const SceneSwitch: React.FC<{
       return <HookScene tokens={tokens} scene={scene} design={design} />;
     case "stat":
       return <StatScene tokens={tokens} scene={scene} design={design} />;
+    case "data-bar":
+      return <DataBarScene tokens={tokens} scene={scene} design={design} />;
     case "contrast":
       return <ContrastScene tokens={tokens} scene={scene} design={design} />;
     case "quote":

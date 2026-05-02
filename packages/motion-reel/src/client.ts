@@ -14,8 +14,7 @@ export { ScriptReel, computeScriptFrames } from "./compositions/ScriptReel";
 export { QuoteReel } from "./compositions/QuoteReel";
 export { StatReel } from "./compositions/StatReel";
 
-// Phase 1 primitives + transitions — exported so future scenes (and
-// any host that wants to compose its own previews) can pick them up.
+// Phase 1 primitives + transitions
 export { SplitFrame } from "./primitives/SplitFrame";
 export { LayeredFrame } from "./primitives/LayeredFrame";
 export { OverlayFrame } from "./primitives/OverlayFrame";
@@ -30,6 +29,13 @@ export {
   paceStaggerFrames,
   type Pace,
 } from "./motion/pace";
+
+// Icon system + new data-bar scene (text → graphics upgrade)
+export { Icon } from "./primitives/Icon";
+export { BackdropIcon } from "./primitives/BackdropIcon";
+export { DataBarScene } from "./scenes/DataBarScene";
+export { ICONS, ICON_CATEGORIES, isIconName, type IconName } from "./icons";
+export { fitText } from "./motion/fitText";
 
 export type {
   BrandTokens,

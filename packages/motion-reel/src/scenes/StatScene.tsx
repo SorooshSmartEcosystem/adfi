@@ -5,8 +5,10 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { PCMonoLabel } from "../primitives/PCMonoLabel";
 import { CounterNumber } from "../primitives/CounterNumber";
+import { Icon } from "../primitives/Icon";
 import { paceEasing, paceStaggerFrames } from "../motion/pace";
 import { fitText } from "../motion/fitText";
+import { isIconName } from "../icons";
 import type { BrandTokens, StatSceneShape, VideoDesign } from "../types";
 
 type Props = {
@@ -90,8 +92,24 @@ export const StatScene: React.FC<Props> = ({ tokens, scene, design }) => {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             }),
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 24,
           }}
         >
+          {isIconName(scene.icon) ? (
+            <div style={{ color: accent }}>
+              <Icon
+                name={scene.icon}
+                size={88}
+                strokeWidth={1.5}
+                drawOn
+                drawStart={4}
+                drawFrames={Math.round(stagger * 2)}
+              />
+            </div>
+          ) : null}
           <PCMonoLabel tone={design.accent} color={isLight ? undefined : "rgba(255,255,255,0.6)"}>
             {scene.label}
           </PCMonoLabel>

@@ -178,6 +178,19 @@ export const contentRouter = router({
         );
       }
 
+      // Auto-schedule for tomorrow at 10am local-server-time when
+      // the draft doesn't already have a scheduledFor. Without this,
+      // approved drafts sit with scheduledFor=null and don't show on
+      // the calendar (the user can't see their queue). Pulse (when
+      // it picks up scheduling) can override this default.
+      const nextSlot = (() => {
+        if (draft.scheduledFor) return draft.scheduledFor;
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        d.setHours(10, 0, 0, 0);
+        return d;
+      })();
+
       // If the alternate was chosen, swap it into the primary slot so
       // downstream publishing reads `content` regardless of which won.
       if (input.variant === "alternate" && draft.alternateContent) {
@@ -186,6 +199,7 @@ export const contentRouter = router({
           data: {
             status: DraftStatus.APPROVED,
             approvedAt: new Date(),
+            scheduledFor: nextSlot,
             content: draft.alternateContent as Prisma.InputJsonValue,
             alternateContent: draft.content as Prisma.InputJsonValue,
             chosenVariant: "alternate",
@@ -198,6 +212,7 @@ export const contentRouter = router({
         data: {
           status: DraftStatus.APPROVED,
           approvedAt: new Date(),
+          scheduledFor: nextSlot,
           chosenVariant: "primary",
         },
       });

@@ -85,10 +85,14 @@ export function ContentCalendar() {
   const items = useMemo<DayItem[]>(() => {
     const out: DayItem[] = [];
     for (const d of drafts.data?.items ?? []) {
-      const scheduledMs = toMs(d.scheduledFor);
-      // Only put drafts on the calendar if they have a scheduled date.
-      // AWAITING_REVIEW drafts without a date go in the feed, not on
-      // the calendar — they have no "when" to plot.
+      // For APPROVED drafts we plot by scheduledFor; for older
+      // approved drafts that pre-date the auto-schedule fix, fall
+      // back to approvedAt so the user still sees their queue.
+      // AWAITING_REVIEW drafts without any date go in the feed,
+      // not on the calendar.
+      const scheduledMs =
+        toMs(d.scheduledFor) ??
+        (d.status === "APPROVED" ? toMs(d.approvedAt) : null);
       if (!scheduledMs) continue;
       out.push({
         id: d.id,

@@ -380,12 +380,16 @@ export function DraftCardV2({
               draftScript.error?.message}
           </div>
         ) : null}
-        {draftedScript ? (
+        {draftedScript || draftScript.isPending ? (
           <ScriptPreview
             draftId={draft.id}
             script={draftedScript}
+            pending={draftScript.isPending}
             tokens={tokens}
-            onClose={() => setDraftedScript(null)}
+            onClose={() => {
+              setDraftedScript(null);
+              draftScript.reset();
+            }}
             onRendered={() => {
               setDraftedScript(null);
               utils.content.listDrafts.invalidate();
@@ -432,6 +436,7 @@ export function DraftCardV2({
             business={business}
             content={normalized}
             mp4Url={motion?.mp4Url ?? null}
+            postedAt={draft.scheduledFor ?? draft.createdAt ?? null}
             menu={{
               onToggle: () => setShowMenu((v) => !v),
             }}
@@ -497,12 +502,16 @@ export function DraftCardV2({
         </div>
       ) : null}
 
-      {draftedScript ? (
+      {draftedScript || draftScript.isPending ? (
         <ScriptPreview
           draftId={draft.id}
           script={draftedScript}
+          pending={draftScript.isPending}
           tokens={tokens}
-          onClose={() => setDraftedScript(null)}
+          onClose={() => {
+            setDraftedScript(null);
+            draftScript.reset();
+          }}
           onRendered={() => {
             setDraftedScript(null);
             utils.content.listDrafts.invalidate();

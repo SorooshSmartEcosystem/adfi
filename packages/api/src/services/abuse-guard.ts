@@ -23,10 +23,15 @@ import { db, type MessageChannel, type Plan } from "@orb/db";
 
 const MIN_BODY_LENGTH = 2;
 
+// Per-sender sliding-window rate limits. Tuned for normal back-and-
+// forth conversation: a customer asking 4-5 questions in two minutes
+// shouldn't trip the 5min cap. Earlier values (5/5min, 30/1h) hit
+// during legitimate testing because a real chat easily exchanges
+// 6-8 messages in 5 minutes once the agent + user are alternating.
 const SENDER_WINDOWS = [
-  { ms: 5 * 60 * 1000, max: 5, label: "5min" },
-  { ms: 60 * 60 * 1000, max: 30, label: "1h" },
-  { ms: 24 * 60 * 60 * 1000, max: 100, label: "24h" },
+  { ms: 5 * 60 * 1000, max: 15, label: "5min" },
+  { ms: 60 * 60 * 1000, max: 60, label: "1h" },
+  { ms: 24 * 60 * 60 * 1000, max: 200, label: "24h" },
 ] as const;
 
 // Daily ceilings on signal calls per user. Tuned conservatively — a real

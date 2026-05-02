@@ -144,6 +144,26 @@ export async function sendMessage(args: {
   return { messageId: r.message_id };
 }
 
+// sendPhoto — posts an image with an optional caption. Used by the
+// content publisher when a draft has both text + a hero image, so
+// Telegram channels see the same picture-with-caption layout that
+// IG/Facebook get instead of text-only. Telegram's caption is hard-
+// capped at 1024 chars; longer text is sent as a follow-up message.
+export async function sendPhoto(args: {
+  token: string;
+  chatId: string | number;
+  photoUrl: string;
+  caption?: string;
+}): Promise<{ messageId: number }> {
+  const cap = (args.caption ?? "").slice(0, 1024);
+  const r = await call<{ message_id: number }>(args.token, "sendPhoto", {
+    chat_id: args.chatId,
+    photo: args.photoUrl,
+    caption: cap,
+  });
+  return { messageId: r.message_id };
+}
+
 // Show "typing…" in the user's chat for ~5s. Telegram auto-clears it
 // when the next message lands or after 5s, whichever comes first. Use
 // it before kicking off the LLM call so the user sees activity instead

@@ -18,7 +18,11 @@ import { useState } from "react";
 import { Player } from "@remotion/player";
 import { ScriptReel, computeScriptFrames } from "@orb/motion-reel/client";
 import { trpc } from "../../lib/trpc";
-import { OrbLoader, STAGES_VIDEO_RENDER } from "../shared/orb-loader";
+import {
+  OrbLoader,
+  STAGES_VIDEO_RENDER,
+  STAGES_VIDEO_SCRIPT,
+} from "../shared/orb-loader";
 
 const FPS = 30;
 
@@ -55,10 +59,15 @@ type Tokens = {
 
 type Props = {
   draftId: string;
-  script: Script;
+  script: Script | null;
   tokens: Tokens;
   onClose: () => void;
   onRendered?: (mp4Url: string) => void;
+  // When true, the drawer is opened before the script has been
+  // generated. Caller passes their mutation's `isPending` flag —
+  // the drawer renders a "sketching script…" loader until the
+  // script lands and the parent re-renders with a non-null script.
+  pending?: boolean;
 };
 
 export function ScriptPreview({
@@ -67,9 +76,34 @@ export function ScriptPreview({
   tokens,
   onClose,
   onRendered,
+  pending,
 }: Props) {
-  const [editedScript, setEditedScript] = useState(script);
+  const [editedScript, setEditedScript] = useState<Script | null>(script);
   const utils = trpc.useUtils();
+
+  // When script transitions from null → object (the agent finishes),
+  // sync editedScript so the Player has something to render.
+  if (script && !editedScript) {
+    setEditedScript(script);
+  }
+
+  // Drawer-with-script-loading state — the scene the user clicks
+  // "tap to create video" first lands here.
+  if (pending || !editedScript) {
+    return (
+      <Drawer onClose={onClose}>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-md">
+          <OrbLoader tone="alive" size="lg" stages={STAGES_VIDEO_SCRIPT} />
+          <div className="font-mono text-[11px] text-ink2 tracking-[0.16em]">
+            sketching video script…
+          </div>
+          <div className="font-mono text-[10px] text-ink4">
+            ~5–15s · ~0.4¢
+          </div>
+        </div>
+      </Drawer>
+    );
+  }
 
   const render = trpc.motionReel.renderScript.useMutation({
     onSuccess: (data) => {
@@ -137,6 +171,8 @@ export function ScriptPreview({
               inputProps={{ tokens, script: editedScript } as never}
               controls
               loop
+              autoPlay
+              clickToPlay={false}
               style={{ aspectRatio: "9 / 16", width: "100%" }}
             />
           </div>

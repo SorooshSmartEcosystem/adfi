@@ -11,7 +11,10 @@ import {
 import { generateWeeklyPlan, startOfWeek } from "../agents/planner";
 import { summarizePerformance } from "../services/performance";
 import { publishNewsletter, testSendNewsletter } from "../services/newsletter";
-import { sendMessage as sendTelegramMessage } from "../services/telegram";
+import {
+  sendMessage as sendTelegramMessage,
+  sendPhoto as sendTelegramPhoto,
+} from "../services/telegram";
 import { decryptToken } from "../services/crypto";
 import { notifyAdminOfError } from "../services/admin-notify";
 
@@ -90,6 +93,22 @@ function telegramTextFromDraft(content: unknown): string {
   if (typeof c.body === "string" && c.body.trim()) parts.push(c.body.trim());
   if (typeof c.cta === "string" && c.cta.trim()) parts.push(c.cta.trim());
   return parts.join("\n\n").slice(0, 4096);
+}
+
+// Pull the hero image URL out of a draft. Echo's image pipeline writes
+// `heroImage.url` (post-generation backfill); fall back to a top-level
+// `imageUrl` for older drafts.
+function telegramImageFromDraft(content: unknown): string | null {
+  if (!content || typeof content !== "object") return null;
+  const c = content as Record<string, unknown>;
+  const hero = c.heroImage as { url?: string } | undefined;
+  if (typeof hero?.url === "string" && hero.url.startsWith("http")) {
+    return hero.url;
+  }
+  if (typeof c.imageUrl === "string" && c.imageUrl.startsWith("http")) {
+    return c.imageUrl;
+  }
+  return null;
 }
 
 export const contentRouter = router({
@@ -531,12 +550,45 @@ export const contentRouter = router({
         if (!text) {
           throw OrbError.VALIDATION("draft has no postable text");
         }
+        const photoUrl = telegramImageFromDraft(draft.content);
         try {
-          const sent = await sendTelegramMessage({
-            token: decryptToken(channel.encryptedToken),
-            chatId: channel.externalId,
-            text,
-          });
+          const token = decryptToken(channel.encryptedToken);
+          // If the draft has a hero image, post it as a photo with
+          // the text as caption (cap 1024 chars). Telegram doesn't
+          // support inline-image-with-long-caption like IG/FB, so
+          // when text exceeds the photo caption limit we send the
+          // photo first then a follow-up text message with the
+          // overflow. The first message id is what gets persisted.
+          let sent: { messageId: number };
+          if (photoUrl && text.length <= 1024) {
+            sent = await sendTelegramPhoto({
+              token,
+              chatId: channel.externalId,
+              photoUrl,
+              caption: text,
+            });
+          } else if (photoUrl) {
+            // Photo + long text: photo with truncated caption,
+            // then follow-up message with the full body.
+            sent = await sendTelegramPhoto({
+              token,
+              chatId: channel.externalId,
+              photoUrl,
+              caption: text.slice(0, 1024),
+            });
+            await sendTelegramMessage({
+              token,
+              chatId: channel.externalId,
+              text,
+            });
+          } else {
+            // No image — text only.
+            sent = await sendTelegramMessage({
+              token,
+              chatId: channel.externalId,
+              text,
+            });
+          }
           await ctx.db.contentDraft.update({
             where: { id: draft.id },
             data: { status: DraftStatus.PUBLISHED },

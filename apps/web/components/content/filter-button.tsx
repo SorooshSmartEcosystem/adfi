@@ -68,7 +68,11 @@ export function FilterButton({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full mt-xs bg-bg border-hairline border-border rounded-md p-xs z-20 min-w-[180px] shadow-lg">
+        // On mobile (where flex-wrap can put the filter button on the
+        // left of the toolbar), `right-0` would push the popover
+        // off-screen left. Anchor left on small screens, right on md+.
+        // Cap the width to viewport - 24px so it can't escape either side.
+        <div className="absolute left-0 md:left-auto md:right-0 top-full mt-xs bg-bg border-hairline border-border rounded-md p-xs z-20 min-w-[180px] max-w-[calc(100vw-24px)] shadow-lg">
           {PLATFORMS.map((p) => (
             <button
               key={p.value}

@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import type { MockupProps } from "./types";
-import { pickPrimaryText, truncate } from "./types";
+import { pickPrimaryText, truncate, formatPostedAt } from "./types";
 import {
   CoverSlideView,
   BodySlideView,
@@ -18,6 +18,7 @@ export function InstagramPostMockup({
   business,
   content,
   menu,
+  postedAt,
 }: MockupProps) {
   const handle =
     business.handle ?? business.name.toLowerCase().replace(/\s+/g, "_");
@@ -55,7 +56,9 @@ export function InstagramPostMockup({
           <div className="text-[13px] font-semibold text-ink truncate">
             {handle}
           </div>
-          <div className="text-[11px] text-ink4">just now</div>
+          <div className="text-[11px] text-ink4">
+            {formatPostedAt(postedAt, "instagram")}
+          </div>
         </div>
         <button
           type="button"

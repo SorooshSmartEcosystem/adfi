@@ -84,7 +84,85 @@ export type MockupProps = {
   // reel mockup uses this to show "creating video…" on the placeholder
   // so the user gets feedback their tap landed.
   videoBusy?: boolean;
+  // Timestamp the post is scheduled for (or was published at). Drives
+  // the platform-native date label inside each mockup ("2h", "Mar 14",
+  // "scheduled for tomorrow at 9am") instead of the hardcoded
+  // "just now". Falls back to "just now" when null/undefined.
+  postedAt?: Date | string | null;
 };
+
+// Format a date the way each platform shows post times. Pure utility
+// that the mockups call directly so they don't have to duplicate the
+// formatting logic. Defaults to "just now" when no date is supplied.
+export function formatPostedAt(
+  postedAt: Date | string | null | undefined,
+  platform: "instagram" | "twitter" | "linkedin" | "facebook" | "telegram" | "email" = "instagram",
+): string {
+  if (!postedAt) return "just now";
+  const d = typeof postedAt === "string" ? new Date(postedAt) : postedAt;
+  if (Number.isNaN(d.getTime())) return "just now";
+  const now = Date.now();
+  const ms = d.getTime() - now;
+  const future = ms > 0;
+  const absMs = Math.abs(ms);
+  const mins = Math.round(absMs / 60_000);
+  const hours = Math.round(absMs / 3_600_000);
+  const days = Math.round(absMs / 86_400_000);
+
+  // Future-dated (scheduled posts)
+  if (future) {
+    if (mins < 60) return `scheduled · ${mins}m`;
+    if (hours < 24) return `scheduled · ${hours}h`;
+    if (days < 7) return `scheduled · ${days}d`;
+    // Longer than a week — show the calendar date in platform style
+    const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+    if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+    return `scheduled · ${d.toLocaleDateString("en-US", opts)}`;
+  }
+
+  // Past-dated (published posts)
+  switch (platform) {
+    case "twitter":
+      // X uses "2h", "1d", or absolute date for older
+      if (mins < 1) return "now";
+      if (mins < 60) return `${mins}m`;
+      if (hours < 24) return `${hours}h`;
+      if (days < 7) return `${days}d`;
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    case "instagram":
+    case "facebook":
+      // IG / FB use "2 hours ago", "1 day ago", "March 14"
+      if (mins < 1) return "just now";
+      if (mins < 60) return `${mins}m ago`;
+      if (hours < 24) return `${hours}h ago`;
+      if (days < 7) return `${days}d ago`;
+      return d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+    case "linkedin":
+      if (mins < 1) return "now";
+      if (mins < 60) return `${mins}m`;
+      if (hours < 24) return `${hours}h`;
+      if (days < 7) return `${days}d`;
+      if (days < 30) return `${Math.round(days / 7)}w`;
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    case "telegram":
+      if (mins < 1) return "now";
+      if (hours < 24)
+        return d.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        });
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    case "email":
+      return d.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    default:
+      return d.toLocaleDateString("en-US");
+  }
+}
 
 export function pickPrimaryText(content: DraftContent): string {
   return (

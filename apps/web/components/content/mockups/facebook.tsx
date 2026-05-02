@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type { MockupProps } from "./types";
-import { pickPrimaryText } from "./types";
+import { pickPrimaryText, formatPostedAt } from "./types";
 
-export function FacebookMockup({ business, content, menu }: MockupProps) {
+export function FacebookMockup({ business, content, menu, postedAt }: MockupProps) {
   const text = pickPrimaryText(content);
   const [expanded, setExpanded] = useState(false);
   const TRUNC = 280;
@@ -20,7 +20,7 @@ export function FacebookMockup({ business, content, menu }: MockupProps) {
             {business.name}
           </div>
           <div className="text-[13px] text-[#65676b] flex items-center gap-xs">
-            <span>just now</span>
+            <span>{formatPostedAt(postedAt, "facebook")}</span>
             <span>·</span>
             <span>🌐</span>
           </div>

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import type { MockupProps } from "./types";
+import { formatPostedAt } from "./types";
 
-export function EmailMockup({ business, content, menu }: MockupProps) {
+export function EmailMockup({ business, content, menu, postedAt }: MockupProps) {
   const subject = content.subject ?? content.hook ?? "newsletter draft";
   const sections = content.sections ?? [];
   const fallbackBody = content.body ?? content.caption ?? "";
@@ -55,7 +56,7 @@ export function EmailMockup({ business, content, menu }: MockupProps) {
               </span>
             </div>
             <div className="text-[12px] text-[#71717a] mt-[2px]">
-              to me · just now
+              to me · {formatPostedAt(postedAt, "email")}
             </div>
             <div className="text-[18px] font-semibold text-[#18181b] mt-sm">
               {subject}

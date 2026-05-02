@@ -43,6 +43,7 @@ export function PlatformMockup({
   menu,
   onCreateVideo,
   videoBusy,
+  postedAt,
 }: Props) {
   // Format-driven dispatch first
   if (format === "REEL_SCRIPT") {
@@ -54,30 +55,76 @@ export function PlatformMockup({
         menu={menu}
         onCreateVideo={onCreateVideo}
         videoBusy={videoBusy}
+        postedAt={postedAt}
       />
     );
   }
   if (format === "EMAIL_NEWSLETTER" || platform === "EMAIL") {
-    return <EmailMockup business={business} content={content} menu={menu} />;
+    return (
+      <EmailMockup
+        business={business}
+        content={content}
+        menu={menu}
+        postedAt={postedAt}
+      />
+    );
   }
 
   // Platform-driven dispatch
   switch (platform) {
     case "INSTAGRAM":
       return (
-        <InstagramPostMockup business={business} content={content} menu={menu} />
+        <InstagramPostMockup
+          business={business}
+          content={content}
+          menu={menu}
+          postedAt={postedAt}
+        />
       );
     case "TWITTER":
-      return <TwitterMockup business={business} content={content} menu={menu} />;
+      return (
+        <TwitterMockup
+          business={business}
+          content={content}
+          menu={menu}
+          postedAt={postedAt}
+        />
+      );
     case "LINKEDIN":
-      return <LinkedInMockup business={business} content={content} menu={menu} />;
+      return (
+        <LinkedInMockup
+          business={business}
+          content={content}
+          menu={menu}
+          postedAt={postedAt}
+        />
+      );
     case "FACEBOOK":
-      return <FacebookMockup business={business} content={content} menu={menu} />;
+      return (
+        <FacebookMockup
+          business={business}
+          content={content}
+          menu={menu}
+          postedAt={postedAt}
+        />
+      );
     case "TELEGRAM":
-      return <TelegramMockup business={business} content={content} menu={menu} />;
+      return (
+        <TelegramMockup
+          business={business}
+          content={content}
+          menu={menu}
+          postedAt={postedAt}
+        />
+      );
     default:
       return (
-        <InstagramPostMockup business={business} content={content} menu={menu} />
+        <InstagramPostMockup
+          business={business}
+          content={content}
+          menu={menu}
+          postedAt={postedAt}
+        />
       );
   }
 }

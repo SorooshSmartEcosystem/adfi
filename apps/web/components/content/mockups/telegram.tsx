@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type { MockupProps } from "./types";
-import { pickPrimaryText } from "./types";
+import { pickPrimaryText, formatPostedAt } from "./types";
 
-export function TelegramMockup({ business, content, menu }: MockupProps) {
+export function TelegramMockup({ business, content, menu, postedAt }: MockupProps) {
   const text = pickPrimaryText(content);
   const tags = content.hashtags ?? [];
   const [expanded, setExpanded] = useState(false);
@@ -73,7 +73,7 @@ export function TelegramMockup({ business, content, menu }: MockupProps) {
             </svg>
             <span>1.4k</span>
           </span>
-          <span className="ml-auto">just now</span>
+          <span className="ml-auto">{formatPostedAt(postedAt, "telegram")}</span>
         </div>
       </div>
     </div>

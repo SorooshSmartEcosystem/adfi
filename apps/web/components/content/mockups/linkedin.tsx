@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type { MockupProps } from "./types";
-import { pickPrimaryText } from "./types";
+import { pickPrimaryText, formatPostedAt } from "./types";
 
-export function LinkedInMockup({ business, content, menu }: MockupProps) {
+export function LinkedInMockup({ business, content, menu, postedAt }: MockupProps) {
   const text = pickPrimaryText(content);
   const [expanded, setExpanded] = useState(false);
   const TRUNC = 280;
@@ -24,7 +24,7 @@ export function LinkedInMockup({ business, content, menu }: MockupProps) {
               business · {business.handle ? `linkedin.com/in/${business.handle}` : ""}
             </div>
             <div className="text-[12px] text-[#00000099] flex items-center gap-xs mt-[2px]">
-              <span>just now</span>
+              <span>{formatPostedAt(postedAt, "linkedin")}</span>
               <span>·</span>
               <span>🌐</span>
             </div>

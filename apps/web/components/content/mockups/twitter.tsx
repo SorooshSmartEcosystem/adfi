@@ -4,9 +4,9 @@
 
 import { useState } from "react";
 import type { MockupProps } from "./types";
-import { pickPrimaryText } from "./types";
+import { pickPrimaryText, formatPostedAt } from "./types";
 
-export function TwitterMockup({ business, content, menu }: MockupProps) {
+export function TwitterMockup({ business, content, menu, postedAt }: MockupProps) {
   const handle =
     business.handle ?? business.name.toLowerCase().replace(/\s+/g, "");
   const fullText = pickPrimaryText(content);
@@ -37,7 +37,7 @@ export function TwitterMockup({ business, content, menu }: MockupProps) {
             ) : null}
             <span className="text-[#536471]">@{handle}</span>
             <span className="text-[#536471]">·</span>
-            <span className="text-[#536471]">just now</span>
+            <span className="text-[#536471]">{formatPostedAt(postedAt, "twitter")}</span>
 
             {/* ⋯ menu trigger sits at top-right of the tweet header */}
             <button

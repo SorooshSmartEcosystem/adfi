@@ -276,6 +276,13 @@ const TerminalSchema = z.object({
 // switch and the router's input validator; they just don't get
 // emitted by the agent. Old persisted scripts containing legacy
 // scenes still render fine.
+// AGENT scene schema — 7 scenes max. We had 9 (5 editorial + 4
+// structural) but Anthropic's grammar compiler rejected with
+// "compiled grammar is too large". Each scene with a nested array
+// of objects multiplies the grammar size; trimming chat-thread +
+// terminal keeps us under the cap. They stay in the RENDERER and
+// the ROUTER schema for user-edited scripts, just not emitted by
+// the agent.
 const SceneSchema = z.discriminatedUnion("type", [
   // editorial-bold preset (5 scenes)
   EditorialOpenerSchema,
@@ -283,11 +290,9 @@ const SceneSchema = z.discriminatedUnion("type", [
   IconListSchema,
   NumberedDiagramSchema,
   EditorialClosingSchema,
-  // structural variety (Phase 3)
+  // structural variety (2 scenes — most universal of the 4 built)
   PhoneMockupSchema,
   MetricTileGridSchema,
-  ChatThreadSchema,
-  TerminalSchema,
 ]);
 
 
@@ -451,32 +456,16 @@ Pick by content type:
    - title: optional uppercase header.
    - duration: 4-6s.
 
-8. chat-thread — Fake messenger thread with 2-4 alternating bubbles
-   between "you" and "them". Use for testimonials, customer
-   questions, support exchanges, or conversational explainers.
-   { type: "chat-thread", title?, messages: [{sender: "you"|"them", text}], duration }
-   - 2-4 messages. Bubbles type in sequentially with typing
-     indicator first.
-   - title: optional header above the thread.
-   - duration: 5-7s.
-
-9. terminal — Black terminal window with monospace text typing in
-   line by line. Use for crypto / dev / SaaS / fintech content where
-   "we shipped this" or "look at the data" is the message.
-   { type: "terminal", title?, prompt?, lines: [{text, kind: "command"|"output"|"error"}], duration }
-   - 3-8 lines. Mix command + output for realism.
-   - prompt: "$" by default, ">" for PowerShell-style.
-   - duration: 4-7s.
-
 Picking rules:
-- Crypto / fintech / SaaS / dev brand → strongly prefer
-  terminal + metric-tile-grid; sprinkle phone-mockup sparingly.
-- Coach / wellness / family brand → prefer chat-thread (testimonials)
-  and phone-mockup (kind: "message"); avoid terminal.
-- Renovation / luxury / craft brand → prefer phone-mockup
-  (kind: "feed") for "post a photo" content; avoid terminal.
+- Crypto / fintech / SaaS / dev brand → metric-tile-grid for
+  numbers; phone-mockup (kind: "notification") for launches /
+  alerts.
+- Coach / wellness / family brand → phone-mockup (kind: "message")
+  for testimonials and customer questions.
+- Renovation / luxury / craft brand → phone-mockup (kind: "feed")
+  for "post a photo" content.
 - ANY brand celebrating a milestone → metric-tile-grid is great.
-- ANY brand quoting a customer → chat-thread.
+- ANY brand quoting a customer → phone-mockup (kind: "message").
 
 Editorial-bold composition arc:
   scene 1: editorial-opener  (mark + spotlight + headline)
@@ -526,10 +515,9 @@ Every reel follows this 4–6 scene arc:
   [editorial-opener → 2-4 body scenes → editorial-closer]
 
 Body scenes are picked from: bold-statement, icon-list,
-numbered-diagram, phone-mockup, metric-tile-grid, chat-thread,
-terminal. **At LEAST one body scene MUST be a structural scene
-(phone-mockup / metric-tile-grid / chat-thread / terminal)** — back-
-to-back text scenes read as a slide deck.
+numbered-diagram, phone-mockup, metric-tile-grid. **At LEAST one
+body scene MUST be a structural scene (phone-mockup or
+metric-tile-grid)** — back-to-back text scenes read as a slide deck.
 
 A good 18-22s script:
   editorial-opener  → bold-statement  → bold-statement  →

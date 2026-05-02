@@ -39,6 +39,12 @@ export type BoldStatementShape = {
   hero: string;
   emphasis?: string;
   trail?: string;
+  // Optional layout override. Renderer rotates layouts by scene index
+  // when this is omitted. Agent doesn't emit it today (kept out of
+  // the agent's zod to stay under Anthropic's 24-optional cap), but
+  // the field is here so future agents or user-edited scripts can
+  // set it explicitly.
+  layout?: "centered" | "left-anchored" | "stacked-bottom";
   duration: number;
 };
 

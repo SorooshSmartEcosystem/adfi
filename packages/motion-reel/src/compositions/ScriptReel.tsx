@@ -65,7 +65,12 @@ export const ScriptReel: React.FC<Props> = ({ tokens, script }) => {
         cursor += frames;
         return (
           <Sequence key={i} from={from} durationInFrames={frames}>
-            <SceneSwitch tokens={tokens} scene={scene} design={design} />
+            <SceneSwitch
+              tokens={tokens}
+              scene={scene}
+              design={design}
+              sceneIndex={i}
+            />
             <SceneTransition
               index={i}
               accent={accent}
@@ -87,7 +92,8 @@ const SceneSwitch: React.FC<{
   tokens: BrandTokens;
   scene: Scene;
   design: Required<VideoDesign>;
-}> = ({ tokens, scene, design }) => {
+  sceneIndex: number;
+}> = ({ tokens, scene, design, sceneIndex }) => {
   switch (scene.type) {
     case "hook":
       return <HookScene tokens={tokens} scene={scene} design={design} />;
@@ -110,7 +116,12 @@ const SceneSwitch: React.FC<{
     // ── editorial-bold preset ─────────────────────────────────────
     case "bold-statement":
       return (
-        <BoldStatementScene tokens={tokens} scene={scene} design={design} />
+        <BoldStatementScene
+          tokens={tokens}
+          scene={scene}
+          design={design}
+          sceneIndex={sceneIndex}
+        />
       );
     case "icon-list":
       return <IconListScene tokens={tokens} scene={scene} design={design} />;

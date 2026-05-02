@@ -1,20 +1,25 @@
 // BoldStatementScene — the workhorse of editorial-bold. Mixed-weight
-// composition: a small lead phrase at the top in light weight, then
-// a HUGE heavy display word/phrase, with one word colored in accent.
-// Optional small trailing phrase at the bottom in light weight.
+// composition: a small lead phrase, a HUGE heavy display statement
+// with one accent-color emphasis word, optional small trailing phrase.
 //
 // Reference: Empire Labs reels' "Most billion-dollar **companies**"
-// frame, where one purple word is the punchline and the rest of the
-// statement supports it.
+// frame and similar editorial layouts.
 //
-// Composition variants by index hash:
-//   - top:   lead = small light, hero = big heavy with accent word, trail = small light
-//   - left:  lead and hero left-aligned (variation in ~30% of scenes)
+// Three layout variants rotate by `layout` field (or by scene-index
+// hash when not specified) so consecutive bold-statement scenes feel
+// different:
+//   - "centered" (default): everything on the vertical centerline
+//   - "left-anchored": hero hugs the left edge, lead above
+//   - "stacked-bottom": lead at top, hero anchored to lower 40%
 //
 // Animation:
-//   - Lead phrase fades + slides up (0..stagger)
-//   - Hero phrase scales in word-by-word (stagger..stagger*3)
-//   - Accent word color-shifts from ink to accent on its reveal frame
+//   - Lead phrase fades + slides up
+//   - Hero word-by-word reveal (each word lands on a beat)
+//   - Emphasis word reveals per-letter with kinetic-typography stagger
+//   - Trail phrase fades after the hero settles
+//
+// Forced line breaks: if the agent emits `\n` in `hero`, the renderer
+// honors them — useful for "the / big / problem" newspaper layouts.
 
 "use client";
 
@@ -22,20 +27,31 @@ import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { fitText } from "../../motion/fitText";
 import type { BrandTokens, VideoDesign } from "../../types";
-import type { BoldStatementShape } from "../types";
+import type { BoldStatementShape as BaseShape } from "../types";
 
-export type { BoldStatementShape };
+// Extends the shared shape with editorial-bold-specific fields.
+export type BoldStatementShape = BaseShape & {
+  // Optional layout override. When omitted, renderer picks via index
+  // hash (deterministic — same draft renders identically every time).
+  layout?: "centered" | "left-anchored" | "stacked-bottom";
+};
+
+export type { BoldStatementShape as BaseBoldStatementShape };
 
 type Props = {
   tokens: BrandTokens;
   scene: BoldStatementShape;
   design: Required<VideoDesign>;
+  // Caller (ScriptReel) can pass a stable index for layout rotation.
+  // Defaults to a hash of the scene's `hero` so renders are stable.
+  sceneIndex?: number;
 };
 
 export const BoldStatementScene: React.FC<Props> = ({
   tokens,
   scene,
   design,
+  sceneIndex,
 }) => {
   const frame = useCurrentFrame();
   const easing = paceEasing(design.pace);
@@ -43,27 +59,35 @@ export const BoldStatementScene: React.FC<Props> = ({
   const accent = accentColor(design.accent, tokens);
 
   // editorial-bold ALWAYS uses white background regardless of style.
-  // That's the load-bearing visual decision.
   const bg = "#FFFFFF";
   const ink = "#0F0F0F";
   const inkLight = "#5A5A5A";
 
+  // Pick layout variant — agent override wins, otherwise rotate by
+  // scene index (or by hero-hash if no index passed).
+  const variants: NonNullable<BoldStatementShape["layout"]>[] = [
+    "centered",
+    "left-anchored",
+    "stacked-bottom",
+  ];
+  const idx =
+    sceneIndex ??
+    [...scene.hero].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  const layout = scene.layout ?? variants[idx % variants.length] ?? "centered";
+
   // Decide which word in `hero` is the emphasis. Default: last word.
-  const heroWords = scene.hero.split(/(\s+)/).filter((s) => s.length > 0);
-  const heroLetters = scene.hero.length;
+  const heroLines = scene.hero.split(/\n/);
   const emphasisLower = (scene.emphasis ?? lastWord(scene.hero)).toLowerCase();
 
-  // Hero font size — fit the whole phrase across at most 3 lines.
+  // Hero font size — fit the whole phrase across at most N lines.
   const heroFontSize = fitText({
     text: scene.hero,
-    maxSize: 220,
+    maxSize: layout === "stacked-bottom" ? 200 : 220,
     minSize: 88,
     advance: 0.52,
-    maxLines: scene.hero.length > 30 ? 3 : 2,
+    maxLines: Math.max(heroLines.length, scene.hero.length > 30 ? 3 : 2),
   });
 
-  // Lead and trail get the same fitText treatment but with smaller
-  // budgets. They're support text.
   const supportFontSize = fitText({
     text: scene.lead ?? scene.trail ?? "",
     maxSize: 44,
@@ -83,15 +107,47 @@ export const BoldStatementScene: React.FC<Props> = ({
   });
 
   const heroStart = scene.lead ? 4 + stagger : 4;
-  const heroEnd = heroStart + stagger * 2.5;
+  const wordList = scene.hero
+    .split(/(\s+|\n)/)
+    .filter((s) => s.length > 0);
+  const totalNonWhitespaceWords = wordList.filter(
+    (w) => !/^\s+$/.test(w) && w !== "\n",
+  ).length;
+  const heroEnd = heroStart + totalNonWhitespaceWords * (stagger * 0.55) + stagger * 1.4;
 
-  const trailStart = heroEnd + stagger;
+  const trailStart = heroEnd + Math.round(stagger * 0.6);
   const trailOpacity = interpolate(
     frame,
     [trailStart, trailStart + stagger],
     [0, 1],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
   );
+
+  // Layout-specific container styles
+  const containerStyle: React.CSSProperties =
+    layout === "left-anchored"
+      ? {
+          alignItems: "flex-start",
+          justifyContent: "center",
+          padding: "120px 80px",
+          textAlign: "left",
+        }
+      : layout === "stacked-bottom"
+        ? {
+            alignItems: "flex-start",
+            justifyContent: "flex-start",
+            padding: "120px 80px 220px 80px",
+            textAlign: "left",
+          }
+        : {
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "120px 80px",
+            textAlign: "center",
+          };
+
+  const heroAlign =
+    layout === "centered" ? ("center" as const) : ("left" as const);
 
   return (
     <AbsoluteFill
@@ -106,15 +162,14 @@ export const BoldStatementScene: React.FC<Props> = ({
         style={{
           position: "absolute",
           inset: 0,
-          padding: "120px 80px",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
           gap: scene.lead || scene.trail ? 48 : 0,
+          ...containerStyle,
         }}
       >
-        {scene.lead ? (
+        {/* Lead — placement varies by layout */}
+        {scene.lead && layout !== "stacked-bottom" ? (
           <div
             style={{
               fontSize: supportFontSize,
@@ -123,7 +178,30 @@ export const BoldStatementScene: React.FC<Props> = ({
               color: inkLight,
               opacity: leadOpacity,
               transform: `translateY(${leadY}px)`,
-              textAlign: "center",
+              textAlign: heroAlign,
+              lineHeight: 1.2,
+              alignSelf: heroAlign === "left" ? "flex-start" : "center",
+            }}
+          >
+            {scene.lead}
+          </div>
+        ) : null}
+
+        {/* Stacked-bottom layout puts the lead at the very top */}
+        {scene.lead && layout === "stacked-bottom" ? (
+          <div
+            style={{
+              position: "absolute",
+              top: 140,
+              left: 80,
+              right: 80,
+              fontSize: supportFontSize,
+              fontWeight: 500,
+              letterSpacing: "-0.01em",
+              color: inkLight,
+              opacity: leadOpacity,
+              transform: `translateY(${leadY}px)`,
+              textAlign: "left",
               lineHeight: 1.2,
             }}
           >
@@ -138,30 +216,89 @@ export const BoldStatementScene: React.FC<Props> = ({
             letterSpacing: "-0.04em",
             lineHeight: 0.95,
             color: ink,
-            textAlign: "center",
+            textAlign: heroAlign,
             wordBreak: "break-word",
             overflowWrap: "anywhere",
             maxWidth: "100%",
+            ...(layout === "stacked-bottom"
+              ? { marginTop: "auto", paddingBottom: 60 }
+              : {}),
           }}
         >
-          {heroWords.map((token, i) => {
-            // Whitespace tokens render as-is; word tokens animate +
-            // get accent color if they match emphasisLower.
+          {wordList.map((token, i) => {
+            // Forced line break — agent can emit \n inside `hero` for
+            // newspaper-style line stacking.
+            if (token === "\n") {
+              return <div key={i} style={{ width: "100%", height: 0 }} />;
+            }
+            // Whitespace tokens render as-is.
             if (/^\s+$/.test(token)) return <span key={i}>{token}</span>;
 
-            // Per-word stagger. Words appear sequentially at small
-            // offsets so the eye reads left-to-right.
-            const wordIndex = heroWords.slice(0, i).filter((w) => !/^\s+$/.test(w)).length;
-            const start = heroStart + wordIndex * (stagger * 0.6);
+            // Per-word stagger.
+            const wordIndex = wordList
+              .slice(0, i)
+              .filter((w) => !/^\s+$/.test(w) && w !== "\n").length;
+            const start = heroStart + wordIndex * (stagger * 0.55);
+
+            const cleaned = token.replace(/[^\p{L}\p{N}']/gu, "").toLowerCase();
+            const isEmphasis = cleaned.length > 0 && cleaned === emphasisLower;
+
+            // Per-LETTER reveal for the emphasis word (kinetic
+            // typography). Plain word-fade for others — keeps the
+            // animation budget where the eye is meant to land.
+            if (isEmphasis) {
+              const letters = [...token];
+              return (
+                <span key={i} style={{ display: "inline-block" }}>
+                  {letters.map((letter, li) => {
+                    const letterStart = start + li * 1.2;
+                    const opacity = interpolate(
+                      frame,
+                      [letterStart, letterStart + stagger * 0.9],
+                      [0, 1],
+                      {
+                        extrapolateLeft: "clamp",
+                        extrapolateRight: "clamp",
+                      },
+                    );
+                    const ty = interpolate(
+                      frame,
+                      [letterStart, letterStart + stagger],
+                      [22, 0],
+                      {
+                        extrapolateLeft: "clamp",
+                        extrapolateRight: "clamp",
+                        easing,
+                      },
+                    );
+                    return (
+                      <span
+                        key={li}
+                        style={{
+                          display: "inline-block",
+                          color: accent,
+                          opacity,
+                          transform: `translateY(${ty}px)`,
+                        }}
+                      >
+                        {letter}
+                      </span>
+                    );
+                  })}
+                </span>
+              );
+            }
+
+            // Regular word — single fade + slide.
             const opacity = interpolate(
               frame,
-              [start, start + stagger * 1.4],
+              [start, start + stagger * 1.2],
               [0, 1],
               { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
             );
             const ty = interpolate(
               frame,
-              [start, start + stagger * 1.4],
+              [start, start + stagger * 1.2],
               [16, 0],
               {
                 extrapolateLeft: "clamp",
@@ -169,17 +306,12 @@ export const BoldStatementScene: React.FC<Props> = ({
                 easing,
               },
             );
-
-            const cleaned = token.replace(/[^\p{L}\p{N}']/gu, "").toLowerCase();
-            const isEmphasis = cleaned.length > 0 && cleaned === emphasisLower;
-            const wordColor = isEmphasis ? accent : ink;
-
             return (
               <span
                 key={i}
                 style={{
                   display: "inline-block",
-                  color: wordColor,
+                  color: ink,
                   opacity,
                   transform: `translateY(${ty}px)`,
                 }}
@@ -198,8 +330,9 @@ export const BoldStatementScene: React.FC<Props> = ({
               letterSpacing: "-0.01em",
               color: inkLight,
               opacity: trailOpacity,
-              textAlign: "center",
+              textAlign: heroAlign,
               lineHeight: 1.2,
+              alignSelf: heroAlign === "left" ? "flex-start" : "center",
             }}
           >
             {scene.trail}

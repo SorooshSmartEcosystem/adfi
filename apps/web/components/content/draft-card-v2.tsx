@@ -43,6 +43,12 @@ type MotionState = {
   status?: "pending" | "rendering" | "ready" | "failed";
   mp4Url?: string;
   error?: string;
+  // Set by the render service when it transitions in/out of rendering.
+  // We treat a "rendering" status >5min old as stale (the function
+  // probably timed out before its catch ran) so the loader doesn't
+  // wedge forever.
+  startedAt?: string;
+  renderedAt?: string;
 };
 
 type ScriptForPreview = {
@@ -87,7 +93,20 @@ export function DraftCardV2({
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const motion = (draft.motion ?? null) as MotionState | null;
-  const isVideoRendering = motion?.status === "rendering";
+  // Treat a rendering state older than 5 minutes as stale — Vercel
+  // function timeouts can leave motion stuck in "rendering" if the
+  // catch block never ran. Without this the loader wedges forever
+  // and the user can't tell the render is dead.
+  const renderStartedAt = motion?.startedAt
+    ? new Date(motion.startedAt).getTime()
+    : draft.createdAt
+      ? new Date(draft.createdAt).getTime()
+      : 0;
+  const renderAgeMs = Date.now() - renderStartedAt;
+  const isVideoRendering =
+    motion?.status === "rendering" && renderAgeMs < 5 * 60 * 1000;
+  const isVideoStuck =
+    motion?.status === "rendering" && renderAgeMs >= 5 * 60 * 1000;
   const status = statusBlip(draft.status);
 
   const approve = trpc.content.approveDraft.useMutation({
@@ -431,6 +450,28 @@ export function DraftCardV2({
                   ? "rendering video"
                   : "sketching video script"}
               </span>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Stuck render — the function probably timed out before
+            updating state. Show the user a quiet retry instead of an
+            infinite loader. */}
+        {isVideoStuck ? (
+          <div className="absolute inset-0 z-30 flex items-center justify-center backdrop-blur-sm bg-bg/70">
+            <div className="flex flex-col items-center gap-sm text-center px-md">
+              <span className="font-mono text-[11px] text-urgent tracking-[0.16em] uppercase">
+                render didn't finish
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  draftScript.mutate({ brief: textBrief(normalized) });
+                }}
+                className="bg-ink text-white text-xs font-medium px-md py-[6px] rounded-full hover:opacity-85 transition-opacity"
+              >
+                try again
+              </button>
             </div>
           </div>
         ) : null}

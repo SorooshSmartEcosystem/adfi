@@ -504,6 +504,32 @@ export async function generateDailyContent(
   return draft.id;
 }
 
+// Run async jobs with bounded concurrency. Replicate's burst limit is
+// tight — running 6-8 image jobs in parallel from a single draft
+// triggered cascading 429s where every retry slept past the next
+// allowance and several beats would fail outright. Cap at 2 in
+// flight; total wall-clock is similar (Replicate is the bottleneck
+// either way) but no calls fail to backoff exhaustion.
+async function runWithConcurrency<T>(
+  jobs: Array<() => Promise<T>>,
+  limit = 2,
+): Promise<T[]> {
+  const results: T[] = new Array(jobs.length);
+  let cursor = 0;
+  async function worker(): Promise<void> {
+    while (true) {
+      const i = cursor++;
+      if (i >= jobs.length) return;
+      results[i] = await jobs[i]!();
+    }
+  }
+  const workers = Array.from({ length: Math.min(limit, jobs.length) }, () =>
+    worker(),
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 // Background: generate hero imagery for a freshly-created draft and patch
 // the URL into the draft's content JSON. Best-effort — failures are logged
 // and the draft is still usable as text-only.
@@ -584,44 +610,40 @@ export async function backfillImagesForDraft(
         }>
       | undefined) ?? [];
 
-    const jobs: Array<Promise<{
+    const jobs: Array<() => Promise<{
       target: "cover" | number;
       url: string;
       cost: number;
     } | null>> = [];
 
     if (cover?.visualDirection) {
-      jobs.push(
-        (async () => {
-          const r = await generateImageSafe({
-            userId,
-            draftId,
-            slug: "cover",
-            prompt: stylize(cover.visualDirection!),
-            aspectRatio: "1:1",
-          });
-          return r ? { target: "cover" as const, url: r.url, cost: r.costCents } : null;
-        })(),
-      );
+      jobs.push(async () => {
+        const r = await generateImageSafe({
+          userId,
+          draftId,
+          slug: "cover",
+          prompt: stylize(cover.visualDirection!),
+          aspectRatio: "1:1",
+        });
+        return r ? { target: "cover" as const, url: r.url, cost: r.costCents } : null;
+      });
     }
     bodySlides.forEach((slide, i) => {
       if (slide.template === "image_cue" && slide.visualDirection) {
-        jobs.push(
-          (async () => {
-            const r = await generateImageSafe({
-              userId,
-              draftId,
-              slug: `slide-${i}`,
-              prompt: stylize(slide.visualDirection!),
-              aspectRatio: "1:1",
-            });
-            return r ? { target: i, url: r.url, cost: r.costCents } : null;
-          })(),
-        );
+        jobs.push(async () => {
+          const r = await generateImageSafe({
+            userId,
+            draftId,
+            slug: `slide-${i}`,
+            prompt: stylize(slide.visualDirection!),
+            aspectRatio: "1:1",
+          });
+          return r ? { target: i, url: r.url, cost: r.costCents } : null;
+        });
       }
     });
 
-    const results = await Promise.all(jobs);
+    const results = await runWithConcurrency(jobs);
     const nextBody = bodySlides.map((s) => ({ ...s }));
     let nextCover = cover ? { ...cover } : undefined;
     for (const r of results) {
@@ -640,18 +662,18 @@ export async function backfillImagesForDraft(
     const beats = (content.beats as
       | Array<{ bRoll?: string; imageUrl?: string | null }>
       | undefined) ?? [];
-    const jobs = beats.map((beat, i) =>
-      beat.bRoll
-        ? generateImageSafe({
-            userId,
-            draftId,
-            slug: `beat-${i}`,
-            prompt: stylize(beat.bRoll),
-            aspectRatio: "9:16",
-          }).then((r) => (r ? { i, url: r.url, cost: r.costCents } : null))
-        : Promise.resolve(null),
-    );
-    const results = await Promise.all(jobs);
+    const jobs = beats.map((beat, i) => async () => {
+      if (!beat.bRoll) return null;
+      const r = await generateImageSafe({
+        userId,
+        draftId,
+        slug: `beat-${i}`,
+        prompt: stylize(beat.bRoll),
+        aspectRatio: "9:16",
+      });
+      return r ? { i, url: r.url, cost: r.costCents } : null;
+    });
+    const results = await runWithConcurrency(jobs);
     const nextBeats = beats.map((b) => ({ ...b }));
     for (const r of results) {
       if (!r) continue;
@@ -664,18 +686,18 @@ export async function backfillImagesForDraft(
     const frames = (content.frames as
       | Array<{ visualDirection?: string; imageUrl?: string | null }>
       | undefined) ?? [];
-    const jobs = frames.map((frame, i) =>
-      frame.visualDirection
-        ? generateImageSafe({
-            userId,
-            draftId,
-            slug: `frame-${i}`,
-            prompt: stylize(frame.visualDirection),
-            aspectRatio: "9:16",
-          }).then((r) => (r ? { i, url: r.url, cost: r.costCents } : null))
-        : Promise.resolve(null),
-    );
-    const results = await Promise.all(jobs);
+    const jobs = frames.map((frame, i) => async () => {
+      if (!frame.visualDirection) return null;
+      const r = await generateImageSafe({
+        userId,
+        draftId,
+        slug: `frame-${i}`,
+        prompt: stylize(frame.visualDirection),
+        aspectRatio: "9:16",
+      });
+      return r ? { i, url: r.url, cost: r.costCents } : null;
+    });
+    const results = await runWithConcurrency(jobs);
     const nextFrames = frames.map((f) => ({ ...f }));
     for (const r of results) {
       if (!r) continue;
@@ -809,6 +831,11 @@ export async function regenerateDraftContent(
       voiceMatchScore: result.voiceMatchConfidence,
       rejectedAt: null,
       rejectionReason: null,
+      // Drop stale motion state. The previous content's video (if any)
+      // doesn't match the new copy, and leaving motion.mp4Url around
+      // means the reel mockup keeps playing the old broken/outdated
+      // mp4 and the loader gets stuck if status was "rendering".
+      motion: Prisma.JsonNull,
     },
   });
 

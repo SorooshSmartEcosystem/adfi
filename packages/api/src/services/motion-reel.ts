@@ -48,6 +48,7 @@ export async function renderScriptForDraft(args: {
     script: args.script as unknown as Record<string, unknown>,
     durationSeconds: totalDurationSeconds,
     status: "rendering",
+    startedAt: new Date().toISOString(),
   });
 
   try {
@@ -125,6 +126,7 @@ export async function renderDirectiveForDraft(args: {
     template: args.directive.template,
     slotValues: args.directive.content as Record<string, unknown>,
     status: "rendering",
+    startedAt: new Date().toISOString(),
   });
 
   try {

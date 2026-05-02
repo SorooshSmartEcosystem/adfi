@@ -85,7 +85,13 @@ export function ContentCalendar() {
     const draftById = new Map(
       (drafts.data?.items ?? []).map((d) => [d.id, d]),
     );
+    // Skip published posts where the draft is also in the list — the
+    // draft's chip already covers that day cell. (Most cases.)
+    const draftIdsInList = new Set(
+      (drafts.data?.items ?? []).map((d) => d.id),
+    );
     for (const p of posts.data?.items ?? []) {
+      if (draftIdsInList.has(p.draftId)) continue;
       const matchingDraft = draftById.get(p.draftId);
       out.push({
         id: p.id,
@@ -95,7 +101,10 @@ export function ContentCalendar() {
         thumbnailUrl: matchingDraft
           ? thumbnailFromContent(matchingDraft.content)
           : null,
-        href: `/content?tab=performance#p-${p.id}`,
+        // Link to the draft feed (filtered to LIVE) since the
+        // performance panel renders aggregated summaries without
+        // per-post anchors.
+        href: `/content?tab=feed#d-${p.draftId}`,
         caption: matchingDraft ? captionFromContent(matchingDraft.content) : "",
         scheduledFor: null,
         publishedAt: p.publishedAt,

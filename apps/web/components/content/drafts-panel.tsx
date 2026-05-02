@@ -123,7 +123,11 @@ export function DraftsPanel() {
         ) : view === "list" ? (
           <div className="flex flex-col gap-sm">
             {items.map((d) => (
-              <DraftCardV2 key={d.id} draft={d} business={business} view="list" />
+              // id="d-<draftId>" lets the calendar's chip-links scroll
+              // straight to the card (`/content?tab=feed#d-X`).
+              <div key={d.id} id={`d-${d.id}`}>
+                <DraftCardV2 draft={d} business={business} view="list" />
+              </div>
             ))}
           </div>
         ) : (
@@ -131,6 +135,7 @@ export function DraftsPanel() {
             {items.map((d) => (
               <div
                 key={d.id}
+                id={`d-${d.id}`}
                 className="break-inside-avoid mb-lg w-full max-w-full overflow-hidden"
               >
                 <DraftCardV2 draft={d} business={business} view="mockup" />

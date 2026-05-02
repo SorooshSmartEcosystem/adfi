@@ -86,9 +86,14 @@ export type EditorialClosingShape = {
 
 // Phone mockup — vertical phone frame with one of three "kinds" of
 // content animating inside.
+//
+// kind is typed loosely (string) because the agent zod is permissive
+// to keep Anthropic's grammar under its size cap. The renderer
+// switches on the three known values; anything else falls through
+// to "message" (the most universally useful default).
 export type PhoneMockupShape = {
   type: "phone-mockup";
-  kind: "message" | "notification" | "feed";
+  kind: string; // expected: "message" | "notification" | "feed"
   // The content that types/displays inside the phone screen.
   body: string;
   // Author / sender / app name. Optional. Default "you" or "App".
@@ -99,6 +104,11 @@ export type PhoneMockupShape = {
 };
 
 // KPI tile grid — 2-4 tiles in a 1- or 2-column grid.
+//
+// `value` is a string; the renderer's CounterNumber checks if it
+// parses to a number and animates if so, otherwise displays as-is.
+// Loose typing keeps the agent's grammar small while still
+// supporting numeric counters.
 export type MetricTileGridShape = {
   type: "metric-tile-grid";
   title?: string;
@@ -119,7 +129,9 @@ export type ChatThreadShape = {
   type: "chat-thread";
   title?: string;
   messages: Array<{
-    sender: "you" | "them";
+    // Expected "you" | "them". Loosely typed because the agent zod
+    // is permissive; renderer treats anything but "them" as "you".
+    sender: string;
     text: string;
   }>;
   duration: number;
@@ -133,10 +145,10 @@ export type TerminalShape = {
   prompt?: string;
   lines: Array<{
     text: string;
-    // "command" → prompt-prefixed, ink color
-    // "output" → no prefix, muted color
-    // "error" → no prefix, red color
-    kind: "command" | "output" | "error";
+    // Expected "command" | "output" | "error". Loosely typed
+    // because the agent zod is permissive; renderer treats anything
+    // but "output" / "error" as a command.
+    kind: string;
   }>;
   duration: number;
 };

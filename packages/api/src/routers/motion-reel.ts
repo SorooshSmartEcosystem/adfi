@@ -199,60 +199,54 @@ const SceneSchema = z.discriminatedUnion("type", [
     cta: longish(180).optional(),
     duration: z.number().min(1).max(6),
   }),
-  // Phase 3 — structural variety scenes
+  // Phase 3 — structural variety scenes. Permissive on enum-like
+  // fields (sender / kind) — renderer falls back to a sensible
+  // default if the value isn't recognized. Strict enums kept the
+  // agent's grammar over Anthropic's compiler limit.
   z.object({
     type: z.literal("phone-mockup"),
-    kind: z.enum(["message", "notification", "feed"]),
+    kind: longish(20),
     body: longish(220),
     author: longish(60).optional(),
     caption: longish(180).optional(),
-    duration: z.number().min(2).max(10),
+    duration: z.number(),
   }),
   z.object({
     type: z.literal("metric-tile-grid"),
     title: longish(120).optional(),
-    tiles: z
-      .array(
-        z.object({
-          label: longish(60),
-          value: z.union([z.number(), z.string()]),
-          prefix: longish(16).optional(),
-          suffix: longish(16).optional(),
-          delta: longish(40).optional(),
-        }),
-      )
-      .min(1)
-      .max(6),
-    duration: z.number().min(2).max(10),
+    tiles: z.array(
+      z.object({
+        label: longish(60),
+        value: z.union([z.number(), z.string()]),
+        prefix: longish(16).optional(),
+        suffix: longish(16).optional(),
+        delta: longish(40).optional(),
+      }),
+    ),
+    duration: z.number(),
   }),
   z.object({
     type: z.literal("chat-thread"),
     title: longish(120).optional(),
-    messages: z
-      .array(
-        z.object({
-          sender: z.enum(["you", "them"]),
-          text: longish(300),
-        }),
-      )
-      .min(1)
-      .max(6),
-    duration: z.number().min(2).max(12),
+    messages: z.array(
+      z.object({
+        sender: longish(10),
+        text: longish(300),
+      }),
+    ),
+    duration: z.number(),
   }),
   z.object({
     type: z.literal("terminal"),
     title: longish(120).optional(),
     prompt: longish(8).optional(),
-    lines: z
-      .array(
-        z.object({
-          text: longish(200),
-          kind: z.enum(["command", "output", "error"]),
-        }),
-      )
-      .min(1)
-      .max(12),
-    duration: z.number().min(2).max(12),
+    lines: z.array(
+      z.object({
+        text: longish(200),
+        kind: longish(10),
+      }),
+    ),
+    duration: z.number(),
   }),
 ]);
 

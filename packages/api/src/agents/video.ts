@@ -155,38 +155,33 @@ const BoldStatementSchema = z.object({
   hero: trim(120),
   emphasis: trimOpt(40).optional(),
   trail: trimOpt(80).optional(),
-  duration: z.number().min(2).max(6),
+  duration: z.number(),
 });
 
 const IconListSchema = z.object({
   type: z.literal("icon-list"),
   title: trimOpt(80).optional(),
-  items: z
-    .array(
-      z.object({
-        icon: IconNameZ,
-        label: trim(40),
-      }),
-    )
-    .min(3)
-    .max(6),
-  highlightIndex: z.number().int().min(0).max(5).optional(),
-  duration: z.number().min(3).max(7),
+  // Array constraints (min/max, nested object enums) inflate the
+  // grammar. Validation happens at runtime via the router schema
+  // and the prompt teaches the agent the right shape. Keeping the
+  // zod here permissive so Anthropic's grammar compiler stays
+  // under its size cap.
+  items: z.array(
+    z.object({
+      icon: trim(40),
+      label: trim(40),
+    }),
+  ),
+  highlightIndex: z.number().optional(),
+  duration: z.number(),
 });
 
 const NumberedDiagramSchema = z.object({
   type: z.literal("numbered-diagram"),
   title: trimOpt(60).optional(),
   center: trim(48),
-  callouts: z
-    .array(
-      z.object({
-        label: trim(60),
-      }),
-    )
-    .min(2)
-    .max(3),
-  duration: z.number().min(3).max(6),
+  callouts: z.array(z.object({ label: trim(60) })),
+  duration: z.number(),
 });
 
 const EditorialOpenerSchema = z.object({
@@ -194,74 +189,79 @@ const EditorialOpenerSchema = z.object({
   motif: IconNameZ.optional(),
   headline: trim(140),
   emphasis: trimOpt(40).optional(),
-  duration: z.number().min(2).max(5),
+  duration: z.number(),
 });
 
 const EditorialClosingSchema = z.object({
   type: z.literal("editorial-closer"),
   motif: IconNameZ.optional(),
   cta: trimOpt(120).optional(),
-  duration: z.number().min(2).max(4),
+  duration: z.number(),
 });
 
 // ── Phase 3 — structural variety scenes ─────────────────────────
 
+// Phase 3 structural scenes — agent zod is intentionally permissive
+// (no nested enums, no array min/max, no number/string unions). The
+// router schema and runtime zod validate the parsed output strictly;
+// the prompt teaches the agent the correct shape. Permissive here
+// only so Anthropic's grammar compiler stays under its size cap.
+
 const PhoneMockupSchema = z.object({
   type: z.literal("phone-mockup"),
-  kind: z.enum(["message", "notification", "feed"]),
+  // Agent emits "message" | "notification" | "feed". Renderer's
+  // switch falls back to "message" for anything else.
+  kind: trim(20),
   body: trim(180),
   author: trimOpt(40).optional(),
   caption: trimOpt(120).optional(),
-  duration: z.number().min(3).max(7),
+  duration: z.number(),
 });
 
 const MetricTileGridSchema = z.object({
   type: z.literal("metric-tile-grid"),
   title: trimOpt(80).optional(),
-  tiles: z
-    .array(
-      z.object({
-        label: trim(40),
-        value: z.union([z.number(), z.string()]),
-        prefix: trimOpt(8).optional(),
-        suffix: trimOpt(8).optional(),
-        delta: trimOpt(20).optional(),
-      }),
-    )
-    .min(2)
-    .max(4),
-  duration: z.number().min(3).max(7),
+  tiles: z.array(
+    z.object({
+      label: trim(40),
+      // Agent emits a numeric string ("4200" or "$4.2k") — renderer's
+      // CounterNumber parses if numeric, otherwise displays as-is.
+      value: trim(40),
+      prefix: trimOpt(8).optional(),
+      suffix: trimOpt(8).optional(),
+      delta: trimOpt(20).optional(),
+    }),
+  ),
+  duration: z.number(),
 });
 
 const ChatThreadSchema = z.object({
   type: z.literal("chat-thread"),
   title: trimOpt(60).optional(),
-  messages: z
-    .array(
-      z.object({
-        sender: z.enum(["you", "them"]),
-        text: trim(200),
-      }),
-    )
-    .min(2)
-    .max(4),
-  duration: z.number().min(4).max(8),
+  messages: z.array(
+    z.object({
+      // "you" | "them" taught in the prompt; renderer treats
+      // anything but "them" as "you".
+      sender: trim(10),
+      text: trim(200),
+    }),
+  ),
+  duration: z.number(),
 });
 
 const TerminalSchema = z.object({
   type: z.literal("terminal"),
   title: trimOpt(60).optional(),
   prompt: trimOpt(4).optional(),
-  lines: z
-    .array(
-      z.object({
-        text: trim(140),
-        kind: z.enum(["command", "output", "error"]),
-      }),
-    )
-    .min(3)
-    .max(8),
-  duration: z.number().min(3).max(8),
+  lines: z.array(
+    z.object({
+      text: trim(140),
+      // "command" | "output" | "error" taught in the prompt;
+      // renderer treats anything but "output"/"error" as "command".
+      kind: trim(10),
+    }),
+  ),
+  duration: z.number(),
 });
 
 // AGENT scene schema — editorial-bold scenes only. Anthropic's

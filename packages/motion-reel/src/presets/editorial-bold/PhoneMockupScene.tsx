@@ -147,18 +147,11 @@ export const PhoneMockupScene: React.FC<Props> = ({
             }}
           />
 
-          {scene.kind === "message" ? (
-            <MessageScreen
-              accent={accent}
-              ink={ink}
-              inkLight={inkLight}
-              text={scene.body}
-              author={scene.author ?? "you"}
-              startFrame={20}
-              stagger={stagger}
-              frame={frame}
-            />
-          ) : scene.kind === "notification" ? (
+          {/* Loose-string kind: "message" / "notification" / "feed".
+               Anything else falls through to "message" (the most
+               universally useful default) so an agent typo doesn't
+               break the render. */}
+          {scene.kind === "notification" ? (
             <NotificationScreen
               accent={accent}
               ink={ink}
@@ -168,7 +161,7 @@ export const PhoneMockupScene: React.FC<Props> = ({
               frame={frame}
               stagger={stagger}
             />
-          ) : (
+          ) : scene.kind === "feed" ? (
             <FeedScreen
               accent={accent}
               ink={ink}
@@ -176,6 +169,17 @@ export const PhoneMockupScene: React.FC<Props> = ({
               items={[scene.body]}
               frame={frame}
               stagger={stagger}
+            />
+          ) : (
+            <MessageScreen
+              accent={accent}
+              ink={ink}
+              inkLight={inkLight}
+              text={scene.body}
+              author={scene.author ?? "you"}
+              startFrame={20}
+              stagger={stagger}
+              frame={frame}
             />
           )}
         </div>

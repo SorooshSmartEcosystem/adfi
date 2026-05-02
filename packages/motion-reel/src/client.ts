@@ -14,6 +14,23 @@ export { ScriptReel, computeScriptFrames } from "./compositions/ScriptReel";
 export { QuoteReel } from "./compositions/QuoteReel";
 export { StatReel } from "./compositions/StatReel";
 
+// Phase 1 primitives + transitions — exported so future scenes (and
+// any host that wants to compose its own previews) can pick them up.
+export { SplitFrame } from "./primitives/SplitFrame";
+export { LayeredFrame } from "./primitives/LayeredFrame";
+export { OverlayFrame } from "./primitives/OverlayFrame";
+export { GrainOverlay } from "./primitives/GrainOverlay";
+export { WipeReveal } from "./transitions/WipeReveal";
+export { ColorFlash } from "./transitions/ColorFlash";
+export { BlurDip } from "./transitions/BlurDip";
+export { MatchCutShape } from "./transitions/MatchCutShape";
+export {
+  paceMultiplier,
+  paceEasing,
+  paceStaggerFrames,
+  type Pace,
+} from "./motion/pace";
+
 export type {
   BrandTokens,
   VideoDesign,

@@ -1,16 +1,35 @@
 ---
 title: SESSION_STATE
 purpose: Hand-off snapshot for the next Claude Code session
-last_updated: 2026-05-01 (night)
+last_updated: 2026-05-02
 ---
 
-# Session state — 2026-05-01 (night)
+# Session state — 2026-05-02
 
 Frozen snapshot of where ADFI is, what's been built, what's locked, what's
 open, and exactly what to do next. A fresh Claude Code session should be
 able to pick up by reading this top-to-bottom.
 
-## Latest session (2026-04-30 → 05-01) — content + motion-reel rewrite
+## Latest session (2026-05-02) — Meta App Review submitted + motion-reel Phase 1
+
+**Meta App Review filed.** All 8 scopes submitted (instagram_basic,
+instagram_business_basic, instagram_business_manage_messages,
+instagram_manage_messages, pages_show_list, pages_messaging,
+pages_read_engagement, business_management, public_profile). Test
+account `meta-reviewer@adfi.ca` provisioned via
+`scripts/create-meta-reviewer.ts` with TEAM-tier trial through 2027.
+Password sign-in fallback added to `/signin` so reviewers can use
+email + password instead of magic link — toggle hidden by default
+below the email input. Privacy + terms pages updated to name
+SOROOSHX INC. as data controller and to match Meta's declared data
+handling. Awaiting Meta response (~5-10 business days, ~May 12-16).
+
+**Motion-reel Phase 1 redesign shipped** — same ~1.1¢ per video,
+visually meaningful upgrade. Pace knob is functional; transitions
+rotate per scene; film grain runs over every reel. Phase 2 + 3
+planned in `docs/MOTION_REEL_REDESIGN.md`.
+
+## Previous session (2026-04-30 → 05-01) — content + motion-reel rewrite
 
 Three big things shipped:
 

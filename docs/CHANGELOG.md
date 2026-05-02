@@ -6,6 +6,14 @@ Format note: write changes from the user's perspective in plain English. "Users 
 
 ## [Unreleased]
 
+### Changed (motion-reel · 2026-05-02)
+- **Phase 1 of the motion-reel redesign shipped** — the engine now produces visually varied reels instead of "every scene looks identical." Same code-as-video architecture, same ~1.1¢ per video, just better motion design.
+  - **Pace knob is functional.** `slow` / `medium` / `fast` actually changes scene durations (×1.35 / ×1.0 / ×0.75) and animation feel (cubic / back(1.2) / back(1.6) easings). Was decorative before.
+  - **Scene transitions** — every scene gets a deterministic transition layered into its first ~12 frames: wipe-down on the first scene to set the rhythm, then a 4-way rotation (wipe-left / blur-dip / color-flash / match-cut dot) by index. No more hard-cut between every scene.
+  - **Animated film grain** runs over every reel as a single composition-level layer (intensity 0.07, soft-light blend, swimming seed). Kills the "looks AI-generated" sheen.
+  - **Four new layout primitives** (`SplitFrame`, `LayeredFrame`, `OverlayFrame`, `GrainOverlay`) and **four new transitions** (`WipeReveal`, `ColorFlash`, `BlurDip`, `MatchCutShape`) shipped under `packages/motion-reel/src/`. Available for any future scene to compose; ScriptReel uses GrainOverlay + transitions today.
+  - Plan + Phase 2/3 roadmap in `docs/MOTION_REEL_REDESIGN.md`. Skill notes updated.
+
 ### Added (content page · 2026-05-01)
 - `/content` rebuilt around three primitives: a focused **GenerateBar** (single textarea + collapsed format/platform pickers), the **PlatformMockup family** (instagram-post · instagram-reel · twitter · linkedin · facebook · telegram · email — drafts now render inside their destination platform's actual UI frame), and **DraftCardV2** (single primary action per state, tertiary actions in an overflow menu). Tabs back as a quiet link strip: feed / week / performance.
 - **OrbLoader** primitive (`apps/web/components/shared/orb-loader.tsx`) — unified "I'm working" indicator. Three sizes (sm/md/lg), four agent tones (alive/attn/urgent/ink), spinner ring or progress arc + percentage, cycling status line. Stage banks ready for every agent action.

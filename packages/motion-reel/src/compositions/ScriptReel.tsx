@@ -3,10 +3,19 @@
 // starts at 0 inside its own block, so all scene components can
 // use useCurrentFrame() naturally without offset math.
 //
-// Total duration = sum of scene durations (clamped 6s..30s for sane
-// limits). The composition's durationInFrames is set by the host
-// (Root.tsx for studio preview, or computed via calculateMetadata
-// for the Lambda render route).
+// Total duration = sum of scene durations × pace multiplier.
+//
+// Phase 1 additions:
+//   - pace knob is now functional. Scene durations are multiplied
+//     (slow=1.35, medium=1.0, fast=0.75) so the agent's relative
+//     pacing is preserved while absolute speed actually changes.
+//   - Each scene gets a deterministic transition layered into its
+//     first ~12 frames (wipe / flash / blur / match-cut shape) chosen
+//     by scene index. This produces transition variety without an
+//     extra agent call.
+//   - Animated film grain runs over every scene as a single
+//     composition-level overlay. Removes the "AI-glossy" sheen that
+//     currently makes our reels read as PowerPoint exports.
 
 import { AbsoluteFill, Sequence, useVideoConfig } from "remotion";
 import { HookScene } from "../scenes/HookScene";
@@ -17,6 +26,12 @@ import { PunchlineScene } from "../scenes/PunchlineScene";
 import { ListScene } from "../scenes/ListScene";
 import { HashtagScene } from "../scenes/HashtagScene";
 import { BrandStampScene } from "../scenes/BrandStampScene";
+import { GrainOverlay } from "../primitives/GrainOverlay";
+import { WipeReveal } from "../transitions/WipeReveal";
+import { ColorFlash } from "../transitions/ColorFlash";
+import { BlurDip } from "../transitions/BlurDip";
+import { MatchCutShape } from "../transitions/MatchCutShape";
+import { paceMultiplier } from "../motion/pace";
 import type { BrandTokens, Scene, VideoDesign, VideoScript } from "../types";
 
 type Props = {
@@ -28,20 +43,35 @@ export const ScriptReel: React.FC<Props> = ({ tokens, script }) => {
   const { fps } = useVideoConfig();
   const design = resolveDesign(script.design);
   const scenes = clampScenes(script.scenes);
+  const paceMul = paceMultiplier(design.pace);
+  const accent = accentColor(design.accent, tokens);
 
   let cursor = 0;
   return (
     <AbsoluteFill style={{ background: tokens.bg }}>
       {scenes.map((scene, i) => {
-        const frames = Math.max(15, Math.round(scene.duration * fps));
+        const frames = Math.max(
+          15,
+          Math.round(scene.duration * paceMul * fps),
+        );
         const from = cursor;
         cursor += frames;
         return (
           <Sequence key={i} from={from} durationInFrames={frames}>
             <SceneSwitch tokens={tokens} scene={scene} design={design} />
+            <SceneTransition
+              index={i}
+              accent={accent}
+              ink={tokens.ink}
+              bg={tokens.bg}
+            />
           </Sequence>
         );
       })}
+      {/* Grain on top of everything, masked at the AbsoluteFill level
+          so it tints scenes uniformly without being part of any
+          single Sequence. */}
+      <GrainOverlay intensity={0.07} blend="soft-light" />
     </AbsoluteFill>
   );
 };
@@ -68,12 +98,53 @@ const SceneSwitch: React.FC<{
       return <HashtagScene tokens={tokens} scene={scene} design={design} />;
     case "brand-stamp":
       return <BrandStampScene tokens={tokens} scene={scene} design={design} />;
-    default: {
+    default:
       // Unknown scene type — render an empty frame rather than crashing.
-      // Useful for forward-compat when the agent emits a type the
-      // renderer hasn't shipped yet.
       return null;
-    }
+  }
+};
+
+// Picks one of four transitions per scene based on a deterministic
+// rotation by index. This keeps the same draft rendering identically
+// across re-renders while still giving the reel transition variety.
+//
+//   index % 4 === 0  → wipe-left in accent color (intro hit)
+//   index % 4 === 1  → blur dip (focus pull)
+//   index % 4 === 2  → color flash (percussive cut)
+//   index % 4 === 3  → match-cut dot (continuity through-line)
+//
+// First scene gets a wipe regardless — sets the rhythm.
+const SceneTransition: React.FC<{
+  index: number;
+  accent: string;
+  ink: string;
+  bg: string;
+}> = ({ index, accent, ink, bg }) => {
+  if (index === 0) {
+    return <WipeReveal color={ink} direction="down" durationFrames={14} />;
+  }
+  switch (index % 4) {
+    case 0:
+      return <WipeReveal color={accent} direction="left" durationFrames={12} />;
+    case 1:
+      return <BlurDip peakBlur={28} durationFrames={14} />;
+    case 2:
+      return (
+        <ColorFlash color={accent} holdFrames={2} fadeFrames={5} peakOpacity={0.9} />
+      );
+    case 3:
+      return (
+        <MatchCutShape
+          kind="dot"
+          color={accent}
+          x={0.5}
+          y={0.92}
+          size={12}
+          introFrames={10}
+        />
+      );
+    default:
+      return null;
   }
 };
 
@@ -94,12 +165,34 @@ function resolveDesign(d?: VideoDesign): Required<VideoDesign> {
   };
 }
 
+function accentColor(
+  accent: VideoDesign["accent"],
+  tokens: BrandTokens,
+): string {
+  switch (accent) {
+    case "alive":
+      return tokens.aliveDark || tokens.alive || "#3a9d5c";
+    case "attn":
+      return tokens.attnText || "#D9A21C";
+    case "urgent":
+      return "#C84A3E";
+    case "ink":
+    default:
+      return tokens.ink;
+  }
+}
+
 // Helper for callers (Root.tsx, render route) to compute total
-// duration in frames before instantiating the composition.
+// duration in frames before instantiating the composition. Must use
+// the same pace multiplier the renderer applies inside ScriptReel so
+// total frames match.
 export function computeScriptFrames(script: VideoScript, fps: number): number {
+  const paceMul = paceMultiplier(script.design?.pace);
   const total = script.scenes
     .slice(0, 10)
-    .reduce((sum, s) => sum + Math.max(15, Math.round(s.duration * fps)), 0);
-  // Hard floor 30 frames (1s) so Remotion doesn't error on empty scripts.
+    .reduce(
+      (sum, s) => sum + Math.max(15, Math.round(s.duration * paceMul * fps)),
+      0,
+    );
   return Math.max(30, total);
 }

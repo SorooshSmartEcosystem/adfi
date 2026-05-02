@@ -5,6 +5,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { PCMonoLabel } from "../primitives/PCMonoLabel";
 import { CounterNumber } from "../primitives/CounterNumber";
+import { paceEasing, paceStaggerFrames } from "../motion/pace";
 import type { BrandTokens, StatSceneShape, VideoDesign } from "../types";
 
 type Props = {
@@ -19,23 +20,37 @@ export const StatScene: React.FC<Props> = ({ tokens, scene, design }) => {
   const bg = isLight ? tokens.bg : tokens.ink;
   const ink = isLight ? tokens.ink : "#FFFFFF";
   const accent = accentColor(design.accent, tokens);
+  const easing = paceEasing(design.pace);
+  const stagger = paceStaggerFrames(design.pace);
 
   const isNumeric = typeof scene.value === "number";
-  const labelTy = interpolate(frame, [4, 18], [10, 0], {
+  const labelTy = interpolate(frame, [4, 4 + stagger], [10, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.out(Easing.cubic),
   });
-  const numberScale = interpolate(frame, [10, 30], [0.85, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
-  });
-  const underline = interpolate(frame, [32, 54], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
-  });
+  const numberStart = 4 + stagger;
+  const numberScale = interpolate(
+    frame,
+    [numberStart, numberStart + stagger * 2],
+    [0.85, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing,
+    },
+  );
+  const underlineStart = numberStart + stagger * 2 + 2;
+  const underline = interpolate(
+    frame,
+    [underlineStart, underlineStart + stagger * 2],
+    [0, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.out(Easing.cubic),
+    },
+  );
 
   return (
     <AbsoluteFill
@@ -67,7 +82,15 @@ export const StatScene: React.FC<Props> = ({ tokens, scene, design }) => {
           padding: "0 64px",
         }}
       >
-        <div style={{ transform: `translateY(${labelTy}px)`, opacity: interpolate(frame, [4, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>
+        <div
+          style={{
+            transform: `translateY(${labelTy}px)`,
+            opacity: interpolate(frame, [4, 4 + stagger], [0, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            }),
+          }}
+        >
           <PCMonoLabel tone={design.accent} color={isLight ? undefined : "rgba(255,255,255,0.6)"}>
             {scene.label}
           </PCMonoLabel>
@@ -81,7 +104,12 @@ export const StatScene: React.FC<Props> = ({ tokens, scene, design }) => {
             lineHeight: 1,
             color: ink,
             transform: `scale(${numberScale})`,
-            opacity: interpolate(frame, [10, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+            opacity: interpolate(
+              frame,
+              [numberStart, numberStart + stagger * 2],
+              [0, 1],
+              { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+            ),
           }}
         >
           {isNumeric ? (

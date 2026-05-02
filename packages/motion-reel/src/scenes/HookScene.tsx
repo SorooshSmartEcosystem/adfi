@@ -4,6 +4,7 @@
 
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { PCMonoLabel } from "../primitives/PCMonoLabel";
+import { paceEasing, paceStaggerFrames } from "../motion/pace";
 import type { BrandTokens, HookScene as HookSceneShape, VideoDesign } from "../types";
 
 type Props = {
@@ -14,26 +15,37 @@ type Props = {
 
 export const HookScene: React.FC<Props> = ({ tokens, scene, design }) => {
   const frame = useCurrentFrame();
+  const easing = paceEasing(design.pace);
+  const stagger = paceStaggerFrames(design.pace);
 
-  // Big number scales in + label fades up beneath
-  const headlineScale = interpolate(frame, [4, 24], [0.7, 1], {
+  // Big number scales in + label fades up beneath. Stagger between
+  // headline and subtitle is now pace-aware (slow paces breathe more).
+  const headlineScale = interpolate(frame, [4, 4 + stagger * 2], [0.7, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
-    easing: Easing.out(Easing.back(1.4)),
+    easing,
   });
-  const headlineOpacity = interpolate(frame, [4, 18], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const subtitleOpacity = interpolate(frame, [22, 38], [0, 1], {
+  const headlineOpacity = interpolate(frame, [4, 4 + stagger], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const subtitleTy = interpolate(frame, [22, 38], [12, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
-  });
+  const subtitleStart = 4 + stagger * 2;
+  const subtitleOpacity = interpolate(
+    frame,
+    [subtitleStart, subtitleStart + stagger * 1.5],
+    [0, 1],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+  const subtitleTy = interpolate(
+    frame,
+    [subtitleStart, subtitleStart + stagger * 1.5],
+    [12, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.out(Easing.cubic),
+    },
+  );
 
   const isLight = design.style !== "bold";
   const bg = isLight ? tokens.bg : tokens.ink;

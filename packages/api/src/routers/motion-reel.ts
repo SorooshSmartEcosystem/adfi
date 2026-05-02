@@ -16,68 +16,79 @@ import { notifyAdminOfError } from "../services/admin-notify";
 // Mirror of @orb/motion-reel/types Scene + VideoScript. Replicated as
 // Zod here so tRPC validates without pulling the React-heavy renderer
 // package into the validator path.
+//
+// Caps are LENIENT: agents/video.ts already enforces stricter caps
+// during agent parsing (with auto-truncation). The tRPC input validator
+// is the LAST line of defense, so it should never reject a script the
+// agent already produced — that just dead-ends the user. Anything
+// genuinely malformed still fails (wrong types, missing fields).
+const longish = (max: number) =>
+  z
+    .string()
+    .min(1)
+    .transform((s) => (s.length > max ? s.slice(0, max) : s));
 
 const SceneSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("hook"),
-    headline: z.string().min(1).max(40),
-    subtitle: z.string().max(120).optional(),
-    duration: z.number().min(1.5).max(8),
+    headline: longish(80),
+    subtitle: longish(200).optional(),
+    duration: z.number().min(1).max(10),
   }),
   z.object({
     type: z.literal("stat"),
     value: z.union([z.number(), z.string()]),
-    prefix: z.string().max(8).optional(),
-    suffix: z.string().max(8).optional(),
-    label: z.string().min(2).max(40),
-    duration: z.number().min(1.5).max(8),
+    prefix: longish(16).optional(),
+    suffix: longish(16).optional(),
+    label: longish(80),
+    duration: z.number().min(1).max(10),
   }),
   z.object({
     type: z.literal("contrast"),
-    leftLabel: z.string().min(2).max(40),
-    leftValue: z.string().min(1).max(20),
-    rightLabel: z.string().min(2).max(40),
-    rightValue: z.string().min(1).max(20),
-    caption: z.string().max(140).optional(),
-    duration: z.number().min(1.5).max(8),
+    leftLabel: longish(60),
+    leftValue: longish(60),
+    rightLabel: longish(60),
+    rightValue: longish(60),
+    caption: longish(200).optional(),
+    duration: z.number().min(1).max(10),
   }),
   z.object({
     type: z.literal("quote"),
-    quote: z.string().min(20).max(200),
-    emphasis: z.string().max(40).optional(),
-    attribution: z.string().max(80).optional(),
-    duration: z.number().min(1.5).max(8),
+    quote: longish(280),
+    emphasis: longish(60).optional(),
+    attribution: longish(120).optional(),
+    duration: z.number().min(1).max(10),
   }),
   z.object({
     type: z.literal("punchline"),
-    line: z.string().min(8).max(140),
-    emphasis: z.string().max(40).optional(),
-    duration: z.number().min(1.5).max(8),
+    line: longish(200),
+    emphasis: longish(60).optional(),
+    duration: z.number().min(1).max(10),
   }),
   z.object({
     type: z.literal("list"),
-    title: z.string().min(4).max(80),
+    title: longish(120),
     items: z
       .array(
         z.object({
-          headline: z.string().min(2).max(60),
-          body: z.string().max(120).optional(),
+          headline: longish(80),
+          body: longish(180).optional(),
         }),
       )
-      .min(2)
-      .max(4),
-    duration: z.number().min(2).max(10),
+      .min(1)
+      .max(6),
+    duration: z.number().min(1).max(12),
   }),
   z.object({
     type: z.literal("hashtags"),
-    hashtags: z.array(z.string().min(2).max(40)).min(3).max(8),
-    caption: z.string().max(120).optional(),
-    duration: z.number().min(1.5).max(6),
+    hashtags: z.array(longish(60)).min(1).max(10),
+    caption: longish(180).optional(),
+    duration: z.number().min(1).max(8),
   }),
   z.object({
     type: z.literal("brand-stamp"),
-    cta: z.string().max(120).optional(),
-    duration: z.number().min(1.5).max(6),
+    cta: longish(180).optional(),
+    duration: z.number().min(1).max(8),
   }),
 ]);
 
@@ -85,10 +96,10 @@ const VideoDesignSchema = z.object({
   style: z.enum(["minimal", "bold", "warm", "editorial"]),
   accent: z.enum(["alive", "attn", "urgent", "ink"]),
   pace: z.enum(["slow", "medium", "fast"]),
-  statusLabel: z.string().min(2).max(40),
-  hookLabel: z.string().min(2).max(40),
-  metaLabel: z.string().min(2).max(40),
-  closerLabel: z.string().min(2).max(40),
+  statusLabel: longish(60),
+  hookLabel: longish(60),
+  metaLabel: longish(60),
+  closerLabel: longish(60),
 });
 
 const VideoScriptSchema = z.object({

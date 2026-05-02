@@ -25,88 +25,93 @@ import type { BrandVoice } from "./strategist";
 
 // Each scene shape must match @orb/motion-reel/types.ts. Replicated
 // here as Zod for runtime validation + Anthropic schema constraint.
+//
+// Every string field uses `trim(max)` instead of `.max()` so Haiku's
+// occasional overruns get truncated instead of crashing the whole
+// generation. The agent prompt still teaches the recommended caps
+// (the system prompt below), and the LLM mostly stays within them —
+// but when it doesn't, we'd rather render a slightly truncated
+// headline than dead-end the user with a Zod error.
 
-const HookSceneSchema = z.object({
-  type: z.literal("hook"),
-  headline: z.string().min(1).max(40),
-  subtitle: z.string().max(120).optional(),
-  duration: z.number().min(2).max(6),
-});
-
-const StatSceneSchema = z.object({
-  type: z.literal("stat"),
-  value: z.union([z.number(), z.string()]),
-  prefix: z.string().max(8).optional(),
-  suffix: z.string().max(8).optional(),
-  label: z.string().min(2).max(40),
-  duration: z.number().min(2).max(5),
-});
-
-// Contrast values are visually big — the renderer fits them inside a
-// half-screen card. 40 chars is the practical ceiling before they
-// wrap awkwardly. Haiku occasionally emits 22-30 char values like
-// "$3,500/month" which we'd rather render slightly truncated than
-// reject outright; the .transform trims anything past the cap.
 const trim = (max: number) =>
   z
     .string()
     .min(1)
     .transform((s) => (s.length > max ? s.slice(0, max) : s));
 
+// Same as trim, but allows empty strings (for fields where Haiku
+// occasionally returns "" — quote attribution, etc.).
+const trimOpt = (max: number) =>
+  z
+    .string()
+    .transform((s) => (s.length > max ? s.slice(0, max) : s));
+
+const HookSceneSchema = z.object({
+  type: z.literal("hook"),
+  headline: trim(60),
+  subtitle: trimOpt(180).optional(),
+  duration: z.number().min(2).max(6),
+});
+
+const StatSceneSchema = z.object({
+  type: z.literal("stat"),
+  value: z.union([z.number(), z.string()]),
+  prefix: trimOpt(16).optional(),
+  suffix: trimOpt(16).optional(),
+  label: trim(60),
+  duration: z.number().min(2).max(5),
+});
+
 const ContrastSceneSchema = z.object({
   type: z.literal("contrast"),
-  leftLabel: trim(40),
-  leftValue: trim(40),
-  rightLabel: trim(40),
-  rightValue: trim(40),
-  caption: z
-    .string()
-    .max(200)
-    .transform((s) => (s.length > 160 ? s.slice(0, 160) : s))
-    .optional(),
+  leftLabel: trim(60),
+  leftValue: trim(60),
+  rightLabel: trim(60),
+  rightValue: trim(60),
+  caption: trimOpt(200).optional(),
   duration: z.number().min(2).max(5),
 });
 
 const QuoteSceneSchema = z.object({
   type: z.literal("quote"),
-  quote: z.string().min(20).max(200),
-  emphasis: z.string().max(40).optional(),
-  attribution: z.string().max(80).optional(),
+  quote: trim(280),
+  emphasis: trimOpt(60).optional(),
+  attribution: trimOpt(120).optional(),
   duration: z.number().min(3).max(6),
 });
 
 const PunchlineSceneSchema = z.object({
   type: z.literal("punchline"),
-  line: z.string().min(8).max(140),
-  emphasis: z.string().max(40).optional(),
+  line: trim(200),
+  emphasis: trimOpt(60).optional(),
   duration: z.number().min(2).max(5),
 });
 
 const ListSceneSchema = z.object({
   type: z.literal("list"),
-  title: z.string().min(4).max(80),
+  title: trim(120),
   items: z
     .array(
       z.object({
-        headline: z.string().min(2).max(60),
-        body: z.string().max(120).optional(),
+        headline: trim(80),
+        body: trimOpt(180).optional(),
       }),
     )
     .min(2)
-    .max(4),
+    .max(6),
   duration: z.number().min(4).max(8),
 });
 
 const HashtagSceneSchema = z.object({
   type: z.literal("hashtags"),
-  hashtags: z.array(z.string().min(2).max(40)).min(3).max(8),
-  caption: z.string().max(120).optional(),
+  hashtags: z.array(trim(60)).min(2).max(10),
+  caption: trimOpt(180).optional(),
   duration: z.number().min(2).max(4),
 });
 
 const BrandStampSceneSchema = z.object({
   type: z.literal("brand-stamp"),
-  cta: z.string().max(120).optional(),
+  cta: trimOpt(180).optional(),
   duration: z.number().min(2).max(4),
 });
 
@@ -125,10 +130,10 @@ const VideoDesignSchema = z.object({
   style: z.enum(["minimal", "bold", "warm", "editorial"]),
   accent: z.enum(["alive", "attn", "urgent", "ink"]),
   pace: z.enum(["slow", "medium", "fast"]),
-  statusLabel: z.string().min(2).max(40),
-  hookLabel: z.string().min(2).max(40),
-  metaLabel: z.string().min(2).max(40),
-  closerLabel: z.string().min(2).max(40),
+  statusLabel: trim(60),
+  hookLabel: trim(60),
+  metaLabel: trim(60),
+  closerLabel: trim(60),
 });
 
 const VideoScriptSchema = z.object({

@@ -239,23 +239,27 @@ const EditorialClosingSchema = z.object({
   duration: z.number().min(2).max(4),
 });
 
+// AGENT scene schema — editorial-bold scenes only. Anthropic's
+// structured output has a 24-optional-parameter cap; including the
+// 9 legacy scenes pushes us to 27. Keeping the agent schema small
+// also nudges Haiku toward the preferred preset (no need for the
+// fallback scenes when the brief fits editorial-bold's 5 scene
+// types, which is ~all the time for solopreneur content).
+//
+// Legacy scenes (hook, stat, contrast, quote, punchline, list,
+// hashtags, brand-stamp, data-bar) still exist in the renderer's
+// switch and the router's input validator; they just don't get
+// emitted by the agent. Old persisted scripts containing legacy
+// scenes still render fine.
 const SceneSchema = z.discriminatedUnion("type", [
-  HookSceneSchema,
-  StatSceneSchema,
-  DataBarSceneSchema,
-  ContrastSceneSchema,
-  QuoteSceneSchema,
-  PunchlineSceneSchema,
-  ListSceneSchema,
-  HashtagSceneSchema,
-  BrandStampSceneSchema,
-  // editorial-bold preset
+  // editorial-bold preset (5 scenes)
+  EditorialOpenerSchema,
   BoldStatementSchema,
   IconListSchema,
   NumberedDiagramSchema,
-  EditorialOpenerSchema,
   EditorialClosingSchema,
 ]);
+
 
 const VideoDesignSchema = z.object({
   style: z.enum(["minimal", "bold", "warm", "editorial"]),
@@ -299,101 +303,20 @@ narrative beats. Each scene is one beat. Total length 12-25 seconds.
 SCENE TYPES
 ==============================================================
 
-1. hook — Stop-scroll opener. ONE big number, word, or short phrase
-   that fills the frame.
-   { type: "hook", headline: string, subtitle?: string, duration }
-   - headline ≤ 40 chars. Smaller is more punchy. "$4.2k", "51%",
-     "WRONG", "DAY 1" all work.
-   - subtitle: one-line clarifier, ≤120 chars.
-   - duration: 2-3s typical. The first scene is ALWAYS hook unless
-     the brief is genuinely just a quote.
+You generate reels using the editorial-bold scene catalog (5 scenes).
+This catalog produces reels in the visual style of strong founder
+and business content: white background, heavy black display type,
+one accent color for emphasis, a recurring brand motif as a
+continuity glyph, generous whitespace, mixed-weight composition.
 
-2. stat — Single labeled metric with animated counter.
-   { type: "stat", value: number|string, prefix?, suffix?, label,
-     icon?, duration }
-   - value: numeric (animates from 0) or pre-formatted string ("4.2k").
-   - prefix: a CURRENCY OR UNIT MARK ONLY. Valid: "$", "€", "£", "+",
-     "-", "~". One or two characters max. NOT a description, NOT
-     context. WRONG: "approximately", "into crypto ETPs", "of users".
-   - suffix: a UNIT OR ABBREVIATION MARK ONLY. Valid: "%", "x", "k",
-     "M", "B", "/mo", "ºC", " hrs". 1–4 characters max. NOT a
-     description. WRONG: "into crypto ETPs", "of customers", "users".
-     If the brief needs descriptive context, put it in the LABEL
-     instead, or use a punchline scene.
-   - label: uppercase mono caption above. e.g. "PROFITABLE TRADERS",
-     "WEEKLY ACTIVE USERS", "INTO CRYPTO ETPs".
-   - icon: optional icon name (see ICON LIBRARY below).
-   - duration: 2-3s.
+EVERY reel uses scenes from this catalog only. Do not invent scene
+types. Do not use legacy types (hook, stat, quote, punchline, list,
+hashtags, brand-stamp, contrast, data-bar) — they exist only for
+back-compat with old persisted scripts.
 
-3. data-bar — Animated horizontal bar chart for COMPARISON data.
-   { type: "data-bar", title?, bars: [{label, value, prefix?, suffix?}],
-     caption?, duration }
-   - 2–5 bars. Each bar has its own label + value. Renderer normalizes
-     the largest as 100% and scales the others proportionally.
-   - Use when you have multiple comparable numbers from the brief
-     (e.g. "Bitcoin $48B, Ether $12B, Solana $4B"). Replaces a stat
-     scene that would have crammed multiple data points into one.
-   - title: optional uppercase mono header above the bars.
-   - caption: optional one-liner under the chart.
-   - duration: 4-6s typical so each bar has time to grow.
-
-4. contrast — Two-up A vs B comparison.
-   { type: "contrast", leftLabel, leftValue, rightLabel, rightValue,
-     caption?, duration }
-   - left side is the focal/positive; right side is the comparison.
-   - values are short strings (≤40 chars). Punchier is better — "51%"
-     beats "fifty-one percent". Single phrase, no full sentences.
-   - caption: optional one-liner under both sides ≤160 chars.
-
-5. quote — Pull quote with word-by-word reveal.
-   { type: "quote", quote, emphasis?, attribution?, duration }
-   - quote ≤200 chars. Two sentences max.
-   - emphasis: optional word/phrase from the quote. (Visual emphasis
-     is reserved for punchline scenes, but the agent should still
-     surface this hint when it picks one.)
-   - duration: 3-5s.
-
-6. punchline — The line that lands. One sentence, often with a key
-   word emphasized.
-   { type: "punchline", line, emphasis?, duration }
-   - line ≤140 chars. ONE idea.
-   - emphasis: the key word. Renderer color-shifts + bolds it.
-   - duration: 3-4s.
-
-7. list — Numbered enumeration. 2-4 items.
-   { type: "list", title, items: [{headline, body?}], duration }
-   - title ≤80 chars.
-   - items: 2-4 entries. headlines punchy (4-6 words). body optional.
-   - duration: 5-7s for 3 items.
-
-8. hashtags — Tag cloud + optional CTA caption.
-   { type: "hashtags", hashtags: string[], caption?, duration }
-   - 3-8 tags. With or without "#" prefix.
-   - caption: one-line CTA above. Optional.
-   - duration: 2-3s. Always near the end.
-
-9. brand-stamp — Closer. Brand mark + business name + optional CTA.
-   { type: "brand-stamp", cta?, duration }
-   - cta: short CTA pill. e.g. "DM 'feed' for the list".
-   - duration: 2-3s. ALWAYS the last scene.
-
-==============================================================
-EDITORIAL-BOLD PRESET SCENES (preferred default)
-==============================================================
-
-The 5 scenes below are the editorial-bold preset's catalog. They
-produce reels in the visual style of strong founder/business
-content: white background, heavy black display type, one accent
-color for emphasis, recurring brand motif as continuity glyph,
-generous whitespace.
-
-PREFER these over the legacy hook/stat/quote/punchline scenes for
-any reel where the brand voice is confident, sharp, opinionated, or
-educational. Use the legacy scenes as fallback only.
-
-10. editorial-opener — The opening beat. A small recurring brand
-    motif at the top casts an accent-colored spotlight beam toward
-    the headline below. Used as scene 1.
+1. editorial-opener — The opening beat. A small recurring brand
+   motif at the top casts an accent-colored spotlight beam toward
+   the headline below. Used as scene 1.
     { type: "editorial-opener", motif?, headline, emphasis?, duration }
     - motif: an icon name from the ICON LIBRARY. Pick ONE icon that
       represents the brand or topic — that same icon MUST appear in
@@ -405,7 +328,7 @@ educational. Use the legacy scenes as fallback only.
       punchline. The most important word.
     - duration: 2-3s.
 
-11. bold-statement — The workhorse body scene. Mixed-weight
+2. bold-statement — The workhorse body scene. Mixed-weight
     composition: small lead phrase at top, HUGE heavy display
     statement, optional small trailing phrase. ONE word in the
     statement gets the accent color (the punchline).
@@ -419,7 +342,7 @@ educational. Use the legacy scenes as fallback only.
     - trail: optional small phrase at bottom, ≤40 chars.
     - duration: 3-5s. The scene needs time to breathe.
 
-12. icon-list — Vertical pillar list with circle icons. 3-6 entries
+3. icon-list — Vertical pillar list with circle icons. 3-6 entries
     each with an icon + label. Used for "X principles", "X reasons",
     "X benefits" content.
     { type: "icon-list", title?, items: [{icon, label}], highlightIndex?, duration }
@@ -430,7 +353,7 @@ educational. Use the legacy scenes as fallback only.
       accent panel. Use sparingly — at most one row per scene.
     - duration: 4-7s. More items needs more time.
 
-13. numbered-diagram — Concept diagram with 2-3 numbered callouts
+4. numbered-diagram — Concept diagram with 2-3 numbered callouts
     pointing at a center concept. Used for explainers where the
     argument has a clear structure ("two things matter", "three
     forces", etc).
@@ -443,7 +366,7 @@ educational. Use the legacy scenes as fallback only.
       3 is bottom-left.
     - duration: 4-6s.
 
-14. editorial-closer — The closing beat. Brand motif sits at the
+5. editorial-closer — The closing beat. Brand motif sits at the
     center, business name in heavy display type below, optional CTA
     pill. ALWAYS last scene when using editorial-bold preset.
     { type: "editorial-closer", motif?, cta?, duration }
@@ -495,21 +418,28 @@ Picking rules:
 SCRIPT STRUCTURE
 ==============================================================
 
-A good 18-22s script for a content post:
-  [hook → 1-2 supporting scenes → punchline → brand-stamp]
+Every reel follows this 4–6 scene arc:
+  [editorial-opener → 2-4 body scenes → editorial-closer]
 
-A "tips" / "list" post:
-  [hook → list → punchline → brand-stamp]
+Body scenes are picked from: bold-statement, icon-list,
+numbered-diagram. Mix at least two scene types when possible — back-
+to-back same-type scenes read as repetitive.
 
-A stat-driven post:
-  [hook (with the stat) → contrast OR supporting stat → punchline →
-   brand-stamp]
+A good 18-22s script:
+  editorial-opener  → bold-statement  → bold-statement  →
+  numbered-diagram  → editorial-closer
 
-A pure inspirational quote:
-  [quote → brand-stamp] — 2 scenes is fine if that's truly the post.
+A "tips / pillars" post:
+  editorial-opener → icon-list → bold-statement → editorial-closer
 
-ALWAYS end with brand-stamp. ALWAYS start with a stop-scroll beat
-(hook or quote).
+A "structured argument" post:
+  editorial-opener → bold-statement → numbered-diagram →
+  bold-statement → editorial-closer
+
+ALWAYS scene 1 = editorial-opener.
+ALWAYS last scene = editorial-closer.
+ALWAYS use the SAME "motif" icon name for the opener and the closer
+(continuity glyph for the brand).
 
 ==============================================================
 DESIGN KNOBS (set ONCE for the whole script)
@@ -553,15 +483,17 @@ qualitative claim instead.
 
 WRONG (invented "$46.7B" and "2025" — neither was in the brief):
   brief: "Crypto ETF inflows are huge"
-  scene: { type: "stat", value: "$46.7B", label: "INTO CRYPTO ETFs IN 2025" }
+  scene: { type: "bold-statement", lead: "Most",
+           hero: "$46.7B into crypto ETFs in 2025", emphasis: "ETFs" }
 
 RIGHT (qualitative — no fabricated number):
   brief: "Crypto ETF inflows are huge"
-  scene: { type: "punchline", line: "crypto ETFs broke every inflow record this cycle." }
+  scene: { type: "bold-statement", lead: "Crypto ETFs",
+           hero: "broke every inflow record this cycle", emphasis: "record" }
 
 If the brief contains a phrase like "we hit $50K in February", you may
-quote that exact figure verbatim in a stat scene. Otherwise pick a
-hook + punchline + brand-stamp arc with no numbers.
+quote that exact figure verbatim inside the "hero" field of a
+bold-statement. Otherwise write qualitatively — no fabricated numbers.
 
 Spelling: copy proper nouns and tickers from the brief verbatim.
 ETFs are "ETFs" not "ETPs". Bitcoin is "Bitcoin" not "BTC" unless the
@@ -681,7 +613,7 @@ export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript>
       ? JSON.stringify(args.brandVoice).slice(0, 400)
       : null,
   });
-  const presetBlock = `\n\n=== PRESET: ${preset} ===\nUse the editorial-bold scene catalog (editorial-opener, bold-statement, icon-list, numbered-diagram, editorial-closer) as the DEFAULT. Mix in legacy scenes (hook, stat, contrast, quote, punchline, list, hashtags, brand-stamp, data-bar) only when editorial-bold scenes can't carry the brief.`;
+  const presetBlock = `\n\n=== PRESET: ${preset} ===\nUse the editorial-bold scene catalog only: editorial-opener, bold-statement, icon-list, numbered-diagram, editorial-closer. The schema does not allow legacy scene types.`;
 
   const userMessage = `Content brief:\n${args.brief}${voiceBlock}${businessBlock}${industryBlock}${presetBlock}${langDirective}`;
 

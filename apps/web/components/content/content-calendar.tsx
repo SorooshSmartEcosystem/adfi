@@ -30,9 +30,29 @@ type DayItem = {
   thumbnailUrl: string | null;
   href: string;
   caption: string;
-  scheduledFor: Date | null;
-  publishedAt: Date | null;
+  // Stored as ms timestamps, not Date — tRPC serializes Dates as
+  // ISO strings on the wire (the Date "type" only holds in
+  // server components), so calling .getTime() at the client crashes.
+  // We normalize on read and store the canonical number.
+  scheduledForMs: number | null;
+  publishedAtMs: number | null;
 };
+
+// Defensive Date|string|null → number|null conversion. Handles all
+// three forms we might see depending on whether the data came back
+// through superjson, plain JSON, or an unhydrated server object.
+function toMs(v: Date | string | null | undefined): number | null {
+  if (v == null) return null;
+  if (typeof v === "string") {
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) ? t : null;
+  }
+  if (v instanceof Date) {
+    const t = v.getTime();
+    return Number.isFinite(t) ? t : null;
+  }
+  return null;
+}
 
 const DAY_LABELS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const PLATFORM_COLOR: Record<string, string> = {
@@ -65,7 +85,11 @@ export function ContentCalendar() {
   const items = useMemo<DayItem[]>(() => {
     const out: DayItem[] = [];
     for (const d of drafts.data?.items ?? []) {
-      if (!d.scheduledFor && d.status !== "AWAITING_REVIEW") continue;
+      const scheduledMs = toMs(d.scheduledFor);
+      // Only put drafts on the calendar if they have a scheduled date.
+      // AWAITING_REVIEW drafts without a date go in the feed, not on
+      // the calendar — they have no "when" to plot.
+      if (!scheduledMs) continue;
       out.push({
         id: d.id,
         kind: "draft",
@@ -74,8 +98,8 @@ export function ContentCalendar() {
         thumbnailUrl: thumbnailFromContent(d.content),
         href: `/content?tab=feed#d-${d.id}`,
         caption: captionFromContent(d.content),
-        scheduledFor: d.scheduledFor,
-        publishedAt: null,
+        scheduledForMs: scheduledMs,
+        publishedAtMs: null,
       });
     }
     // Map draftId → draft for thumbnail/caption lookup. Posts don't
@@ -92,6 +116,8 @@ export function ContentCalendar() {
     );
     for (const p of posts.data?.items ?? []) {
       if (draftIdsInList.has(p.draftId)) continue;
+      const publishedMs = toMs(p.publishedAt);
+      if (!publishedMs) continue;
       const matchingDraft = draftById.get(p.draftId);
       out.push({
         id: p.id,
@@ -106,8 +132,8 @@ export function ContentCalendar() {
         // per-post anchors.
         href: `/content?tab=feed#d-${p.draftId}`,
         caption: matchingDraft ? captionFromContent(matchingDraft.content) : "",
-        scheduledFor: null,
-        publishedAt: p.publishedAt,
+        scheduledForMs: null,
+        publishedAtMs: publishedMs,
       });
     }
     return out;
@@ -129,14 +155,13 @@ export function ContentCalendar() {
       const dayEnd = new Date(dayStart);
       dayEnd.setDate(dayEnd.getDate() + 1);
       const dayItems = items.filter((it) => {
-        const t = (it.scheduledFor ?? it.publishedAt)?.getTime();
+        const t = it.scheduledForMs ?? it.publishedAtMs;
         if (t == null) return false;
         return t >= dayStart.getTime() && t < dayEnd.getTime();
       });
-      // Sort: published first, then scheduled by time
       dayItems.sort((a, b) => {
-        const ta = (a.scheduledFor ?? a.publishedAt)?.getTime() ?? 0;
-        const tb = (b.scheduledFor ?? b.publishedAt)?.getTime() ?? 0;
+        const ta = a.scheduledForMs ?? a.publishedAtMs ?? 0;
+        const tb = b.scheduledForMs ?? b.publishedAtMs ?? 0;
         return ta - tb;
       });
       arr.push({ date, items: dayItems });
@@ -220,12 +245,27 @@ export function ContentCalendar() {
               const inCurrentMonth =
                 cell.date.getMonth() === monthAnchor.getMonth();
               const isToday = cell.date.getTime() === today.getTime();
+              // Outside-month cells: render as a quiet empty pad —
+              // no number, no items, no chrome. The grid keeps its
+              // 6-row height without those padding days reading as
+              // "scheduled" or "this matters".
+              if (!inCurrentMonth) {
+                return (
+                  <div
+                    key={i}
+                    className="bg-surface/40 min-h-[88px] md:min-h-[120px]"
+                    aria-hidden="true"
+                  />
+                );
+              }
               return (
                 <div
                   key={i}
                   className={`bg-bg min-h-[88px] md:min-h-[120px] p-[6px] flex flex-col gap-[4px] ${
-                    inCurrentMonth ? "" : "opacity-40"
-                  } ${isToday ? "outline outline-2 outline-ink -outline-offset-2" : ""}`}
+                    isToday
+                      ? "outline outline-2 outline-ink -outline-offset-2"
+                      : ""
+                  }`}
                 >
                   <div
                     className={`text-[11px] font-mono ${
@@ -327,20 +367,19 @@ function Legend() {
 }
 
 function formatStatus(it: DayItem): string {
+  const fmtTime = (ms: number) =>
+    new Date(ms).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
   if (it.status === "PUBLISHED") {
-    return it.publishedAt
-      ? `published ${it.publishedAt.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        })}`
+    return it.publishedAtMs
+      ? `published ${fmtTime(it.publishedAtMs)}`
       : "published";
   }
   if (it.status === "APPROVED") {
-    return it.scheduledFor
-      ? `scheduled ${it.scheduledFor.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        })}`
+    return it.scheduledForMs
+      ? `scheduled ${fmtTime(it.scheduledForMs)}`
       : "scheduled";
   }
   return it.status.toLowerCase();

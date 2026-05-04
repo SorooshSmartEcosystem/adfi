@@ -174,6 +174,10 @@ export async function processInboundSms(args: {
   if (user.deletedAt) {
     return { handled: false, reason: "user_frozen" };
   }
+  // Per-business freeze for the phone number's tagged business.
+  if (phoneRecord.business?.deletedAt) {
+    return { handled: false, reason: "business_frozen" };
+  }
   // Active business for this inbound: the phone number's tagged
   // businessId (set when the user provisions the line under a business)
   // takes precedence; fall back to whatever business the user has
@@ -352,6 +356,10 @@ export async function processInboundMessenger(args: {
   // LLM call so frozen accounts don't burn tokens.
   if (user.deletedAt) {
     return { handled: false, reason: "user_frozen" };
+  }
+  // Per-business freeze — same gate at the business level.
+  if (account.business?.deletedAt) {
+    return { handled: false, reason: "business_frozen" };
   }
   // Active business for this inbound. Prefer the ConnectedAccount's
   // businessId (set when the user connected the page) — that's the
@@ -629,6 +637,13 @@ export async function processInboundTelegram(args: {
   // burning Anthropic tokens via Signal replies.
   if (user.deletedAt) {
     return { handled: false, reason: "user_frozen" };
+  }
+  // Per-business freeze. STUDIO/AGENCY accounts can have one brand
+  // frozen while the rest stay active — this Telegram inbound is
+  // tagged to account.business, so we bail when that specific
+  // business is frozen.
+  if (account.business?.deletedAt) {
+    return { handled: false, reason: "business_frozen" };
   }
   // Same active-business resolution as processInboundMessenger — the
   // bot's ConnectedAccount.businessId tells us which business owns this

@@ -20,3 +20,24 @@ export async function unfreezeUserAction(userId: string) {
   revalidatePath(`/dashboard/users/${userId}`);
   revalidatePath(`/dashboard/users`);
 }
+
+// Per-business freeze. STUDIO/AGENCY users have multiple Business
+// rows; this lets admins freeze just one brand inside a real account.
+
+export async function freezeBusinessAction(
+  businessId: string,
+  userId: string,
+) {
+  const trpc = await trpcServer();
+  await trpc.admin.freezeBusiness({ id: businessId });
+  revalidatePath(`/dashboard/users/${userId}`);
+}
+
+export async function unfreezeBusinessAction(
+  businessId: string,
+  userId: string,
+) {
+  const trpc = await trpcServer();
+  await trpc.admin.unfreezeBusiness({ id: businessId });
+  revalidatePath(`/dashboard/users/${userId}`);
+}

@@ -12,7 +12,12 @@
 // quarterly-strategist crons from firing on idle accounts.
 
 import { useState, useTransition } from "react";
-import { freezeUserAction, unfreezeUserAction } from "./freeze-actions";
+import {
+  freezeUserAction,
+  unfreezeUserAction,
+  freezeBusinessAction,
+  unfreezeBusinessAction,
+} from "./freeze-actions";
 
 export function FreezeButton({
   userId,
@@ -60,6 +65,60 @@ export function FreezeButton({
       </button>
       {error ? (
         <p className="text-[11px] font-mono text-urgent">{error}</p>
+      ) : null}
+    </div>
+  );
+}
+
+// Smaller variant for the per-business cards. Same wiring; calls
+// the freezeBusinessAction / unfreezeBusinessAction server actions.
+export function BusinessFreezeButton({
+  businessId,
+  userId,
+  isFrozen,
+}: {
+  businessId: string;
+  userId: string;
+  isFrozen: boolean;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function onClick() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        if (isFrozen) {
+          await unfreezeBusinessAction(businessId, userId);
+        } else {
+          await freezeBusinessAction(businessId, userId);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-xs">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={isPending}
+        className={`text-[11px] font-mono px-sm py-[5px] rounded-full border-hairline transition-colors disabled:opacity-40 ${
+          isFrozen
+            ? "border-alive text-alive hover:bg-alive hover:text-bg"
+            : "border-ink3 text-ink3 hover:border-urgent hover:text-urgent"
+        }`}
+      >
+        {isPending
+          ? "one second…"
+          : isFrozen
+            ? "unfreeze"
+            : "freeze"}
+      </button>
+      {error ? (
+        <p className="text-[10px] font-mono text-urgent">{error}</p>
       ) : null}
     </div>
   );

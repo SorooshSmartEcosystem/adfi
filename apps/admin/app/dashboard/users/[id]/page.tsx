@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { trpcServer } from "../../../../lib/trpc-server";
 import { formatCents } from "@orb/api";
-import { FreezeButton } from "./freeze-button";
+import { FreezeButton, BusinessFreezeButton } from "./freeze-button";
 
 export default async function UserDetailPage({
   params,
@@ -19,8 +19,16 @@ export default async function UserDetailPage({
     notFound();
   }
 
-  const { user, subscription, revenueCents, costs, margin, activity, byEvent } =
-    detail;
+  const {
+    user,
+    businesses,
+    subscription,
+    revenueCents,
+    costs,
+    margin,
+    activity,
+    byEvent,
+  } = detail;
   const isFrozen = user.deletedAt != null;
 
   return (
@@ -99,6 +107,76 @@ export default async function UserDetailPage({
           </p>
         </div>
       </section>
+
+      {/* Businesses — STUDIO/AGENCY users have multiple. Each row
+          can be frozen independently so a test brand inside a real
+          account can be silenced without freezing the whole user. */}
+      {businesses.length > 0 ? (
+        <section className="flex flex-col gap-md">
+          <p className="text-xs font-mono text-ink3 uppercase tracking-widest">
+            businesses ({businesses.length})
+          </p>
+          <div className="flex flex-col gap-sm">
+            {businesses.map((b) => {
+              const bFrozen = b.deletedAt != null;
+              const isCurrent = b.id === user.currentBusinessId;
+              return (
+                <div
+                  key={b.id}
+                  className={`bg-surface border-hairline rounded-lg p-lg flex items-start justify-between gap-md ${
+                    bFrozen ? "border-urgent/30 bg-urgent/5" : "border-border"
+                  }`}
+                >
+                  <div className="flex flex-col gap-xs flex-1 min-w-0">
+                    <div className="flex items-center gap-sm flex-wrap">
+                      <span className="text-md font-medium text-ink">
+                        {b.name}
+                      </span>
+                      {isCurrent ? (
+                        <span className="font-mono text-[10px] text-ink3 uppercase tracking-widest">
+                          current
+                        </span>
+                      ) : null}
+                      {bFrozen ? (
+                        <span className="font-mono text-[10px] text-urgent uppercase tracking-widest">
+                          ❄ frozen
+                        </span>
+                      ) : null}
+                    </div>
+                    {b.description ? (
+                      <p className="text-sm text-ink3 font-mono">
+                        {b.description}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-ink4 font-mono italic">
+                        no description
+                      </p>
+                    )}
+                    {b.websiteUrl ? (
+                      <a
+                        href={b.websiteUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-ink3 hover:text-ink underline self-start"
+                      >
+                        {b.websiteUrl}
+                      </a>
+                    ) : null}
+                    <p className="text-[11px] font-mono text-ink4 mt-xs">
+                      added {new Date(b.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <BusinessFreezeButton
+                    businessId={b.id}
+                    userId={user.id}
+                    isFrozen={bFrozen}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {/* Financial summary */}
       <section className="grid md:grid-cols-3 gap-md">

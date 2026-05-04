@@ -123,6 +123,29 @@ export const adminRouter = router({
       });
     }),
 
+  // Per-business freeze. STUDIO/AGENCY users have multiple Business
+  // rows under one User; freezing the user halts EVERYTHING. This
+  // pair lets admins kill activity for one specific business
+  // (e.g. a test brand inside a real account) while leaving the
+  // user's other businesses running.
+  freezeBusiness: adminProc
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.business.update({
+        where: { id: input.id },
+        data: { deletedAt: new Date() },
+      });
+    }),
+
+  unfreezeBusiness: adminProc
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.business.update({
+        where: { id: input.id },
+        data: { deletedAt: null },
+      });
+    }),
+
   listAgentRuns: adminProc
     .input(
       z.object({
@@ -540,6 +563,22 @@ export const adminRouter = router({
             where: { status: { in: ["TRIALING", "ACTIVE"] } },
           },
           phoneNumbers: { where: { status: "ACTIVE" } },
+          // Pull every business (including frozen ones) so the admin
+          // user-detail page can list them with per-business freeze
+          // toggles. Frozen businesses still need to render — we
+          // want admins to see them and unfreeze if needed.
+          businesses: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              websiteUrl: true,
+              logoUrl: true,
+              createdAt: true,
+              deletedAt: true,
+            },
+          },
         },
       });
       if (!user) throw OrbError.NOT_FOUND("user");
@@ -605,7 +644,9 @@ export const adminRouter = router({
           // Surface the freeze marker so the admin UI can render a
           // banner + flip the freeze button label.
           deletedAt: user.deletedAt,
+          currentBusinessId: user.currentBusinessId,
         },
+        businesses: user.businesses,
         subscription: sub
           ? {
               plan: sub.plan,

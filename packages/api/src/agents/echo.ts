@@ -403,9 +403,16 @@ export async function generateDailyContent(
   const business = businessId
     ? await db.business.findFirst({
         where: { id: businessId, userId },
-        select: { description: true },
+        select: { description: true, deletedAt: true },
       })
     : null;
+  // Skip frozen businesses — admin.freezeBusiness sets deletedAt
+  // to halt token consumption for one specific business inside a
+  // multi-business account. Crons keep iterating users; this is
+  // where the per-business gate lives.
+  if (business?.deletedAt) {
+    throw new Error("Business is frozen — skipping content generation");
+  }
   const activeCtx = businessId
     ? await db.agentContext.findUnique({
         where: { businessId },

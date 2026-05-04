@@ -168,6 +168,12 @@ export async function processInboundSms(args: {
   }
 
   const user = phoneRecord.user;
+  // Frozen-account gate. Admin can suspend a user via
+  // admin.suspendUser (sets deletedAt) — we bail here so an inbound
+  // SMS to a suspended account doesn't trigger Signal's LLM reply.
+  if (user.deletedAt) {
+    return { handled: false, reason: "user_frozen" };
+  }
   // Active business for this inbound: the phone number's tagged
   // businessId (set when the user provisions the line under a business)
   // takes precedence; fall back to whatever business the user has
@@ -341,6 +347,12 @@ export async function processInboundMessenger(args: {
     return { handled: false, reason: "unknown_page" };
   }
   const user = account.user;
+  // Frozen-account gate (matches processInboundTelegram). Admin can
+  // suspend a user via admin.suspendUser; we bail before Signal's
+  // LLM call so frozen accounts don't burn tokens.
+  if (user.deletedAt) {
+    return { handled: false, reason: "user_frozen" };
+  }
   // Active business for this inbound. Prefer the ConnectedAccount's
   // businessId (set when the user connected the page) — that's the
   // ground truth for "which business owns this inbox." Fall back to
@@ -611,6 +623,13 @@ export async function processInboundTelegram(args: {
     return { handled: false, reason: "unknown_bot" };
   }
   const user = account.user;
+  // Frozen-account gate. Admin can suspend a user via
+  // admin.suspendUser (sets deletedAt). Crons already skip deletedAt
+  // users; we mirror that here so test-account webhooks don't keep
+  // burning Anthropic tokens via Signal replies.
+  if (user.deletedAt) {
+    return { handled: false, reason: "user_frozen" };
+  }
   // Same active-business resolution as processInboundMessenger — the
   // bot's ConnectedAccount.businessId tells us which business owns this
   // inbox; fall back to user's current business for legacy connections.

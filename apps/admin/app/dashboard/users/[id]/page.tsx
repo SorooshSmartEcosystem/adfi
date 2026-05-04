@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { trpcServer } from "../../../../lib/trpc-server";
 import { formatCents } from "@orb/api";
+import { FreezeButton } from "./freeze-button";
 
 export default async function UserDetailPage({
   params,
@@ -20,6 +21,7 @@ export default async function UserDetailPage({
 
   const { user, subscription, revenueCents, costs, margin, activity, byEvent } =
     detail;
+  const isFrozen = user.deletedAt != null;
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-2xl">
@@ -30,14 +32,33 @@ export default async function UserDetailPage({
         >
           ← all users
         </Link>
-        <h1 className="text-2xl font-medium">
-          {user.email ?? user.phone ?? user.id.slice(0, 12)}
-        </h1>
-        {user.businessDescription && (
-          <p className="text-sm text-ink3 font-mono max-w-2xl">
-            {user.businessDescription}
-          </p>
-        )}
+        <div className="flex items-start justify-between gap-md flex-wrap">
+          <div className="flex flex-col gap-xs">
+            <h1 className="text-2xl font-medium">
+              {user.email ?? user.phone ?? user.id.slice(0, 12)}
+            </h1>
+            {user.businessDescription && (
+              <p className="text-sm text-ink3 font-mono max-w-2xl">
+                {user.businessDescription}
+              </p>
+            )}
+          </div>
+          <FreezeButton userId={user.id} isFrozen={isFrozen} />
+        </div>
+        {isFrozen ? (
+          <div className="bg-urgent/10 border-hairline border-urgent/40 rounded-lg p-md mt-sm">
+            <p className="text-sm font-mono text-urgent">
+              ❄ FROZEN
+              {user.deletedAt
+                ? ` · since ${new Date(user.deletedAt).toLocaleDateString()}`
+                : ""}
+            </p>
+            <p className="text-xs text-ink3 mt-xs">
+              crons (daily-content, daily-pulse, quarterly-strategist) and
+              webhook-driven Signal replies are skipped for this user.
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {/* Account state */}

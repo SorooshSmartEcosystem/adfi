@@ -95,14 +95,31 @@ export const adminRouter = router({
       return user;
     }),
 
+  // Freeze a user — stops cron-driven token consumption (daily-content,
+  // daily-pulse, weekly-scout, quarterly-strategist all filter
+  // deletedAt:null) and webhook-driven consumption (Telegram +
+  // Messenger inbound handlers also bail when deletedAt is set).
+  // Sign-in is unaffected so the user could still use the app — for
+  // a hard suspension we'd add Supabase Auth.admin.updateUserById
+  // with `banned_until`, but for "freeze test users" the cron+webhook
+  // gate is enough.
   suspendUser: adminProc
     .input(z.object({ id: z.string().uuid(), reason: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Using deletedAt as a suspension marker for v1; a proper "suspended"
-      // state with audit trail lands with moderation tooling.
       return ctx.db.user.update({
         where: { id: input.id },
         data: { deletedAt: new Date() },
+      });
+    }),
+
+  // Inverse of suspendUser. Clears deletedAt so the user resumes
+  // appearing in cron eligibility queries + webhook routing.
+  unsuspendUser: adminProc
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.user.update({
+        where: { id: input.id },
+        data: { deletedAt: null },
       });
     }),
 
@@ -461,6 +478,7 @@ export const adminRouter = router({
           onboardedAt: true,
           trialEndsAt: true,
           createdAt: true,
+          deletedAt: true,
           subscriptions: {
             where: { status: { in: ["TRIALING", "ACTIVE"] } },
             select: { plan: true, status: true },
@@ -488,6 +506,7 @@ export const adminRouter = router({
           createdAt: u?.createdAt ?? null,
           onboardedAt: u?.onboardedAt ?? null,
           trialEndsAt: u?.trialEndsAt ?? null,
+          frozen: u?.deletedAt != null,
           plan: sub?.plan ?? null,
           status: sub?.status ?? null,
           eventCount: eventsByUser.get(userId) ?? 0,
@@ -583,6 +602,9 @@ export const adminRouter = router({
           createdAt: user.createdAt,
           onboardedAt: user.onboardedAt,
           trialEndsAt: user.trialEndsAt,
+          // Surface the freeze marker so the admin UI can render a
+          // banner + flip the freeze button label.
+          deletedAt: user.deletedAt,
         },
         subscription: sub
           ? {

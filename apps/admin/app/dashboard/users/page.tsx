@@ -99,10 +99,17 @@ export default async function UsersPage({
                   <td className="px-md py-sm">
                     <Link
                       href={`/dashboard/users/${r.userId}`}
-                      className="text-ink hover:underline"
+                      className={`hover:underline ${
+                        r.frozen ? "text-ink3 line-through" : "text-ink"
+                      }`}
                     >
                       {r.email ?? r.phone ?? r.userId.slice(0, 8)}
                     </Link>
+                    {r.frozen ? (
+                      <span className="ml-xs font-mono text-[10px] text-urgent uppercase tracking-widest">
+                        ❄ frozen
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-md py-sm font-mono text-xs text-ink3">
                     {r.plan ? (

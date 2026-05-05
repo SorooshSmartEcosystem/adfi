@@ -1,478 +1,292 @@
 ---
 title: SESSION_STATE
 purpose: Hand-off snapshot for the next Claude Code session
-last_updated: 2026-05-02
+last_updated: 2026-05-04
 ---
 
-# Session state — 2026-05-02
+# Session state — 2026-05-04
 
-Frozen snapshot of where ADFI is, what's been built, what's locked, what's
-open, and exactly what to do next. A fresh Claude Code session should be
-able to pick up by reading this top-to-bottom.
+Snapshot of where ADFI is right now, what's been built, what's open, and
+exactly what to do next. A fresh Claude Code session should be able to
+pick up by reading this top-to-bottom. Read this BEFORE
+`docs/ROADMAP.md` — this is the live state; the roadmap is the plan.
 
-## Latest session (2026-05-02) — Meta App Review submitted + motion-reel Phase 1
+---
 
-**Meta App Review filed.** All 8 scopes submitted (instagram_basic,
-instagram_business_basic, instagram_business_manage_messages,
-instagram_manage_messages, pages_show_list, pages_messaging,
-pages_read_engagement, business_management, public_profile). Test
-account `meta-reviewer@adfi.ca` provisioned via
-`scripts/create-meta-reviewer.ts` with TEAM-tier trial through 2027.
-Password sign-in fallback added to `/signin` so reviewers can use
-email + password instead of magic link — toggle hidden by default
-below the email input. Privacy + terms pages updated to name
-SOROOSHX INC. as data controller and to match Meta's declared data
-handling. Awaiting Meta response (~5-10 business days, ~May 12-16).
+## What's blocked / waiting
 
-**Motion-reel Phase 1 redesign shipped** — same ~1.1¢ per video,
-visually meaningful upgrade. Pace knob is functional; transitions
-rotate per scene; film grain runs over every reel. Phase 2 + 3
-planned in `docs/MOTION_REEL_REDESIGN.md`.
+- **Meta App Review queue** (filed 2026-05-01). 8 scopes submitted.
+  Awaiting decision; ETA roughly **2026-05-12 → 05-16**. Test account
+  `meta-reviewer@adfi.ca` is provisioned with TEAM-tier through 2027
+  via `scripts/create-meta-reviewer.ts`. Until Meta responds, no live
+  user can connect IG / FB Pages — only whitelisted dev-mode accounts.
 
-## Previous session (2026-04-30 → 05-01) — content + motion-reel rewrite
+---
+
+## What shipped since 2026-05-02
+
+### Content page polish + bug-fix sweep (2026-05-02 → 05-04)
+
+- **Telegram posts now publish with images** when the draft has a
+  hero image (text becomes the photo caption, ≤1024 chars; longer
+  text falls back to text-only). New `sendPhoto()` in
+  `packages/api/src/services/telegram.ts`.
+- **Mockups show real scheduled/published dates** instead of "just
+  now". Platform-native formatting per channel via
+  `formatPostedAt(date, platform)` in
+  `apps/web/components/content/mockups/types.ts` (X uses "2h", IG
+  uses "2 hours ago", Telegram uses "9:47", LinkedIn uses
+  "2h"/"1w"/date, etc).
+- **Telegram bot stops responding bug** — per-sender rate limit was
+  5/5min, hit during normal back-and-forth. Bumped to 15/5min,
+  60/1h, 200/24h in `packages/api/src/services/abuse-guard.ts`.
+- **Video preview drawer opens immediately** — `tap to create video`
+  now opens the ScriptPreview drawer with a "sketching script…"
+  loader, then populates. Player gets `autoPlay` so the video
+  plays as soon as the script lands.
+- **Mobile filter modal** anchors `left-0` on small screens (was
+  going off-screen left when flex-wrap moved the button to the
+  left edge of the toolbar).
+- **Mobile inbox** — master-detail pattern: mobile shows EITHER the
+  list OR the thread (with `← all conversations` back button),
+  desktop unchanged.
+
+### Content calendar (2026-05-03)
+
+- **Replaced WeekGrid with ContentCalendar** — month view with
+  prev/next nav + "today" button, 6-row always-rendered grid, up
+  to 4 thumbnail chips per day cell, `+N more` overflow badge.
+- **Status rings on chips**: green=published, ink=scheduled,
+  amber=review.
+- **Calendar tab nav fixed** — `ContentTabsClient` now syncs from
+  `?tab=` via `useSearchParams` and pushes URL updates; chip clicks
+  actually switch tabs + scroll to anchor.
+- **Anchor IDs** added to draft cards (`id="d-<draftId>"`) in both
+  list and mockup views.
+- **`approveDraft` now auto-sets `scheduledFor`** to "tomorrow at
+  10am" when null — fixes empty calendar (every approved draft was
+  scheduled-null before, so the calendar filtered them all out).
+  Calendar also falls back to `approvedAt` for legacy approved
+  drafts without `scheduledFor`.
+- Out-of-month padding cells now render as quiet empty pads (no
+  number, no chrome) instead of dimmed numbered cells that read as
+  "scheduled" status.
+
+### Publish-now action (2026-05-03)
+
+- New menu item on `DraftCardV2`:
+  - APPROVED status → calls `content.publishDraft` directly
+  - AWAITING_REVIEW / DRAFT → chains approve → publish in one click
+
+### Admin freeze/unfreeze (2026-05-04)
+
+- **Per-user freeze** — admin user-detail page has freeze/unfreeze
+  button. Sets/clears `User.deletedAt`. Crons (`daily-content`,
+  `daily-pulse`, `weekly-scout`, `quarterly-strategist`) all
+  already filter `deletedAt: null`, so freeze halts cron-driven
+  token consumption. Inbound webhooks (Telegram, Messenger, IG DM,
+  SMS) bail with `reason="user_frozen"` before any Anthropic call.
+- **Per-business freeze** — STUDIO/AGENCY users with multiple
+  Business rows can have one brand frozen while others run. Admin
+  detail page shows businesses[] section with per-business freeze.
+  Echo's `generateDailyContent` throws "Business is frozen" when
+  the resolved currentBusiness has `deletedAt` set; webhooks gate
+  on `account.business.deletedAt` / `phoneRecord.business.deletedAt`.
+- New mutations: `admin.unsuspendUser`, `admin.freezeBusiness`,
+  `admin.unfreezeBusiness`.
+
+### Motion-reel — Phase 1, 1.5, 2, 3 + experimental dynamics (2026-05-02 → 03)
+
+This is a long arc. Plan + per-phase notes in
+`docs/MOTION_REEL_REDESIGN.md`. Quick state:
+
+- **Phase 1 shipped** (2026-05-02) — pace knob now functional,
+  scene transitions rotate per index, animated film grain over
+  every reel.
+- **Phase 1.5 shipped** — icon registry (38 SVGs), responsive
+  typography (`fitText`), `data-bar` scene type.
+- **Phase 2 shipped** — `editorial-bold` preset with 5 scenes
+  (editorial-opener, bold-statement, icon-list, numbered-diagram,
+  editorial-closer). Replaced legacy hook/stat/quote/etc. as the
+  agent's preferred scene catalog.
+- **Phase 3 shipped** — 4 structural-variety scenes
+  (phone-mockup, metric-tile-grid, chat-thread, terminal). Two of
+  them (chat-thread, terminal) were dropped from the AGENT zod
+  union to fit Anthropic's grammar-size cap, but they STILL render
+  and STILL validate at the router for user-edited scripts.
+- **Mood + brand-signature axes** — every script picks a `mood`
+  (confident/calm/energetic/urgent/contemplative/celebratory) that
+  modulates pace, accent saturation, type weight, italic, and
+  letter stagger. Brand signature seeds layout rotation + default
+  motif by hashing the business name.
+- **Editorial-bold scenes use BrandKit colors** (no longer
+  hardcoded white/black) so two brands actually look different.
+
+**Known gap on motion-reel** — even after all this, user feedback
+is the videos still feel templated. Real fix requires:
+1. **Photo-driven scenes** — `PhotoCutoutScene`, `HeroPhotoScene`,
+   `ComparisonSplitScene`. Wire Echo's image-gen pipeline into
+   editorial-bold scenes. Biggest visual upgrade pending.
+2. **Audio layer** — TTS narration (per-brand voice via ElevenLabs)
+   + royalty-free music loops + transition stings.
+3. **Remaining 5 presets** — dashboard-tech, soft-minimal, luxury,
+   studio-craft, documentary. Picker logic in
+   `pickPresetForBrief` already routes industries to them; today
+   every match just returns editorial-bold.
+
+User said "We need to work on video agent later and make it more
+professional" — explicitly DEPRIORITIZED. Don't touch motion-reel
+unless the user asks again.
+
+---
+
+## Architecture quick reference
+
+### Stack
+- **Web**: Next.js 15 App Router, tRPC v11, Tailwind, Remotion `<Player>`
+- **Admin**: Next.js 15 App Router (separate app on port 3001)
+- **Mobile**: Expo (parked — only bottom-tab bar exists)
+- **DB**: Postgres via Supabase, Prisma ORM
+- **Auth**: Supabase Auth (passwordless OTP / Google OAuth + new
+  password-fallback for App Review)
+- **Payments**: Stripe (Payment Element, not Checkout)
+- **LLM**: Anthropic SDK with `cache_control: ephemeral` on all
+  long system prompts. Default model = Haiku 4.5; Strategist still
+  uses Sonnet 4.6.
+- **Image gen**: Replicate Flux Schnell, capped at 2 concurrent
+  jobs per draft (was hitting 429 storms before the fix).
+- **Video render**: Remotion Lambda. Site name `adfi-motion`. Run
+  `AWS_PROFILE=adfi-remotion pnpm -F @orb/motion-reel exec
+  remotion lambda sites create packages/motion-reel/src/index.ts
+  --site-name=adfi-motion` after motion-reel changes.
+
+### Hosting
+- Vercel **Pro** since 2026-04-28. 2GB memory + 300s maxDuration on
+  the tRPC + cron functions; sub-daily crons available but unused.
+
+### The two names
+- **ADFI** — brand. ALL user-facing strings.
+- **ORB** — internal codename. ALL package names (`@orb/*`),
+  variables, types, branches.
+- Memory file `feedback_signal_no_adfi_leak.md` — Signal NEVER
+  mentions ADFI to customers; speaks AS the business.
+
+### Pricing (per memory `project_pricing_tiers.md`)
+SOLO $29 / TEAM $79 / STUDIO $199 (2 biz) / AGENCY $499 (8 biz).
+Trial = 7-day full TEAM.
+
+---
+
+## Known open issues (small)
+
+- **Lambda site doesn't auto-redeploy** — every motion-reel commit
+  requires the manual `sites create` command above. Could automate
+  via a GitHub Action; deferred.
+- **Old reels rendered with the legacy 9s template** still play
+  with their original mp4. Re-render via the ⋯ menu's
+  "re-render video" item to upgrade them.
+- **Hash-anchor scrolling** uses 600ms retry — works but feels
+  hackish. Real fix is to render panels above-the-fold synchronously
+  on initial load when `?tab=feed#d-X` is present.
+
+---
+
+## What to do next (priority order)
+
+Read `docs/ROADMAP.md` for the full plan. Top priorities right now:
+
+1. **Wait for Meta App Review** — likely 1-2 weeks. While waiting,
+   build the Facebook + Instagram **publish path** (Track A from
+   the May-1 plan in chat history). The publish path is needed
+   anyway, and once Meta approves we can immediately enable real
+   IG/FB publishing.
+
+2. **Fix prod-only bugs surfacing from real users** as they come.
+   The bug-fix sweep on 2026-05-04 covered the Telegram-image,
+   scheduled-date, mobile filter, mobile inbox, video preview, and
+   freeze/unfreeze fronts. Anything new should land in CHANGELOG.
+
+3. **Friendly-tester onboarding test** (T0 todo from earlier
+   session) — have someone other than the founder go through
+   signup → onboarding → connect a channel → first draft → first
+   publish. Watch them. Document anything that breaks.
+
+4. **Pre-launch checklist** in `docs/PRE_BETA_CHECKLIST.md` —
+   3 tier-0 items left: Stripe price IDs, Meta App Review (in
+   flight), Instagram-connect debugging. Read that doc before
+   starting any "what should I work on" session.
+
+**Explicitly deprioritized:**
+- Motion-reel improvements (user said work on video agent later)
+- Phase 2.5 / Phase 3 of motion-reel
+- Mobile app (parked overall, web-first beta)
+- Phase 2 of Campaign Manager (Meta/Google/TikTok ads API push)
+
+---
+
+## Cost-control notes (for token-conscious sessions)
+
+The user explicitly asked for "manage token consuming" in this
+hand-off. Practical rules:
+
+1. **Memory before action.** Read `MEMORY.md` first; many decisions
+   are already locked there.
+2. **Ask before code.** For any redesign / rewrite, propose the
+   plan in 5-10 lines; wait for approval; then execute.
+3. **Don't dump source.** Per feedback memory
+   `feedback_concise_proposals.md` — summarize file plans, never
+   paste full source in chat.
+4. **Don't stage-confirm.** Per `feedback_no_stage_confirmation.md`
+   — once a multi-stage plan is accepted, flow through. Don't
+   gate each stage.
+5. **Don't reach for new tools.** ADFI's stack is locked
+   (Anthropic / Supabase / Stripe / Vercel / Replicate / Remotion).
+   Don't propose alternatives.
+6. **For "still broken" loops** — don't keep trying the same fix.
+   Log a hypothesis, propose ONE diagnostic, ask the user to run
+   it. Move on if blocked.
+7. **Auto mode is not a license to rewrite.** Bug fixes ≠
+   refactors. Match scope to the request.
+
+---
+
+## Pointers
+
+- `docs/ROADMAP.md` — what ships next, in priority order
+- `docs/CHANGELOG.md` — what already shipped (in chronological order)
+- `docs/PRE_BETA_CHECKLIST.md` — tier-0/1/2 to-dos before public launch
+- `docs/PROJECT_STATUS.md` — agent-by-agent feature matrix
+- `docs/MOTION_REEL_REDESIGN.md` — 3-phase video plan + Phase 4
+  notes if user asks again
+- `docs/CLAUDE.md` — repo-level rules (UI design system, the
+  ADFI/ORB split, naming, no shadows/icons in UI, etc.)
+- `~/.claude/projects/-Users-soroushosivand-Projects-adfi/memory/MEMORY.md`
+  — session-persistent decisions (pricing, Vercel tier, design
+  locks, voice rules, etc.)
+- `~/.claude/skills/video-agent/SKILL.md` — motion-reel pipeline
+  ref (parked but kept current)
+
+---
+
+## Previous session summary (2026-04-30 → 05-01)
 
 Three big things shipped:
 
-**1. Motion-reel scene-script architecture (was single-template).** The
-video agent now writes a sequence of 3-7 scenes (hook · stat · contrast ·
-quote · punchline · list · hashtags · brand-stamp) that play back-to-back
-via Remotion `<Sequence>`. Switched the agent from Sonnet to Haiku 4.5 +
-prompt caching the long system prompt — per-video cost dropped from ~2¢
-to ~1.1¢ at scale, ~0.4¢ within AWS Lambda free tier. 6 industry preview
-scripts (renovation 50s, fitness, legal/tax, restaurant, SaaS, copy-trading)
-in `packages/motion-reel/src/previews/` for studio iteration without
-burning tokens.
+**1. Motion-reel scene-script architecture** (was single-template).
+The video agent now writes a sequence of 3-7 scenes that play
+back-to-back via Remotion `<Sequence>`. Switched the agent from
+Sonnet to Haiku 4.5 + prompt caching. Per-video cost dropped from
+~2¢ to ~1.1¢ at scale.
 
 **2. Content page redesign.** /content rebuilt around three ideas:
-  - Big focused GenerateBar at top (textarea + collapsed format/platform
-    pickers + draft button). OrbLoader takes over while Echo drafts.
-  - Platform-authentic mockups (instagram-post, instagram-reel,
-    twitter, linkedin, facebook, telegram, email — see
-    apps/web/components/content/mockups/) instead of generic text rows
-  - DraftCardV2 wraps the mockup with single-primary-action ladder per
-    state (approve / regenerate / add-photos / view-live / retry) +
-    overflow menu for tertiary actions
-  - Tabs back: feed / week / performance as a quiet link strip
-  - In-app script preview drawer via Remotion `<Player>` — free
-    browser playback before paying for Lambda render
-
-**3. Critical prod fix.** prisma.business.create() was failing in tRPC
-middleware for fresh Supabase users (FK violation on user_id) — locked
-users out of dashboard with no way to even sign out. Fixed by upserting
-the User row before business.create.
-
-Also: admin dashboard period selector (default 30d, was hard-coded
-this-month and showed empty grid on May 1st), .env.example refreshed
-for SendGrid + Remotion Lambda env vars, error swallowing for third-
-party quota failures with admin-notify URGENT tags, persisted Meta user
-token + DELETE /me/permissions on disconnect, IG webhook subscribe
-fixes, mobile burger menu + profile dropdown on landing.
-
-Skill `~/.claude/skills/video-agent/SKILL.md` updated with scene
-catalog, cost model, in-app preview pattern, and adding-new-scene
-workflow.
-
-For project-wide rules, read [`CLAUDE.md`](../CLAUDE.md). For architecture,
-read [`docs/ARCHITECTURE.md`](ARCHITECTURE.md). For the agent workflow,
-[`docs/ECHO_WORKFLOW.md`](ECHO_WORKFLOW.md). For the multi-business
-foundation specifically, see "Multi-business" section below.
-
----
-
-## 1. Project status
-
-**Phase:** pre-launch / private development. No real users. **Vercel Pro**
-(upgraded from Hobby on 2026-04-28 after a stuck deploy webhook on Hobby
-— see CHANGELOG `Changed (vercel · 2026-04-28)`). The user (Soroush) is
-testing personally; one test user (`maya@ceramicsco.example`) was
-previously seeded then deleted.
-
-**Active branch:** `main`. Production at `https://www.adfi.ca`. Mobile app
-exists in `apps/mobile` (Expo) but is not yet in the App Store / Play Store.
-
-**Recent direction (2026-04-28 evening):** the design system is moving from
-"LLM generates everything" to "LLM picks direction, code does the rest"
-— `@orb/design-agent` shipped its pure-code phases (palette + templates).
-Specialist pages were redesigned per the Pulse prototype. Brand-kit caps
-were right-sized after the user flagged 999/STUDIO as economically broken.
-Next direction: **motion-reel package** (code-as-video using the
-landing-page scene templates as reference).
-
----
-
-## 2. What's been built end-to-end
-
-### Pricing reshape (2026-04-28)
-
-| Plan | Businesses | Credits | Calls/mo | Price |
-|---|---|---|---|---|
-| TRIAL (7 days) | 1 | 50 | 5 | $0 |
-| SOLO | 1 | 60 | 0 (DMs only) | $29 |
-| TEAM ★ | 1 | 250 | 100 | $79 |
-| STUDIO | 2 | 600 shared | 250 | $199 |
-| AGENCY | 8 | 2000 shared | 600 | $499 |
-
-Each upgrade unlocks a *capability gate*, not just more credits:
-- SOLO → TEAM unlocks **voice calls + web research + priority queue**
-- TEAM → STUDIO unlocks **multi-business + custom newsletter domain**
-- STUDIO → AGENCY unlocks **white-label + 8 clients + 3 team seats**
-
-Stripe price IDs need to be created in dashboard and pasted into
-`STRIPE_PRICE_SOLO/TEAM/STUDIO/AGENCY` env vars. Until that's done, the
-new prices show on the landing page but checkout won't work.
-
-### Multi-business foundation (2026-04-28)
-
-The full plumbing is live:
-
-- **Schema** ([`packages/db/prisma/schema.prisma`](../packages/db/prisma/schema.prisma)) — new
-  `Business` model. Every per-business table (BrandKit, AgentContext,
-  ContentDraft/Plan/Post, ConnectedAccount, Message, Call, Appointment,
-  Competitor, Subscriber, Finding, Contact, PhoneNumber) has `businessId`
-  with FK + index.
-- **Migrations** —
-  - `20260428000000_agency_plan` adds `AGENCY` enum value
-  - `20260428100000_business_model` creates `businesses` table, adds
-    `users.current_business_id`, bootstraps a default Business per
-    existing user
-  - `20260428200000_business_isolation` adds `business_id` to all
-    per-business tables, idempotent (uses `pg_temp.add_fk_if_missing`
-    + `IF NOT EXISTS` everywhere)
-- **Context** ([`packages/api/src/context.ts`](../packages/api/src/context.ts)) —
-  `ctx.currentBusinessId` resolved once-per-request batch (was once-per-procedure)
-- **Routers scoped by businessId** — brand-kit, content, connections,
-  messaging (inbox), business itself
-- **Echo + Planner writes** — content drafts/posts/plans tagged with
-  `businessId` on create
-- **Meta OAuth callback** — new ConnectedAccount rows tagged with active
-  business
-- **Signal webhooks** — Telegram + Messenger + SMS inbound writes Message +
-  Contact rows with `businessId` from the receiving channel's `ConnectedAccount`
-  or `PhoneNumber`
-- **UI** — sidebar dropdown ([`apps/web/components/app-shell/business-switcher.tsx`](../apps/web/components/app-shell/business-switcher.tsx))
-  lists businesses, allows switching, "+ add new business" form gated by
-  per-plan ceiling
-
-**Known gap:** AgentContext is still 1-per-user (`@unique([userId])` on
-the model). Brand voice is shared across all of a user's businesses. To
-lift: drop the unique on userId, bootstrap a separate AgentContext per
-Business in `business.create`, scope every read to `businessId`. Affects
-strategist + signal + echo agents — each does an `agentContext.findUnique`
-on userId today.
-
-### Landing page
-
-- v4 prototype port at [`apps/web/components/landing-v4/`](../apps/web/components/landing-v4/)
-- Body, CSS, animation script all inlined verbatim from
-  `prototype/ADFI_Landing_v4.html`
-- Auto-playing hero canvas (5 moments cycling: call → DMs → content →
-  scout → dashboard) at ~3.2-3.8s per moment
-- Service-section phone mockups with their own scene engine
-- 4-tier pricing grid (SOLO/TEAM/STUDIO/AGENCY)
-- "get the app" nav button → `/download` page
-
-**Next change requested:** consolidate the hero canvas + service
-mockups into one tab-switcher section. Design proposal at the bottom
-of this doc.
-
-### Brand kit feature
-
-Functionally complete and shipped. Generation pipeline (palette →
-typography → logos → graphics → voice) using Opus 4.7 + Anthropic web
-search tool, version history, restore, one-file HTML brand book download,
-contrast-aware prompts.
-
-**Updated 2026-04-28 evening:**
-- New `@orb/design-agent` package wraps the pipeline. Two pure-code
-  phases now run alongside the LLM-tuned logo + graphics generation:
-  WCAG palette correction (`ensureWcagPalette` auto-corrects any LLM
-  palette that fails AA contrast) and 5 application templates (favicon /
-  social avatar / business card / email header / instagram post)
-  rendered server-side and returned via `trpc.brandKit.getMine`.
-- Logos render fix: `cleanSvg()` now injects `width="100%" height="100%"`
-  on the root `<svg>` when missing — was making logos collapse to 0×0
-  in the panel even though downloads worked.
-- Caps right-sized: TRIAL **0** (paid feature), SOLO 2, TEAM 3, STUDIO 4,
-  AGENCY 12 per rolling 30 days. Cost line corrected from $0.30 →
-  $1.50 per regenerate. See `memory/project_pricing_tiers.md`
-  "Brand-kit exception" addition.
-- LLM logo + graphics prompts are still *parked* — see
-  [`memory/project_brandkit_postponed.md`](~/.claude/projects/-Users-soroushosivand-Projects-adfi/memory/project_brandkit_postponed.md).
-  The design-agent layer wraps them, doesn't replace them. The "LLM phases"
-  of the design-agent skill (kernel, structured voice prose) are not yet
-  shipped — they'd need a schema migration adding a `kernel` JSON column.
-
-### Specialist pages redesign (2026-04-28)
-
-The dynamic `/specialist/[id]` route was replaced with one route per
-agent: `strategist`, `signal`, `echo`, `scout`, `pulse`, `ads`. Each
-uses a shared `SpecialistPageLayout` (breathing signature orb + tier
-pill + control row + `currently` card with rotating phrases + shimmer
-progress bar) per `prototype/ADFI_Pulse_Page.html`. Per-agent sections:
-BrandVoicePanel for Strategist, FindingsList for Signal/Scout/Pulse,
-RecentDraftsGrid for Echo, campaigns list / empty-state for Ads. Files
-under `apps/web/components/specialist/` (new) + the existing
-`components/specialists/` (kept for shared bits like agent-config and
-agent-controls).
-
-### Plan resolution (fixed 2026-04-28)
-
-Three independent bugs combined to lock STUDIO trial users out of
-campaigns and freeze their credit cap. Now fixed in
-[`packages/api/src/services/abuse-guard.ts`](../packages/api/src/services/abuse-guard.ts)
-(`effectivePlan`),
-[`packages/api/src/services/quota.ts`](../packages/api/src/services/quota.ts)
-(`resolvePlanKey` + `getOrCreatePeriodRow` self-healing),
-[`packages/api/src/routers/billing.ts`](../packages/api/src/routers/billing.ts)
-(`getCurrent`). TRIALING + ACTIVE both count as the sub's plan; resolvers
-pick highest tier among active subs; `getCurrentUsage` self-heals
-`creditsLimit` upward when the resolved plan's cap exceeds the stored
-cap. Detailed in CHANGELOG `Fixed (plan resolution · 2026-04-28)`.
-
-### Echo content agent + web research
-
-- Echo runs daily cron; produces 1 draft/user/day (intentional — see
-  [`docs/ECHO_WORKFLOW.md`](ECHO_WORKFLOW.md))
-- Long-form articles + news/market hints trigger a web search pass
-  ([`packages/api/src/services/research.ts`](../packages/api/src/services/research.ts))
-  using Anthropic's `web_search` tool — fixes "bitcoin was $42k" stale
-  data class of bug
-- Image generation via Replicate Flux Schnell, backfilled async after
-  draft creation
-- Drafts panel redesigned to be collapsed-by-default rows (56px
-  thumbnail + truncated hook + "open →"); first draft auto-expands
-- Hero images capped at 280px wide
-
-### Signal "ADFI" brand leak — fixed
-
-Agent prompt was leaking the internal "ADFI" name into customer
-conversations. Critical bug. Fixed in
-[`packages/api/src/agents/prompts/signal.ts`](../packages/api/src/agents/prompts/signal.ts)
-+ thread-history label changed from "ADFI:" to "You:" in
-[`packages/api/src/agents/signal.ts`](../packages/api/src/agents/signal.ts).
-Also passes `businessName` to the prompt so the model can answer
-"which platform?" with the actual business name.
-
-### Performance
-
-- React Query: `staleTime: 5min`, `gcTime: 30min`,
-  `refetchOnMount: false` (apps/web/lib/trpc-provider.tsx)
-- Once-per-request `currentBusinessId` resolution (was once-per-procedure)
-- Dashboard reach query 365d → 28d (1Y toggle re-queries on client)
-- `/api/health` warmer endpoint exists; cron is daily-only on Hobby
-  (every-5-min requires Pro) — recommended workaround: external uptime
-  monitor (UptimeRobot free tier) at the same URL
-
-### Connect flows
-
-- **Stripe** — checkout + portal wired, but new Stripe price IDs need
-  creating in dashboard for the new pricing tiers
-- **Google OAuth (Supabase)** — wired and working
-- **Meta (Instagram + Facebook)** — wired but stuck. User got past OAuth
-  scope errors (legacy `instagram_*` names), connected "page +
-  business" successfully, returned to /settings, but Instagram still
-  shows as not-connected. Most likely: the Facebook Page chosen
-  doesn't have an Instagram Business account linked at the Page
-  level. Diagnosis logs added in `apps/web/app/api/auth/meta/callback/route.ts`
-  — next session should look at the actual Vercel logs for the
-  `[meta/callback] pages from Graph:` line.
-- **Telegram bot** — connect flow works; typing indicator added to
-  inbound DMs
-
----
-
-## 3. Decisions locked in (do not re-litigate)
-
-- **No local Postgres** — Supabase pooler is the dev DB.
-  `pnpm -F @orb/db db:migrate` (deploy) is the only path. `db:migrate:dev`
-  fails on shadow DB.
-- **Hobby Vercel** while developing — upgrade trigger: first paying user
-  OR cold-start UX hurts launch.
-- **AgentContext per-business deferred** — brand voice shared across
-  businesses for now. Schema is ready (`businessId @unique` exists),
-  just needs the unique-on-userId removed + bootstrap on business create.
-- **Brand-kit visual quality parked** — model-generated SVG logos hit a
-  structural ceiling. Don't suggest more prompt tuning. See
-  `feedback_brandkit_contrast.md` + `project_brandkit_postponed.md`.
-- **Carousel design system is the bar** — match its restraint for any
-  new asset templates. See `feedback_carousel_design_locked.md`.
-- **`businessName` not businessDescription** — the sidebar label uses
-  `User.businessName` (or active `Business.name`). Never derive from
-  description. See `feedback_brandkit_contrast.md` line about chip text.
-- **Concise scaffold proposals** — summarize file plans, don't paste
-  full source. User pays per output token.
-- **No stage-by-stage confirmation** — once a multi-stage plan is
-  accepted, flow through; don't gate each stage.
-
----
-
-## 4. Open questions / known issues
-
-### 4.1 Stripe price IDs not yet created
-
-The pricing tiers landed in code (SOLO $29, TEAM $79, STUDIO $199,
-AGENCY $499) but no Stripe products/prices match. Checkout will throw
-`STRIPE_PRICE_<tier> env var is not set` until you:
-
-1. Create 4 monthly recurring products in Stripe dashboard
-2. Paste price IDs into Vercel env as `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_TEAM`,
-   `STRIPE_PRICE_STUDIO`, `STRIPE_PRICE_AGENCY`
-3. Redeploy
-
-### 4.2 Instagram connect stuck on missing IG-business-link
-
-Most likely: chosen FB Page doesn't have IG Business linked at the Page
-level. To verify, check Vercel logs for the `[meta/callback] pages from
-Graph:` line — `hasIg: false` confirms. Resolution path is in Meta
-Business Suite, not in our app: Settings → Accounts → Instagram → link
-to the chosen Page. Then disconnect + reconnect.
-
-### 4.3 AgentContext shared across businesses
-
-When a STUDIO/AGENCY user creates a 2nd business, the brand voice from
-their 1st business carries over. Fix scoped above. Won't bite SOLO or
-TEAM users.
-
-### 4.4 Mobile parity
-
-`apps/mobile` exists but doesn't yet have:
-- Business switcher
-- Multi-business per-business inbox
-- Brand kit panel
-Last user-visible mobile work was the bottom tab bar. Mobile is a
-follow-up area.
-
-### 4.5 Vercel function memory + cron
-
-On Hobby. Function memory capped at 1024MB, cron capped at daily.
-Workarounds:
-- Cold starts → external UptimeRobot ping every 5 min at `/api/health`
-- Memory → no current need; Anthropic + Replicate calls fit in 1GB
-
----
-
-## 5. Next 3 actions, in priority order
-
-**1. Motion-reel package — `@orb/motion-reel`** (user direction confirmed
-   2026-04-28 evening)
-   Code-as-video for Reels / TikToks / Shorts using the landing-page
-   scene templates as the reference design ceiling. Same pattern as
-   `@orb/design-agent`: hand-tuned scene choreographies once, brand
-   tokens + content slots vary per business. Phase-1 stack: headless
-   Chromium + WebCodecs (or `MediaRecorder` fallback) on Vercel Pro
-   functions. Phase-2 stack: motion-canvas if volume justifies.
-   Templates to extract from `landing-script.ts` first: Signal scene
-   (sms typing → reply), Echo scene (draft → preview → publish),
-   Pulse rotating signals, stat card, carousel-as-reel. See
-   `memory/project_motion_reel_direction.md`.
-   **Decision still pending:** Vercel-first (faster ship, more
-   debugging) vs. dedicated tiny render service on Fly/Railway from
-   day one (cleaner, ~1 extra day setup).
-
-**2. Content page redesign — port prototype into live route**
-   Standalone HTML at `prototype/ADFI_Content_Page_Redesign.html` is
-   the source of truth. Collapsed-by-default sections, amber needs-you
-   card, inline slot expansion (one open at a time), why-this-plan
-   reasoning hidden by default. The current `/content` route shows
-   ~800 words by default and overwhelms solopreneurs; the redesign
-   targets a 90-second scan with detail one click deeper.
-
-**3. Design-agent LLM phases (deferred — needs schema migration)**
-   Phases 1 (kernel) and 6 (structured voice prose) from the
-   design-agent skill require adding a `kernel` JSON column to
-   BrandKit + BrandKitVersion. Not urgent — the existing `voiceTone`
-   JSON from Strategist + `logoConcept` string carry equivalent info.
-   Pull in if/when motion-reel templates need the structured kernel
-   for content selection.
-
----
-
-## 6. Landing-page consolidation — design proposal
-
-**Goal:** replace the current "hero canvas (5 cycling moments) + service
-section (separate phone mockups per agent)" with **one** consolidated
-section that introduces all agents/services in tabs.
-
-**Layout sketch:**
-
-```
-┌──────────────────────────────────────────────┐
-│  meet your team.                             │
-│  these five agents handle your marketing     │
-│  while you run the business.                 │
-│                                              │
-│  ┌────────────────────────────────────────┐  │
-│  │ ●  signal    echo    scout    pulse    │  │  ← tabs (current bold)
-│  └────────────────────────────────────────┘  │
-│                                              │
-│  ┌────────────────────────────────────────┐  │
-│  │                                        │  │
-│  │   [ canvas / phone mockup for          │  │
-│  │     the active agent ]                 │  │
-│  │                                        │  │
-│  │   "i caught a missed call at 2am.      │  │
-│  │   booked sara for tuesday."            │  │
-│  │                                        │  │
-│  └────────────────────────────────────────┘  │
-│                                              │
-│  ❯ next agent in 3s   ⏸ pause                │
-└──────────────────────────────────────────────┘
-```
-
-**Behavior:**
-
-- **Auto-rotation** — each tab shows for ~5s, then advances. Progress
-  bar under the active tab fills as time elapses (visual cue for "next
-  in 3s").
-- **Manual click** — tapping any tab pauses auto-rotation, jumps to
-  that tab, and shows a "▶ resume" button (replaces "⏸ pause"). After
-  10s of inactivity, auto-rotation resumes.
-- **Pause button** — explicit pause/play affordance. Pause persists
-  until user resumes.
-- **Off-screen pause** — IntersectionObserver pauses when section
-  scrolls out of view (already the pattern in current canvas).
-- **Reduced motion** — `prefers-reduced-motion: reduce` → no
-  auto-rotation, no fades, just the first tab visible. Manual tab
-  clicks still work.
-
-**Agents to include (reuse existing copy/animations from current
-landing-v4):**
-
-1. **Signal** — answers calls + DMs ("i caught a missed call at 2am")
-2. **Echo** — drafts content ("i drafted your next post")
-3. **Scout** — competitive intel ("i spotted what your rivals are doing")
-4. **Pulse** — news/trends ("i found a story your audience cares about")
-5. **Strategist** — runs the weekly business review ("here's what
-   worked this week, here's what didn't")
-6. **Brand Kit** *(optional 6th tab)* — your brand identity, on tap
-
-**Files to touch:**
-
-- `apps/web/components/landing-v4/landing-body.ts` — strip the existing
-  separate hero canvas + services sections, replace with the new
-  unified section's HTML
-- `apps/web/components/landing-v4/landing-script.ts` — replace the
-  two existing scene engines (hero + svc-phone) with a single
-  tab-controller; preserve IntersectionObserver pause logic
-- `apps/web/components/landing-v4/landing-css.ts` — new tabs +
-  progress-bar styles, swap out the two old section styles
-
-**Implementation effort:** ~250-400 LOC across the three files, plus
-migrating the existing per-agent HTML chunks (which are already in
-`landing-body.ts` for both the hero canvas and svc sections — just
-need to be merged + wrapped with the tab logic).
-
-**Suggested copy direction:**
-
-- Hero h1 unchanged ("Your marketing team, hired.")
-- New section header eyebrow: `MEET YOUR TEAM`
-- New section h2: `five agents. one inbox. zero supervision.`
-- Tab labels: lowercase agent names (signal / echo / scout / pulse /
-  strategist) — matches the brand voice (lowercase everywhere)
-- Per-tab content: 1-line caption + one-screenshot mockup of the
-  agent in action. The captions already exist in the current
-  landing-body.ts — pull them into the new structure.
-
-I can implement this in one pass once you confirm the design. Reply
-"go" and I'll write the code; reply with edits if you want a different
-layout or fewer/more tabs.
+GenerateBar at top, platform-authentic mockups, DraftCardV2 with a
+single primary action and overflow menu.
+
+**3. Production-lockout fix.** `prisma.business.create()` was
+failing in tRPC middleware for fresh Supabase auth users — FK
+constraint violated because the User row hadn't been created yet.
+Fixed by upserting the User row inside the same self-heal block.
+
+**4. Meta App Review submitted (2026-05-01).** All 8 scopes
+filed. Test account provisioned. Privacy + terms updated to name
+SOROOSHX INC. as data controller.

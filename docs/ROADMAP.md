@@ -1,7 +1,7 @@
 ---
 title: ROADMAP
 purpose: What ships next, in rough priority order. Living doc.
-last_updated: 2026-04-29
+last_updated: 2026-05-04
 ---
 
 # ROADMAP
@@ -13,7 +13,47 @@ priority.
 For what's *currently in flight*, read [`SESSION_STATE.md`](SESSION_STATE.md).
 For what's *already shipped*, read [`CHANGELOG.md`](CHANGELOG.md).
 
-## Now (this week)
+## Now (waiting on Meta App Review · roughly 2026-05-12 → 05-16)
+
+### 1. Build the Facebook + Instagram publish path (Track A)
+
+The single most useful thing to ship while waiting on App Review.
+Once Meta approves the additional scopes, we want to flip
+auto-publish on without scrambling. Plan from 2026-05-01 chat:
+
+1. Add `pages_manage_posts` + `instagram_content_publish` to
+   `META_OAUTH_SCOPES` in `packages/api/src/services/meta.ts`.
+   They'll only resolve once App Review approves but the OAuth
+   dialog gates them gracefully until then.
+2. New `services/meta-publish.ts` with two functions:
+   - `publishToFacebookPage` — text → `POST /{page-id}/feed`,
+     photo → `POST /{page-id}/photos`, video → `POST /{page-id}/videos`
+   - `publishToInstagram` — 3-step container/publish flow for
+     SINGLE_POST / CAROUSEL / REEL
+3. Wire into `content.publishDraft` for `Platform.FACEBOOK` and
+   `Platform.INSTAGRAM` next to the existing Telegram + Email
+   branches.
+4. Diagnostic: confirm Instagram-Business linking using the
+   existing logs in `apps/web/app/api/auth/meta/callback/route.ts`
+   on real connect attempts (the "[meta/callback] pages from
+   Graph:" line) before re-recording App Review videos.
+
+Keep this commit-by-commit. Test with the dev-mode whitelisted
+account (founder's own IG) first.
+
+### 2. Friendly-tester onboarding test
+
+A non-founder signs up cold from `adfi.ca`, completes onboarding,
+gets a draft. Watch them. Multi-business migration may have edge
+cases that don't surface on the founder's account. ~2 hours.
+
+### 3. Stripe production price IDs
+
+Pure ops task. Create 4 monthly recurring products in Stripe
+(SOLO $29 / TEAM $79 / STUDIO $199 / AGENCY $499) and paste the
+IDs into Vercel env (`STRIPE_PRICE_SOLO` / `_TEAM` / `_STUDIO` /
+`_AGENCY`). Re-deploy. Without these, the plan picker throws on
+checkout. ~30 min.
 
 ### Inbox templates + knowledge base + comment triggers (planned 2026-04-29)
 

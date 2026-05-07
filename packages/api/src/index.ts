@@ -18,6 +18,12 @@ export {
   type EchoOutput,
 } from "./agents/echo";
 export {
+  mineEchoPatternsForUser,
+  mineEchoPatternsForBusiness,
+  readEchoPatterns,
+  type EchoPatterns,
+} from "./agents/echo-pattern-miner";
+export {
   runPlanner,
   generateWeeklyPlan,
   startOfWeek,

@@ -188,6 +188,13 @@ model AgentContext {
   scoutWatching      Json?     @map("scout_watching")
   pulseSignals       Json?     @map("pulse_signals")
   voiceFingerprint   Json?     @map("voice_fingerprint")
+  // Echo learning loop output. Written by the weekly pattern miner cron;
+  // read by Echo on every draft. Shape:
+  //   { winning: string[]; losing: string[]; notes?: string;
+  //     sample: { n: number; topReach: number; bottomReach: number };
+  //     updatedAt: string }
+  // Null until the business has ≥5 published posts with reach data.
+  echoPatterns       Json?     @map("echo_patterns")
   pausedAgents       Agent[]   @default([]) @map("paused_agents")
   lastManualRun      Json?     @map("last_manual_run")
   lastRefreshedAt    DateTime? @map("last_refreshed_at")

@@ -24,19 +24,40 @@ import { generateImageSafe, type AspectRatio } from "../services/replicate";
 import { gatherFreshContext, shouldResearch } from "../services/research";
 import { ECHO_SYSTEM_PROMPT } from "./prompts/echo";
 import { languageLockDirective } from "./language";
+import { readEchoPatterns, type EchoPatterns } from "./echo-pattern-miner";
 
 // =============================================================
 // Schemas — one per ContentFormat, plus shared brief metadata.
 // =============================================================
 
+// Concrete opener patterns — abstract framework names ("specific_anecdote")
+// don't constrain the model; concrete shapes do. The previous lock-in was
+// every post opening with "A client paid $X for [tool]…" because
+// "specific_anecdote" was the highest-prior anchor for any narrative.
 const HookFramework = z.enum([
-  "open_loop",
-  "pattern_interrupt",
-  "specific_anecdote",
-  "contrarian",
-  "before_after",
-  "list_promise",
-  "behind_the_scenes",
+  "fragment_observation", // short noun phrase, mid-thought
+  "first_person_action",  // "I just…", "We tried…"
+  "direct_question",      // open question to the reader
+  "stat_drop",            // lead with one number / data point
+  "scene_in_progress",    // mid-action sensory moment
+  "contrarian_claim",     // pushes back on a niche orthodoxy
+  "metaphor",             // analogy that reframes the topic
+  "numbered_promise",     // "3 things I learned…"
+]);
+
+// Body-level structural variety. Without this the model defaulted every
+// post to scene_then_lesson — discovery, three numbered fixes, dollar
+// outcome, one-line aphorism. Forcing the agent to declare a body shape
+// makes structural diversity grammatical, not a soft suggestion.
+const BodyShape = z.enum([
+  "scene_then_lesson",
+  "vignette",
+  "argument",
+  "comparison",
+  "list",
+  "reflection",
+  "data_with_context",
+  "rebuttal",
 ]);
 
 const Intent = z.enum([
@@ -52,6 +73,7 @@ const BriefShape = z.object({
   audience: z.string(),
   pillar: z.string(),
   hookFramework: HookFramework,
+  bodyShape: BodyShape,
 });
 
 const SinglePostShape = z.object({
@@ -65,6 +87,7 @@ const SinglePostShape = z.object({
   // intentionally not in the schema so Anthropic structured-output
   // doesn't reject `nullable: true` on the object type.
   voiceMatchConfidence: z.number(),
+  viralPotential: z.number(),
   brief: BriefShape,
 });
 
@@ -116,6 +139,7 @@ const CarouselShape = z.object({
   caption: z.string(),
   hashtags: z.array(z.string()),
   voiceMatchConfidence: z.number(),
+  viralPotential: z.number(),
   brief: BriefShape,
 });
 
@@ -134,6 +158,7 @@ const ReelShape = z.object({
   caption: z.string(),
   hashtags: z.array(z.string()),
   voiceMatchConfidence: z.number(),
+  viralPotential: z.number(),
   brief: BriefShape,
 });
 
@@ -155,6 +180,7 @@ const EmailShape = z.object({
   visualDirection: z.string(),
   // heroImage filled in post-generation — see SinglePostShape note.
   voiceMatchConfidence: z.number(),
+  viralPotential: z.number(),
   brief: BriefShape,
 });
 
@@ -168,6 +194,7 @@ const StorySequenceShape = z.object({
   format: z.literal("STORY_SEQUENCE"),
   frames: z.array(StoryFrameShape),
   voiceMatchConfidence: z.number(),
+  viralPotential: z.number(),
   brief: BriefShape,
 });
 
@@ -202,11 +229,39 @@ export async function runEcho(args: {
   // first attempt — used for A/B variant generation.
   primaryAttempt?: EchoOutput;
   userId?: string;
+  // Mined patterns from this business's published-post performance.
+  // Written by the weekly echo-pattern-miner cron; read here to inject
+  // "what's working / what's not" into the prompt. Null until the
+  // business has enough posts for the miner to run.
+  echoPatterns?: EchoPatterns | null;
 }): Promise<EchoOutput> {
   const recentText =
     args.recentCaptions.length > 0
       ? args.recentCaptions.map((c, i) => `${i + 1}. ${c}`).join("\n\n")
       : "(no recent posts)";
+
+  // Structural-fingerprint guard — Echo was lock-stepping every recent post
+  // into the same opener shape ("A client paid $X for [tool]…") even when
+  // recentCaptions were already in the prompt. The prompt told the model to
+  // avoid repeating THEMES; nothing told it to avoid repeating STRUCTURE.
+  // We extract the first ~10 words of each recent caption and pass them as
+  // an explicit don't-reuse list so the model sees the structural drift.
+  const fingerprintBlock = args.recentCaptions.length > 0
+    ? `\n\nSTRUCTURAL FINGERPRINTS — opener shapes from recent posts. DO NOT reuse any of these patterns; pick a hookFramework + bodyShape that produces a visibly different opening:\n${args.recentCaptions
+        .slice(0, 6)
+        .map((c, i) => `  ${i + 1}. "${structuralFingerprint(c)}…"`)
+        .join("\n")}\n`
+    : "";
+
+  // Mined patterns from this business's published-post performance.
+  // Pulled from AgentContext.echoPatterns by the caller. Reach-only today
+  // (Level 3 will switch to a composite conversion score) — the prompt
+  // surfaces this caveat so the model doesn't over-index on these rules.
+  const patternsBlock = args.echoPatterns
+    ? `\n\nWHAT'S WORKING for this business (mined from your last published posts, ranked by REACH only — not conversion):\n${args.echoPatterns.winning.map((r) => `  + ${r}`).join("\n")}\n\nWHAT'S NOT WORKING:\n${args.echoPatterns.losing.map((r) => `  - ${r}`).join("\n")}${
+        args.echoPatterns.notes ? `\n\nMiner notes: ${args.echoPatterns.notes}` : ""
+      }\n`
+    : "";
 
   const performanceText = args.performance
     ? performanceForPrompt(args.performance)
@@ -266,7 +321,7 @@ Platform: ${args.platform}${
           ? "\nPlatform constraint: Telegram channel post — write a tight, scannable update (max ~600 chars). Plain text, occasional emoji ok. Set `cta` to null unless the post explicitly needs one."
           : ""
   }
-${args.hint ? `\nOwner hint for this post: ${args.hint}` : ""}${researchBlock}
+${args.hint ? `\nOwner hint for this post: ${args.hint}` : ""}${researchBlock}${fingerprintBlock}${patternsBlock}
 ${
   args.primaryAttempt
     ? `\nA primary version of this post already exists:\n${JSON.stringify(args.primaryAttempt, null, 2).slice(0, 1500)}\n\nWrite a DIFFERENT angle on the same brief. Different hook framework, different opening, different rhythm. Same intent + audience + pillar. The owner will pick whichever lands.`
@@ -290,7 +345,12 @@ Write the next post.${languageLockDirective(
         : 2048;
 
   const response = await anthropic().messages.create({
-    model: MODELS.OPUS,
+    // Echo runs on Haiku 4.5 — the session-state assumption. Was previously
+    // calling MODELS.OPUS, which silently put every draft on Opus pricing
+    // (~10× cost). The sharpened prompt + concrete hookFramework/bodyShape
+    // enums shipped 2026-05-07 carry the structural quality lift that the
+    // bigger model was masking; Haiku is the right tier for this volume.
+    model: MODELS.HAIKU,
     max_tokens: maxTokens,
     system: [
       {
@@ -416,7 +476,7 @@ export async function generateDailyContent(
   const activeCtx = businessId
     ? await db.agentContext.findUnique({
         where: { businessId },
-        select: { strategistOutput: true },
+        select: { strategistOutput: true, echoPatterns: true },
       })
     : null;
   if (!activeCtx?.strategistOutput) {
@@ -427,6 +487,7 @@ export async function generateDailyContent(
   const businessDescription =
     business?.description?.trim() || user.businessDescription || "";
   const brandVoice = activeCtx.strategistOutput;
+  const echoPatterns = readEchoPatterns(activeCtx.echoPatterns);
 
   // Reserve credits before paying for any LLM calls.
   const cost =
@@ -458,6 +519,7 @@ export async function generateDailyContent(
     performance,
     hint,
     userId,
+    echoPatterns,
   };
 
   const primary = await runEcho(baseArgs);
@@ -791,7 +853,7 @@ export async function regenerateDraftContent(
   const draftCtx = draftBusinessId
     ? await db.agentContext.findUnique({
         where: { businessId: draftBusinessId },
-        select: { strategistOutput: true },
+        select: { strategistOutput: true, echoPatterns: true },
       })
     : null;
   if (!draftCtx?.strategistOutput) {
@@ -838,6 +900,7 @@ export async function regenerateDraftContent(
     performance,
     hint: combinedHint || undefined,
     userId: draft.userId,
+    echoPatterns: readEchoPatterns(draftCtx.echoPatterns),
   });
 
   await db.contentDraft.update({
@@ -875,6 +938,20 @@ export async function regenerateDraftContent(
 // Helpers — pull a flattened caption preview out of any format so
 // downstream UI / agents can show one line per draft.
 // =============================================================
+
+// First ~10 words of a caption, with leading handle/hashtags trimmed.
+// Used to surface structural lock-in to Echo: if the last 5 posts all
+// open "A client paid…", we want the model to literally see "do not
+// reuse this shape" rather than rely on the soft "avoid repeating
+// themes" rule (which the model interpreted as theme-only and kept
+// shipping the same template with different topics).
+function structuralFingerprint(caption: string): string {
+  const stripped = caption
+    .replace(/^@?[\w._-]+\s+/, "") // trim leading handle if present
+    .replace(/^#\S+(\s+#\S+)*\s*/, "") // trim leading hashtags
+    .trim();
+  return stripped.split(/\s+/).slice(0, 10).join(" ");
+}
 
 function extractCaption(content: unknown): string {
   if (!content || typeof content !== "object") return "";
@@ -943,7 +1020,7 @@ export async function draftPlanItem(
   const planCtx = planBusinessId
     ? await db.agentContext.findUnique({
         where: { businessId: planBusinessId },
-        select: { strategistOutput: true },
+        select: { strategistOutput: true, echoPatterns: true },
       })
     : null;
   if (!planCtx?.strategistOutput) {
@@ -989,6 +1066,7 @@ export async function draftPlanItem(
     performance,
     hint: richHint,
     userId: user.id,
+    echoPatterns: readEchoPatterns(planCtx.echoPatterns),
   });
 
   // If a draft already exists for this item, replace it; otherwise create.

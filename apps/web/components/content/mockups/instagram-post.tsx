@@ -170,7 +170,7 @@ export function InstagramPostMockup({
 
       {/* Caption with inline …more */}
       <div className="px-md pt-xs pb-sm text-[13px] leading-relaxed text-ink whitespace-pre-wrap" dir="auto">
-        <span className="font-semibold mr-xs">{handle}</span>
+        <span className="font-semibold">{handle}</span>{" "}
         {captionShown}
         {isLong && !expanded ? (
           <button

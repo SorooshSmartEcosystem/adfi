@@ -428,37 +428,37 @@ export const BoldStatementScene: React.FC<Props> = ({
     </AbsoluteFill>
   );
 
-  // Layered composition: ParticleField on top of inner, MaskedReveal
-  // wrapping inner+particles, CameraMove wrapping the whole thing.
-  // Particles are intentionally on top so they read as foreground
-  // dust/embers/geometric elements, not background.
+  // Layered composition fix 2026-05-08: particles MUST render BELOW
+  // text or they obscure content. Old order ({inner}, then particles)
+  // put particles on top → covered text. New order: particles first
+  // (background layer), inner content second (foreground layer with
+  // explicit z-index). Same fix in inner: text gets z-index above
+  // any backdrop element so it's always readable.
   const withParticles =
     particleFlavor !== "none" ? (
-      <>
-        {inner}
+      <AbsoluteFill>
         <ParticleField
           flavor={particleFlavor}
           seed={recipe.seed}
-          opacity={mood.paceFactor < 1 ? 0.6 : 1}
+          opacity={0.35}
         />
-      </>
+        <div style={{ position: "absolute", inset: 0, zIndex: 2 }}>
+          {inner}
+        </div>
+      </AbsoluteFill>
     ) : (
       inner
     );
 
-  const withMask =
-    maskShape !== "none" ? (
-      <MaskedReveal
-        shape={maskShape}
-        origin={recipe.maskOrigin}
-        direction={recipe.maskDirection}
-        durationFrames={Math.min(28, Math.round(durationInFrames * 0.35))}
-      >
-        {withParticles}
-      </MaskedReveal>
-    ) : (
-      withParticles
-    );
+  // MaskedReveal removed from bold-statement composition 2026-05-08.
+  // The mask was clipping text mid-animation — user feedback "text
+  // covered by 30deg white box and cutted" was the diagonal mask
+  // shape's polygon math creating a triangle that hid most of the
+  // content. Word-by-word reveal already provides scene entrance
+  // animation; mask on top was redundant + buggy.
+  // Mask primitive itself stays in the library for future scenes
+  // where it's a better fit (e.g. logo reveals, transition wipes).
+  const withMask = withParticles;
 
   return cameraStyle !== "none" ? (
     <CameraMove

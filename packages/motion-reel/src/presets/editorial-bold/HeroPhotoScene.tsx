@@ -273,19 +273,8 @@ export const HeroPhotoScene: React.FC<Props> = ({
     </AbsoluteFill>
   );
 
-  // Wrap with mask reveal when the recipe calls for one.
-  return recipe.maskShape && recipe.maskShape !== "none" ? (
-    <AbsoluteFill style={{ background: tokens.surface ?? "#0F0F0F" }}>
-      <MaskedReveal
-        shape={recipe.maskShape}
-        origin={recipe.maskOrigin}
-        direction={recipe.maskDirection}
-        durationFrames={Math.min(28, Math.round(durationInFrames * 0.35))}
-      >
-        {content}
-      </MaskedReveal>
-    </AbsoluteFill>
-  ) : (
-    content
-  );
+  // MaskedReveal removed from HeroPhotoScene composition 2026-05-08
+  // for the same reason as BoldStatementScene — mask clipping text
+  // mid-animation looked broken. Photo fade-in handles entrance.
+  return content;
 };

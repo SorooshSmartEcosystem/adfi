@@ -81,10 +81,13 @@ export const MaskedReveal: React.FC<Props> = ({
       break;
     }
     case "diagonal": {
-      // Polygon wipe diagonally — top-left to bottom-right.
-      // At t=0: invisible single point. At t=1: full frame.
-      const offset = (1 - t) * 200;
-      clipPath = `polygon(0% 0%, ${100 + offset}% 0%, ${-offset}% 100%, 0% 100%)`;
+      // Polygon wipe diagonally — top-left corner expands toward
+      // bottom-right. At t=0: empty (no content visible). At t=1:
+      // full frame revealed. Old math was wrong — it created a
+      // shrinking triangle that hid most content (user reported as
+      // "30deg white box covering text").
+      const advance = t * 200; // 0 → 200%
+      clipPath = `polygon(0% 0%, ${advance}% 0%, ${advance - 100}% 100%, -100% 100%)`;
       break;
     }
     case "line-h": {

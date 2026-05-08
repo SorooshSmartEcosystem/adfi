@@ -62,15 +62,16 @@ export const CameraMove: React.FC<Props> = ({
   let transform = "none";
   let transformOrigin = "center center";
 
-  // Magnitudes cranked up 2026-05-08 — old values (1.0 → 1.06 dolly,
-  // ±40px pan, ±4px shake) were too subtle to read as variety in the
-  // small Player. Now visibly cinematic.
+  // Tuned 2026-05-08 — original 1.06/40px/4px were imperceptible;
+  // bumped to 0.18/120px/12px was too aggressive (text clipped at
+  // edges during pans). Settled on 0.12/80px/8px — visible motion
+  // without losing edge content.
   switch (style) {
     case "dolly-in": {
       const scale = interpolate(
         frame,
         [0, totalFrames],
-        [1.0, 1.0 + 0.18 * intensity],
+        [1.0, 1.0 + 0.12 * intensity],
         {
           easing: Easing.inOut(Easing.ease),
           extrapolateRight: "clamp",
@@ -83,7 +84,7 @@ export const CameraMove: React.FC<Props> = ({
       const scale = interpolate(
         frame,
         [0, totalFrames],
-        [1.0 + 0.18 * intensity, 1.0],
+        [1.0 + 0.12 * intensity, 1.0],
         {
           easing: Easing.inOut(Easing.ease),
           extrapolateRight: "clamp",
@@ -96,31 +97,31 @@ export const CameraMove: React.FC<Props> = ({
       const tx = interpolate(
         frame,
         [0, totalFrames],
-        [120 * intensity, -120 * intensity],
+        [80 * intensity, -80 * intensity],
         {
           easing: Easing.inOut(Easing.ease),
           extrapolateRight: "clamp",
         },
       );
-      transform = `translateX(${tx}px) scale(1.12)`;
+      transform = `translateX(${tx}px) scale(1.08)`;
       break;
     }
     case "pan-right": {
       const tx = interpolate(
         frame,
         [0, totalFrames],
-        [-120 * intensity, 120 * intensity],
+        [-80 * intensity, 80 * intensity],
         {
           easing: Easing.inOut(Easing.ease),
           extrapolateRight: "clamp",
         },
       );
-      transform = `translateX(${tx}px) scale(1.12)`;
+      transform = `translateX(${tx}px) scale(1.08)`;
       break;
     }
     case "handheld-shake": {
       const { x, y } = shakeXY(frame);
-      transform = `translate(${x * 12 * intensity}px, ${y * 12 * intensity}px)`;
+      transform = `translate(${x * 8 * intensity}px, ${y * 8 * intensity}px)`;
       break;
     }
     default:

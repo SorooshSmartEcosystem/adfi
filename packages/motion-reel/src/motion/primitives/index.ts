@@ -24,6 +24,11 @@ export { GradientSweep } from "./GradientSweep";
 export { LensFlare } from "./LensFlare";
 export { ProceduralShape } from "./ProceduralShape";
 export { VignettePulse } from "./VignettePulse";
+export { AccentRule } from "./AccentRule";
+export { CountdownNumber } from "./CountdownNumber";
+export { MotionStreaks } from "./MotionStreaks";
+export { AnimatedBars } from "./AnimatedBars";
+export { GridPattern } from "./GridPattern";
 
 import type { MaskShape } from "./MaskedReveal";
 

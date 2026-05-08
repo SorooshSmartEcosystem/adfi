@@ -11,23 +11,41 @@
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "@orb/db";
 import { runStrategist, type BrandVoice } from "../agents/strategist";
-import { runEcho } from "../agents/echo";
-import { generateImageSafe } from "./replicate";
+import {
+  runVideoAgent,
+  backfillImagesForVideoScript,
+  type VideoScript,
+} from "../agents/video";
 import { newsletterFromEmail, sendgridSend } from "./sendgrid";
 
 const PREVIEW_USER_ID_PLACEHOLDER = "preview";
 const RATE_LIMIT_PER_DAY = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Onboarding preview result. Shape changed 2026-05-08 — swap from
+// single Instagram post + hero image → a free-preview reel script
+// the wow page renders in-browser via Remotion <Player>. Same cost
+// (~3-4¢/call) but matches the product's current centerpiece. The
+// `post` field is preserved as null + an optional fallback for
+// saved previews from the old flow that haven't been resumed yet.
 export type OnboardingPreviewResult = {
   voice: { tone: string[]; pillars: string[] };
+  // The reel script. The client passes it to <Player> + applyPresetTokens
+  // for an in-browser preview at zero cost. Lambda render only happens
+  // post-signup if the user explicitly clicks "render mp4."
+  videoScript: VideoScript | null;
+  // Headline pulled from the script for save-for-later email subject /
+  // teaser display.
+  videoHeadline: string | null;
+  // Legacy single-post fields. Kept so saved previews from before the
+  // 2026-05-08 swap still resume cleanly. New previews leave these null.
   post: {
     hook: string;
     body: string;
     cta: string | null;
     hashtags: string[];
     visualDirection: string;
-  };
+  } | null;
   imageUrl: string | null;
   // Returned to the client so 'save for later' knows which preview to attach
   // an email to. Also serves as the magic-link token for resume.
@@ -88,41 +106,50 @@ export async function runOnboardingPreview(args: {
     goal: "MORE_CUSTOMERS",
   });
 
-  // 2. First post — Echo SINGLE_POST. Same: no userId, no draft row.
-  const post = await runEcho({
-    format: "SINGLE_POST",
-    platform: "INSTAGRAM",
-    businessDescription: description,
+  // 2. Video script — runVideoAgent (Haiku ~0.4¢ with cache). The
+  // brief is the business description itself; agent infers narrative
+  // arc, picks scenes, fills copy. No userId → no draft row, no
+  // motion state persisted.
+  const script = await runVideoAgent({
+    brief: description,
     brandVoice: voice,
-    recentCaptions: [],
+    industry: description,
+    userId: PREVIEW_USER_ID_PLACEHOLDER,
   });
-  if (post.format !== "SINGLE_POST") {
-    throw new Error("preview produced an unexpected format");
-  }
 
-  // 3. Hero image — best-effort. Failure leaves imageUrl null and the UI
-  //    falls back to the gradient placeholder.
-  const image = await generateImageSafe({
+  // 3. Photo backfill — fills hero-photo / split-frame scenes with
+  // Replicate-generated images. Best-effort: if Replicate fails the
+  // scene falls back to a solid frame in the renderer. Cost ~0.3¢
+  // per image, ~1 image per script today.
+  const filledScript = await backfillImagesForVideoScript({
+    script,
     userId: PREVIEW_USER_ID_PLACEHOLDER,
     draftId: resumeToken,
-    slug: "hero",
-    prompt: post.visualDirection,
-    aspectRatio: "4:5",
+  }).catch((err) => {
+    console.warn(
+      "[onboarding-preview] image backfill failed; serving solid-frame fallback:",
+      err instanceof Error ? err.message : err,
+    );
+    return script;
   });
+
+  // Pull a headline from the first scene that has one — used in the
+  // save-for-later email subject + the resume page teaser.
+  const firstHeadlineScene = filledScript.scenes.find(
+    (s): s is typeof s & { headline: string } =>
+      "headline" in s && typeof (s as { headline?: string }).headline === "string",
+  );
+  const videoHeadline = firstHeadlineScene?.headline ?? null;
 
   const result: OnboardingPreviewResult = {
     voice: {
       tone: voice.voiceTone,
       pillars: voice.contentPillars,
     },
-    post: {
-      hook: post.hook,
-      body: post.body,
-      cta: post.cta,
-      hashtags: post.hashtags,
-      visualDirection: post.visualDirection,
-    },
-    imageUrl: image?.url ?? null,
+    videoScript: filledScript,
+    videoHeadline,
+    post: null,
+    imageUrl: null,
     resumeToken,
   };
 

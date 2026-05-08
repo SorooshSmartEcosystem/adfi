@@ -3,18 +3,50 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Player } from "@remotion/player";
+import {
+  ScriptReel,
+  computeScriptFrames,
+  applyPresetTokens,
+} from "@orb/motion-reel/client";
 import { trpc } from "../../../lib/trpc";
 import { Orb } from "../../../components/shared/orb";
 
+const PREVIEW_FPS = 30;
+
+// Default brand tokens for the unauthenticated preview. The user
+// hasn't built a BrandKit yet, so we serve a neutral palette that
+// the chosen preset's applyPresetTokens layers over (e.g. dashboard-
+// tech overrides bg + ink for the AI/SaaS industries).
+const DEFAULT_PREVIEW_TOKENS = {
+  bg: "#FAFAF7",
+  surface: "#F0EFEA",
+  surface2: "#E8E6DF",
+  border: "#D8D5CC",
+  ink: "#111111",
+  ink2: "#3A3A3A",
+  ink3: "#666666",
+  ink4: "#9A9A9A",
+  alive: "#0F8B5C",
+  aliveDark: "#0A6F49",
+  attnBg: "#FBE9C2",
+  attnBorder: "#E0BC5A",
+  attnText: "#7A5A0F",
+  businessName: "your business",
+};
+
 type PreviewResult = {
   voice: { tone: string[]; pillars: string[] };
+  videoScript: unknown | null;
+  videoHeadline: string | null;
+  // Legacy fields — present on previews from before 2026-05-08 swap.
   post: {
     hook: string;
     body: string;
     cta: string | null;
     hashtags: string[];
     visualDirection: string;
-  };
+  } | null;
   imageUrl: string | null;
   resumeToken: string;
 };
@@ -245,8 +277,8 @@ function InputScreen({
 const STEP_LABELS = [
   "i'm reading your business",
   "i'm writing your brand voice",
-  "i'm drafting monday's post",
-  "i'm designing the cover photo",
+  "i'm scripting monday's reel",
+  "i'm shooting the b-roll",
 ] as const;
 
 function BuildScreen({
@@ -346,15 +378,19 @@ function BuildScreen({
         ) : null}
       </Step>
 
-      <Step idx={2} activeIdx={activeIdx} label="i drafted monday's post">
-        {result ? (
+      <Step idx={2} activeIdx={activeIdx} label="i scripted monday's reel">
+        {result?.videoHeadline ? (
+          <p className="text-xs text-ink3 leading-[1.5] italic mt-xs">
+            “{result.videoHeadline}”
+          </p>
+        ) : result?.post?.hook ? (
           <p className="text-xs text-ink3 leading-[1.5] italic mt-xs">
             “{result.post.hook}”
           </p>
         ) : null}
       </Step>
 
-      <Step idx={3} activeIdx={activeIdx} label="i designed the cover photo" />
+      <Step idx={3} activeIdx={activeIdx} label="i shot the b-roll" />
     </section>
   );
 }
@@ -426,9 +462,13 @@ function AskScreen({
 
   return (
     <section className="animate-[fade-up_0.5s_ease]">
-      <div className="grid grid-cols-1 gap-[32px] lg:grid-cols-[minmax(360px,480px)_1fr] lg:gap-[56px] items-start">
+      <div className="grid grid-cols-1 gap-[32px] lg:grid-cols-[minmax(320px,400px)_1fr] lg:gap-[56px] items-start">
         <div>
-          <PostPreview result={result} />
+          {result.videoScript ? (
+            <VideoPreview result={result} />
+          ) : result.post ? (
+            <PostPreview result={result} />
+          ) : null}
         </div>
 
         <div className="min-w-0">
@@ -439,8 +479,9 @@ function AskScreen({
             this is monday.
           </h2>
           <p className="text-md text-ink3 leading-[1.6] mb-[20px]">
-            i&apos;ll do this every weekday — plus answer your dms, catch your
-            missed calls, and watch what works.
+            {result.videoScript
+              ? "press play. i'll do this every week — script, b-roll, and motion. plus answer your dms, catch your missed calls, watch what works."
+              : "i'll do this every weekday — plus answer your dms, catch your missed calls, and watch what works."}
           </p>
           <div className="bg-surface2 rounded-[12px] p-md text-xs text-ink2 leading-[1.6] mb-[32px]">
             <strong className="font-medium text-ink">tuesday</strong> — a
@@ -536,6 +577,53 @@ function AskScreen({
   );
 }
 
+// VideoPreview — renders the preview reel script in-browser via
+// Remotion <Player> at zero cost. Lambda render only happens
+// post-signup if the user clicks "render mp4" in the main app.
+function VideoPreview({ result }: { result: PreviewResult }) {
+  if (!result.videoScript) return null;
+  // Defensive runtime check — videoScript may be from an old
+  // serialized preview that doesn't have scenes[]; fall back to nothing.
+  const script = result.videoScript as {
+    scenes: Array<{ duration: number; type: string }>;
+    preset?: string;
+  };
+  if (!Array.isArray(script.scenes) || script.scenes.length === 0) return null;
+
+  const totalFrames = computeScriptFrames(
+    script as Parameters<typeof computeScriptFrames>[0],
+    PREVIEW_FPS,
+  );
+
+  const tokens = applyPresetTokens(
+    DEFAULT_PREVIEW_TOKENS as never,
+    script.preset,
+  );
+
+  return (
+    <div className="bg-black rounded-[16px] overflow-hidden">
+      <Player
+        component={ScriptReel}
+        durationInFrames={totalFrames}
+        fps={PREVIEW_FPS}
+        compositionWidth={1080}
+        compositionHeight={1920}
+        inputProps={
+          {
+            tokens,
+            script,
+          } as never
+        }
+        controls
+        loop
+        autoPlay
+        clickToPlay={false}
+        style={{ aspectRatio: "9 / 16", width: "100%" }}
+      />
+    </div>
+  );
+}
+
 function PostPreview({ result }: { result: PreviewResult }) {
   return (
     <div className="bg-white border-hairline border-border rounded-[16px] overflow-hidden max-w-full">
@@ -561,22 +649,24 @@ function PostPreview({ result }: { result: PreviewResult }) {
           }}
         />
       )}
-      <div className="px-lg pt-md pb-lg">
-        <div className="text-sm font-medium leading-[1.4] mb-sm">
-          {result.post.hook}
-        </div>
-        <div className="text-xs text-ink2 leading-[1.55] whitespace-pre-wrap mb-md">
-          {result.post.body}
-        </div>
-        {result.post.cta ? (
-          <div className="text-xs text-ink leading-[1.4] mb-sm font-medium">
-            {result.post.cta}
+      {result.post ? (
+        <div className="px-lg pt-md pb-lg">
+          <div className="text-sm font-medium leading-[1.4] mb-sm">
+            {result.post.hook}
           </div>
-        ) : null}
-        <div className="text-xs text-ink4">
-          {result.post.hashtags.slice(0, 6).join(" ")}
+          <div className="text-xs text-ink2 leading-[1.55] whitespace-pre-wrap mb-md">
+            {result.post.body}
+          </div>
+          {result.post.cta ? (
+            <div className="text-xs text-ink leading-[1.4] mb-sm font-medium">
+              {result.post.cta}
+            </div>
+          ) : null}
+          <div className="text-xs text-ink4">
+            {result.post.hashtags.slice(0, 6).join(" ")}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

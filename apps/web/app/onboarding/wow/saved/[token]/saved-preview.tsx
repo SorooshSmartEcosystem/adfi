@@ -101,22 +101,24 @@ function PostPreview({ result }: { result: OnboardingPreviewResult }) {
           }}
         />
       )}
-      <div className="px-lg pt-md pb-lg">
-        <div className="text-sm font-medium leading-[1.4] mb-sm">
-          {result.post.hook}
-        </div>
-        <div className="text-xs text-ink2 leading-[1.55] whitespace-pre-wrap mb-md">
-          {result.post.body}
-        </div>
-        {result.post.cta ? (
-          <div className="text-xs text-ink leading-[1.4] mb-sm font-medium">
-            {result.post.cta}
+      {result.post ? (
+        <div className="px-lg pt-md pb-lg">
+          <div className="text-sm font-medium leading-[1.4] mb-sm">
+            {result.post.hook}
           </div>
-        ) : null}
-        <div className="text-xs text-ink4">
-          {result.post.hashtags.slice(0, 6).join(" ")}
+          <div className="text-xs text-ink2 leading-[1.55] whitespace-pre-wrap mb-md">
+            {result.post.body}
+          </div>
+          {result.post.cta ? (
+            <div className="text-xs text-ink leading-[1.4] mb-sm font-medium">
+              {result.post.cta}
+            </div>
+          ) : null}
+          <div className="text-xs text-ink4">
+            {result.post.hashtags.slice(0, 6).join(" ")}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

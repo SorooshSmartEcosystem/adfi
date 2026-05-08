@@ -29,6 +29,15 @@ export { CountdownNumber } from "./CountdownNumber";
 export { MotionStreaks } from "./MotionStreaks";
 export { AnimatedBars } from "./AnimatedBars";
 export { GridPattern } from "./GridPattern";
+// Session 2 batch — 8 more primitives (21 total)
+export { Typewriter } from "./Typewriter";
+export { GlitchText } from "./GlitchText";
+export { SlidePanel } from "./SlidePanel";
+export { ArrowDraw } from "./ArrowDraw";
+export { BracketCorners } from "./BracketCorners";
+export { HalftoneOverlay } from "./HalftoneOverlay";
+export { ChatBubble } from "./ChatBubble";
+export { LowerThird } from "./LowerThird";
 
 import type { MaskShape } from "./MaskedReveal";
 

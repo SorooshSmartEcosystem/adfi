@@ -20,6 +20,10 @@ export {
 export { ParticleField } from "./ParticleField";
 export { KineticLetters } from "./KineticLetters";
 export { CameraMove } from "./CameraMove";
+export { GradientSweep } from "./GradientSweep";
+export { LensFlare } from "./LensFlare";
+export { ProceduralShape } from "./ProceduralShape";
+export { VignettePulse } from "./VignettePulse";
 
 import type { MaskShape } from "./MaskedReveal";
 

@@ -160,25 +160,31 @@ export const BoldStatementScene: React.FC<Props> = ({
   );
 
   // Layout-specific container styles
+  // Layout containers — fixed 2026-05-08 to address "lots of white
+  // space, text floating in the void" feedback. Old stacked-bottom
+  // anchored content to the TOP-LEFT of the frame leaving 60% of
+  // the canvas empty; now anchors near the BOTTOM-LEFT (proper
+  // documentary lower-third feel). All layouts use justifyContent:
+  // center as default so text fills the visual center of the frame.
   const containerStyle: React.CSSProperties =
     layout === "left-anchored"
       ? {
           alignItems: "flex-start",
           justifyContent: "center",
-          padding: "120px 80px",
+          padding: "120px 96px",
           textAlign: "left",
         }
       : layout === "stacked-bottom"
         ? {
             alignItems: "flex-start",
-            justifyContent: "flex-start",
-            padding: "120px 80px 220px 80px",
+            justifyContent: "flex-end",
+            padding: "120px 96px 200px 96px",
             textAlign: "left",
           }
         : {
             alignItems: "center",
             justifyContent: "center",
-            padding: "120px 80px",
+            padding: "120px 96px",
             textAlign: "center",
           };
 
@@ -211,6 +217,29 @@ export const BoldStatementScene: React.FC<Props> = ({
           ...containerStyle,
         }}
       >
+        {/* Visual anchor above the hero — small horizontal accent rule
+            that draws in over the first ~14 frames. Addresses
+            "bold text scenes have no image above the title" feedback;
+            gives every bold-statement a deliberate visual hierarchy
+            instead of dropping the headline in negative space alone. */}
+        <div
+          style={{
+            width: interpolate(frame, [0, 14], [0, 96], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+              easing: Easing.out(Easing.cubic),
+            }),
+            height: 3,
+            background: accent,
+            marginBottom: 8,
+            alignSelf: heroAlign === "left" ? "flex-start" : "center",
+            opacity: interpolate(frame, [0, 14], [0, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            }),
+          }}
+        />
+
         {/* Lead — placement varies by layout */}
         {scene.lead && layout !== "stacked-bottom" ? (
           <div

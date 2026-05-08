@@ -508,17 +508,34 @@ Pick by content type:
       the imagePrompt produces a dark scene where black text reads.
     - duration: 4-6s. Photos need time to land; don't rush.
 
-    USE hero-photo for:
-    - Opening establishing shots ("the studio", "the kitchen at 6am")
-    - Scene-setting beats ("a quiet morning", "the dashboard glow")
-    - Show-don't-tell moments where a photo says more than text
-    - Brand moments — products, materials, environments
-    DO NOT use hero-photo for:
-    - Data, lists, comparisons (use metric-tile-grid / icon-list)
-    - Customer testimonials (use phone-mockup kind="message")
-    - Quick punchlines (the photo competes with the text)
-    NEVER emit more than ONE hero-photo per reel — multiple AI photos
-    in a row reads as a slideshow.
+    REQUIRED: every reel MUST contain exactly ONE hero-photo scene.
+    No exceptions. Reels without a photo all look the same; the photo
+    is the single biggest lever for brand differentiation in
+    editorial-bold today. Place it at scene 2 by default (right
+    after editorial-opener) so the photo lands within the first
+    3-4 seconds — that's where the viewer commits to watching.
+
+    Place hero-photo wisely by brief type:
+    - Opinion / take / argument brief → scene 2 (atmospheric photo
+      that grounds the abstract argument in a real-world image)
+    - Data-heavy brief → scene 2 OR replace metric-tile-grid is
+      acceptable, but include a photo somewhere
+    - Story / personal anecdote → scene 2 with subject-of-story
+      photo
+    - Tips / pillars list → scene 2 OR after the icon-list
+    - Customer testimonial → keep phone-mockup at scene 2, put
+      hero-photo at scene 3
+
+    NEVER emit MORE than one hero-photo per reel — multiple AI
+    photos in a row reads as a slideshow.
+
+    The imagePrompt is the lever for variety. Match the photo
+    subject to the brief, not just the brand. For "AI impacts in
+    ads" a strong imagePrompt is: "moody dim studio, single laptop
+    glowing on a wooden desk, half-open notebook, low warm light
+    from a window, top-third framing, no people, cinematic". Avoid
+    generic "office desk with laptop" — be specific about
+    framing, light, and props.
 
 7. metric-tile-grid — KPI dashboard with 2-4 tiles. Use when the
    brief has multiple comparable numbers ("we hit X traders, Y
@@ -590,21 +607,31 @@ Every reel follows this 4–6 scene arc:
   [editorial-opener → 2-4 body scenes → editorial-closer]
 
 Body scenes are picked from: bold-statement, icon-list,
-phone-mockup, metric-tile-grid, hero-photo. **At LEAST one body
-scene MUST be a structural OR photo scene (phone-mockup,
-metric-tile-grid, or hero-photo)** — back-to-back bold-statement
-scenes read as a slide deck.
+phone-mockup, metric-tile-grid, hero-photo.
 
-A good 18-22s script:
-  editorial-opener  → bold-statement  → hero-photo  →
-  bold-statement  → editorial-closer
+**EVERY REEL REQUIRES exactly ONE hero-photo scene.** The photo
+lives at scene 2 by default (the second slot, right after
+editorial-opener), so the photo lands inside the first 3-4
+seconds. The only way to skip the photo is if the reel's brief
+is a bare quote that needs zero atmosphere — and even then,
+prefer to include one. Without a photo, every reel looks
+identical to every other reel; the photo is the variance lever.
+
+A good 18-22s script (template):
+  editorial-opener → hero-photo → bold-statement →
+  metric-tile-grid → editorial-closer
 
 A "tips / pillars" post:
-  editorial-opener → icon-list → bold-statement → editorial-closer
+  editorial-opener → hero-photo → icon-list →
+  bold-statement → editorial-closer
 
 A "show, don't tell" post:
   editorial-opener → hero-photo → bold-statement →
-  metric-tile-grid → editorial-closer
+  bold-statement → editorial-closer
+
+A "data / milestone" post:
+  editorial-opener → hero-photo → metric-tile-grid →
+  bold-statement → editorial-closer
 
 ALWAYS scene 1 = editorial-opener.
 ALWAYS last scene = editorial-closer.

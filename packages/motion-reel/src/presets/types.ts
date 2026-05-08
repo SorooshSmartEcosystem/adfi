@@ -27,7 +27,12 @@ export type PresetSceneName =
   | "icon-list"
   | "editorial-opener"
   | "editorial-closer"
-  | "hero-photo";
+  | "hero-photo"
+  // structural variety (Phase 3) — every preset can opt-in to these
+  | "phone-mockup"
+  | "metric-tile-grid"
+  | "chat-thread"
+  | "terminal";
 
 // ── editorial-bold scene shapes ────────────────────────────────
 // Defined here (not in the .tsx scene files) so packages without JSX

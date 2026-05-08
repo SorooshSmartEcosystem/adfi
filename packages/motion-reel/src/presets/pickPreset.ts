@@ -35,14 +35,15 @@ export function pickPreset({
   // Industry → preset rules. Specific matches first; generic
   // fallbacks last. Comments document the reasoning per category.
 
-  // Fintech / data / SaaS / dev → dashboard-tech (planned; falls back
-  // to editorial-bold today since that preset isn't built yet)
+  // Fintech / data / SaaS / dev / AI → dashboard-tech (shipped
+  // 2026-05-08 as a token-override preset; same scene catalog as
+  // editorial-bold but dark-mode tokens + monospace body).
   if (
-    /\b(fintech|finance|crypto|trading|invest|stock|etf|saas|software|developer|startup|api|data|analytics|dashboard|fintech)\b/.test(
+    /\b(fintech|finance|crypto|trading|invest|stock|etf|saas|software|developer|startup|api|data|analytics|dashboard|ai|machine learning|ml|llm)\b/.test(
       text,
     )
   ) {
-    return "editorial-bold"; // TODO: switch to "dashboard-tech" when shipped
+    return "dashboard-tech";
   }
 
   // Wellness / coaching / mindfulness / family → soft-minimal (planned)

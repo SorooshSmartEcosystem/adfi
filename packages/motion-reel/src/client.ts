@@ -45,9 +45,11 @@ export { DataBarScene } from "./scenes/DataBarScene";
 export { ICONS, ICON_CATEGORIES, isIconName, type IconName } from "./icons";
 export { fitText } from "./motion/fitText";
 
-// Phase 2 — editorial-bold preset
+// Phase 2 — editorial-bold preset + Phase 3 — dashboard-tech preset
 export {
   editorialBoldPreset,
+  dashboardTechPreset,
+  applyPresetTokens,
   BoldStatementScene,
   IconListScene,
   NumberedDiagramScene,

@@ -834,15 +834,15 @@ function pickPresetForBrief(args: {
     .toLowerCase();
   if (!text.trim()) return "editorial-bold";
 
-  // Until other presets ship, every match maps to editorial-bold.
-  // The branches stay so future presets can plug in by replacing the
-  // return value.
+  // Fintech / SaaS / dev / AI → dashboard-tech (shipped 2026-05-08).
+  // Other branches still fall through to editorial-bold pending
+  // their preset implementations.
   if (
-    /\b(fintech|finance|crypto|trading|invest|saas|software|developer|api|data|analytics)\b/.test(
+    /\b(fintech|finance|crypto|trading|invest|saas|software|developer|api|data|analytics|ai|machine learning|ml|llm)\b/.test(
       text,
     )
   ) {
-    return "editorial-bold"; // future: dashboard-tech
+    return "dashboard-tech";
   }
   if (
     /\b(wellness|yoga|meditation|coach|coaching|therap|mindful|family|parent)\b/.test(
@@ -975,7 +975,15 @@ export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript>
   }
 
   const raw = JSON.parse(textBlock.text);
-  return VideoScriptSchema.parse(raw);
+  const parsed = VideoScriptSchema.parse(raw);
+  // Belt-and-suspenders: ensure the picked preset is on the script
+  // output even if the agent omitted it. Renderer keys off this
+  // field for token overrides — without it dashboard-tech reels
+  // would render as editorial-bold.
+  if (!parsed.preset) {
+    return { ...parsed, preset: preset as VideoScript["preset"] };
+  }
+  return parsed;
 }
 
 // ------------------- Image backfill -------------------

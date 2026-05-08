@@ -127,10 +127,26 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const tokens = await loadBrandTokens({
+    const baseTokens = await loadBrandTokens({
       userId: authUser.id,
       businessId: draft.businessId,
     });
+    // Apply preset-based token overrides. dashboard-tech swaps to
+    // dark-mode tokens (deep slate bg, cyan/amber accents); other
+    // presets fall through unchanged today. The script's `preset`
+    // field is stamped by runVideoAgent's belt-and-suspenders block.
+    const { applyPresetTokens } = await import(
+      "@orb/motion-reel/client"
+    );
+    const presetName =
+      typeof inputProps.script === "object" &&
+      inputProps.script &&
+      "preset" in (inputProps.script as Record<string, unknown>)
+        ? ((inputProps.script as Record<string, unknown>).preset as
+            | string
+            | undefined)
+        : undefined;
+    const tokens = applyPresetTokens(baseTokens, presetName);
     inputProps.tokens = tokens;
 
     const region = envOrThrow("REMOTION_AWS_REGION");

@@ -3,6 +3,8 @@
 // presets register here.
 
 export { editorialBoldPreset } from "./editorial-bold";
+export { dashboardTechPreset } from "./dashboard-tech";
+export { applyPresetTokens } from "./applyPresetTokens";
 export { BoldStatementScene } from "./editorial-bold/BoldStatementScene";
 export { IconListScene } from "./editorial-bold/IconListScene";
 export { NumberedDiagramScene } from "./editorial-bold/NumberedDiagramScene";

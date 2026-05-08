@@ -16,7 +16,11 @@
 
 import { useEffect, useState } from "react";
 import { Player } from "@remotion/player";
-import { ScriptReel, computeScriptFrames } from "@orb/motion-reel/client";
+import {
+  ScriptReel,
+  computeScriptFrames,
+  applyPresetTokens,
+} from "@orb/motion-reel/client";
 import { trpc } from "../../lib/trpc";
 import {
   OrbLoader,
@@ -178,7 +182,15 @@ export function ScriptPreview({
               fps={FPS}
               compositionWidth={1080}
               compositionHeight={1920}
-              inputProps={{ tokens, script: editedScript } as never}
+              inputProps={
+                {
+                  tokens: applyPresetTokens(
+                    tokens as never,
+                    (editedScript as { preset?: string }).preset,
+                  ),
+                  script: editedScript,
+                } as never
+              }
               controls
               loop
               autoPlay

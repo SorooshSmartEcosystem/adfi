@@ -14,7 +14,7 @@
 // Today's flow burns 1.1¢ on every render attempt because user can't
 // see the script first. This component fixes that.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Player } from "@remotion/player";
 import { ScriptReel, computeScriptFrames } from "@orb/motion-reel/client";
 import { trpc } from "../../lib/trpc";
@@ -81,11 +81,28 @@ export function ScriptPreview({
   const [editedScript, setEditedScript] = useState<Script | null>(script);
   const utils = trpc.useUtils();
 
-  // When script transitions from null → object (the agent finishes),
-  // sync editedScript so the Player has something to render.
-  if (script && !editedScript) {
-    setEditedScript(script);
-  }
+  // ALL HOOKS MUST RUN BEFORE ANY EARLY RETURN (React rules of hooks).
+  // Previously useMutation was called *after* the pending/!editedScript
+  // early return, which meant the hook count changed across renders
+  // (skipped on the loading render, called on the loaded render) →
+  // React error #310 → app error boundary swallowed the page. The
+  // ~10s backfill step shipped 2026-05-07 widened the timing gap and
+  // started reliably triggering the latent bug.
+  const render = trpc.motionReel.renderScript.useMutation({
+    onSuccess: (data) => {
+      utils.content.listDrafts.invalidate();
+      onRendered?.(data.mp4Url);
+    },
+  });
+
+  // Sync editedScript when the script prop transitions null → object.
+  // useEffect (not a render-time setState) avoids the same Rules of
+  // Hooks pitfall and the "setState during render" warning.
+  useEffect(() => {
+    if (script && !editedScript) {
+      setEditedScript(script);
+    }
+  }, [script, editedScript]);
 
   // Drawer-with-script-loading state — the scene the user clicks
   // "tap to create video" first lands here.
@@ -104,13 +121,6 @@ export function ScriptPreview({
       </Drawer>
     );
   }
-
-  const render = trpc.motionReel.renderScript.useMutation({
-    onSuccess: (data) => {
-      utils.content.listDrafts.invalidate();
-      onRendered?.(data.mp4Url);
-    },
-  });
 
   const totalDurationSec = editedScript.scenes.reduce(
     (s, sc) => s + (sc.duration ?? 3),

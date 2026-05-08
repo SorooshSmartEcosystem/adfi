@@ -303,6 +303,12 @@ export type {
   HeroPhotoShape,
 } from "./presets/types";
 
+export type {
+  TitleCardShape,
+  SplitFrameShape,
+  PullQuoteShape,
+} from "./presets/types";
+
 import type {
   BoldStatementShape,
   IconListShape,
@@ -314,6 +320,12 @@ import type {
   ChatThreadShape,
   TerminalShape,
   HeroPhotoShape,
+} from "./presets/types";
+
+import type {
+  TitleCardShape,
+  SplitFrameShape,
+  PullQuoteShape,
 } from "./presets/types";
 
 export type Scene =
@@ -338,7 +350,12 @@ export type Scene =
   | ChatThreadShape
   | TerminalShape
   // photo scenes (Phase 2.5 — uses Echo's image-gen pipeline)
-  | HeroPhotoShape;
+  | HeroPhotoShape
+  // visual library expansion 2026-05-08 — substantial new motion +
+  // layout vocabulary so reels stop feeling templated
+  | TitleCardShape
+  | SplitFrameShape
+  | PullQuoteShape;
 
 // The whole script. Persisted on ContentDraft.motion (alongside the
 // older single-template `MotionDirective` for backward compat — both

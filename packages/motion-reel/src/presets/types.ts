@@ -143,6 +143,45 @@ export type ChatThreadShape = {
   duration: number;
 };
 
+// Title card — film-style cinematic title card. Letterbox bars,
+// slow zoom, optional period at end like a movie title.
+export type TitleCardShape = {
+  type: "title-card";
+  headline: string;
+  kicker?: string;
+  caption?: string;
+  emphasis?: string;
+  withPeriod?: boolean;
+  duration: number;
+};
+
+// Split frame — half AI photo / half stacked editorial text. Vertical
+// hairline divider. Photo Ken-Burns zooms while text reveals
+// line-by-line. photoSide: "left" | "right" (loosely typed for
+// agent-grammar compactness).
+export type SplitFrameShape = {
+  type: "split-frame";
+  photoSide?: string;
+  imagePrompt: string;
+  imageUrl?: string;
+  kicker?: string;
+  headline: string;
+  support?: string;
+  emphasis?: string;
+  duration: number;
+};
+
+// Pull quote — magazine-style pull quote with serif glyph backdrop,
+// italic editorial quote, optional ornament rule + small-caps mono
+// attribution.
+export type PullQuoteShape = {
+  type: "pull-quote";
+  quote: string;
+  emphasis?: string;
+  attribution?: string;
+  duration: number;
+};
+
 // Hero photo — full-bleed AI-generated photo with a heavy display
 // text overlay. The biggest visual unlock available without an audio
 // layer. Uses Echo's existing Replicate Flux Schnell pipeline; the

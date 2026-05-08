@@ -263,6 +263,36 @@ const SceneSchema = z.discriminatedUnion("type", [
     treatment: longish(20).optional(),
     duration: z.number().min(1).max(10),
   }),
+  // Visual library expansion 2026-05-08 — title-card, split-frame,
+  // pull-quote. New motion + layout vocabulary so reels stop
+  // converging on opener → bold-statement × 2 → closer.
+  z.object({
+    type: z.literal("title-card"),
+    headline: longish(120),
+    kicker: longish(60).optional(),
+    caption: longish(140).optional(),
+    emphasis: longish(60).optional(),
+    withPeriod: z.boolean().optional(),
+    duration: z.number().min(1).max(10),
+  }),
+  z.object({
+    type: z.literal("split-frame"),
+    photoSide: longish(12).optional(),
+    imagePrompt: longish(500),
+    imageUrl: z.string().url().optional(),
+    kicker: longish(60).optional(),
+    headline: longish(120),
+    support: longish(200).optional(),
+    emphasis: longish(60).optional(),
+    duration: z.number().min(1).max(10),
+  }),
+  z.object({
+    type: z.literal("pull-quote"),
+    quote: longish(280),
+    emphasis: longish(60).optional(),
+    attribution: longish(120).optional(),
+    duration: z.number().min(1).max(10),
+  }),
 ]);
 
 const VideoDesignSchema = z.object({

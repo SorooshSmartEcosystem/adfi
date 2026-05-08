@@ -39,6 +39,9 @@ import { MetricTileGridScene } from "../presets/editorial-bold/MetricTileGridSce
 import { ChatThreadScene } from "../presets/editorial-bold/ChatThreadScene";
 import { TerminalScene } from "../presets/editorial-bold/TerminalScene";
 import { HeroPhotoScene } from "../presets/editorial-bold/HeroPhotoScene";
+import { TitleCardScene } from "../presets/editorial-bold/TitleCardScene";
+import { SplitFrameScene } from "../presets/editorial-bold/SplitFrameScene";
+import { PullQuoteScene } from "../presets/editorial-bold/PullQuoteScene";
 import { GrainOverlay } from "../primitives/GrainOverlay";
 import { WipeReveal } from "../transitions/WipeReveal";
 import { ColorFlash } from "../transitions/ColorFlash";
@@ -163,6 +166,23 @@ const SceneSwitch: React.FC<{
     case "hero-photo":
       return (
         <HeroPhotoScene tokens={tokens} scene={scene} design={design} />
+      );
+    case "title-card":
+      return (
+        <TitleCardScene tokens={tokens} scene={scene} design={design} />
+      );
+    case "split-frame":
+      return (
+        <SplitFrameScene
+          tokens={tokens}
+          scene={scene}
+          design={design}
+          sceneIndex={sceneIndex}
+        />
+      );
+    case "pull-quote":
+      return (
+        <PullQuoteScene tokens={tokens} scene={scene} design={design} />
       );
     default:
       // Unknown scene type — render an empty frame rather than crashing.

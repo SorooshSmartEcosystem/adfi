@@ -285,6 +285,47 @@ const HeroPhotoSchema = z.object({
   duration: z.number(),
 });
 
+// ── Visual library expansion 2026-05-08 ────────────────────────
+// Three new scenes that each carry a fundamentally different
+// motion + layout vocabulary so reels stop converging on
+// "opener → bold-statement × 2 → closer".
+//
+// TitleCardScene — film-style title card with letterbox bars +
+// slow zoom. Use as a chapter break or major pivot.
+const TitleCardSchema = z.object({
+  type: z.literal("title-card"),
+  headline: trim(80),
+  kicker: trimOpt(40).optional(),
+  caption: trimOpt(80).optional(),
+  emphasis: trimOpt(40).optional(),
+  withPeriod: z.boolean().optional(),
+  duration: z.number(),
+});
+
+// SplitFrameScene — half photo / half text. AI photo on one side,
+// stacked editorial text on the other. Backfilled by
+// backfillImagesForVideoScript like hero-photo.
+const SplitFrameSchema = z.object({
+  type: z.literal("split-frame"),
+  photoSide: trimOpt(8).optional(),
+  imagePrompt: trim(400),
+  kicker: trimOpt(40).optional(),
+  headline: trim(80),
+  support: trimOpt(140).optional(),
+  emphasis: trimOpt(40).optional(),
+  duration: z.number(),
+});
+
+// PullQuoteScene — magazine pull quote with serif glyph + ornament
+// + attribution. Different gravity than QuoteScene/punchline.
+const PullQuoteSchema = z.object({
+  type: z.literal("pull-quote"),
+  quote: trim(220),
+  emphasis: trimOpt(40).optional(),
+  attribution: trimOpt(80).optional(),
+  duration: z.number(),
+});
+
 // AGENT scene schema — editorial-bold scenes only. Anthropic's
 // structured output has a 24-optional-parameter cap; including the
 // 9 legacy scenes pushes us to 27. Keeping the agent schema small
@@ -304,25 +345,28 @@ const HeroPhotoSchema = z.object({
 // terminal keeps us under the cap. They stay in the RENDERER and
 // the ROUTER schema for user-edited scripts, just not emitted by
 // the agent.
-// AGENT scene schema — 7 scenes. Anthropic's grammar compiler caps
-// us at ~7 union members with nested optional fields. Adding
-// hero-photo (Phase 2.5) means dropping numbered-diagram from the
-// AGENT union; numbered-diagram stays in the renderer + router so
-// legacy scripts and user-edited scripts still work — the agent
-// just won't emit it. icon-list covers most "structured argument"
-// territory and the photo lift is bigger than the diagram lift for
-// brand differentiation.
+// AGENT scene schema — 9 scenes after the visual library expansion
+// shipped 2026-05-08. Dropped from agent emission to fit Anthropic's
+// grammar cap: numbered-diagram, icon-list (both grammar-heavy with
+// nested object arrays). Replaced with 3 new visually distinct
+// scenes — title-card, split-frame, pull-quote — each carrying a
+// different motion + layout vocabulary. icon-list and
+// numbered-diagram still render via the SceneSwitch for
+// user-edited scripts and legacy persisted reels.
 const SceneSchema = z.discriminatedUnion("type", [
-  // editorial-bold preset (4 scenes — numbered-diagram dropped from agent)
+  // editorial-bold preset (3 scenes after icon-list dropped from agent)
   EditorialOpenerSchema,
   BoldStatementSchema,
-  IconListSchema,
   EditorialClosingSchema,
   // structural variety (2 scenes — most universal of the 4 built)
   PhoneMockupSchema,
   MetricTileGridSchema,
   // photo (Phase 2.5)
   HeroPhotoSchema,
+  // visual library expansion 2026-05-08 — substantial new vocabulary
+  TitleCardSchema,
+  SplitFrameSchema,
+  PullQuoteSchema,
 ]);
 
 
@@ -374,7 +418,10 @@ const NarrativeArcZ = z.enum([
 ]);
 
 const VideoScriptSchema = z.object({
-  scenes: z.array(SceneSchema).min(3).max(8),
+  // Cap bumped 3-8 → 4-10 (2026-05-08) to allow proper 6-9 scene
+  // narrative reels at 45-60s. Old 3-8 cap forced short-form;
+  // user feedback was reels felt too thin.
+  scenes: z.array(SceneSchema).min(4).max(10),
   design: VideoDesignSchema,
   preset: PresetNameZ.optional(),
   narrativeArc: NarrativeArcZ,
@@ -448,6 +495,51 @@ back-compat with old persisted scripts.
     - highlightIndex: optional 0-indexed row to highlight with an
       accent panel. Use sparingly — at most one row per scene.
     - duration: 4-7s. More items needs more time.
+
+5b. title-card — Cinematic title card. Letterbox black bars top + bottom,
+    big display headline, slow zoom. Reads as a "chapter heading"
+    rather than a slide. Use ONE per reel max — usually as scene 1
+    (replacing editorial-opener for a more cinematic open) OR
+    mid-reel as a major pivot ("THE TURN", "SIX MONTHS LATER").
+    { type: "title-card", headline, kicker?, caption?, emphasis?, withPeriod?, duration }
+    - headline: ≤80 chars. The chapter / title text.
+    - kicker: optional uppercase mono ≤40 chars above headline.
+      e.g. "CHAPTER ONE", "PART TWO", "JANUARY 2026".
+    - caption: optional lowercase mono ≤80 chars below headline.
+      e.g. "two years before the launch", "in the back of the studio".
+    - emphasis: optional word from headline to color in accent.
+      Most title cards work better in one color — use sparingly.
+    - withPeriod: append "." after headline (movie-title affectation).
+    - duration: 3-5s. Title cards earn a beat of silence.
+
+5c. split-frame — Half AI photo / half stacked editorial text.
+    Vertical hairline divider. Photo Ken-Burns zooms while text
+    reveals line-by-line on the other side. Reads as a magazine
+    spread, not a slide. Backfilled by image-gen pipeline like
+    hero-photo.
+    { type: "split-frame", photoSide?, imagePrompt, kicker?, headline, support?, emphasis?, duration }
+    - photoSide: "left" | "right". Renderer rotates by index when
+      omitted (recommended — gives reels variety automatically).
+    - imagePrompt: same rules as hero-photo. Specific subject,
+      framing, light. ≤400 chars.
+    - kicker: optional uppercase mono ≤40 chars.
+    - headline: ≤80 chars. Heavy display.
+    - support: optional ≤140-char regular paragraph below headline.
+    - emphasis: word from headline to color in accent.
+    - duration: 4-6s. Both photo and text need time.
+
+5d. pull-quote — Magazine-style pull quote. Italic editorial serif
+    quote with a giant decorative open-quote glyph in the corner,
+    optional ornament rule + small-caps mono attribution below.
+    Different gravity than ordinary text scenes — use when ONE
+    statement carries the whole moment.
+    { type: "pull-quote", quote, emphasis?, attribution?, duration }
+    - quote: ≤220 chars. Don't include surrounding quote marks —
+      renderer adds typographic ones.
+    - emphasis: word from quote to color in accent. Use sparingly.
+    - attribution: small-caps mono ≤80 chars after the ornament.
+      e.g. "FOUNDER, ATELIER NORD", "CHURN POSTMORTEM, JAN 2026".
+    - duration: 4-6s. Pull quotes need to land.
 
 5. editorial-closer — The closing beat. Brand motif sits at the
     center, business name in heavy display type below, optional CTA
@@ -606,31 +698,47 @@ SCRIPT STRUCTURE
 Every reel follows this 4–6 scene arc:
   [editorial-opener → 2-4 body scenes → editorial-closer]
 
-Body scenes are picked from: bold-statement, icon-list,
-phone-mockup, metric-tile-grid, hero-photo.
+Body scenes are picked from: bold-statement, phone-mockup,
+metric-tile-grid, hero-photo, title-card, split-frame, pull-quote.
 
-**EVERY REEL REQUIRES exactly ONE hero-photo scene.** The photo
-lives at scene 2 by default (the second slot, right after
-editorial-opener), so the photo lands inside the first 3-4
-seconds. The only way to skip the photo is if the reel's brief
-is a bare quote that needs zero atmosphere — and even then,
-prefer to include one. Without a photo, every reel looks
-identical to every other reel; the photo is the variance lever.
+**EVERY REEL REQUIRES at least 4 DIFFERENT scene types.** Reels
+that reuse the same scene type 3+ times read as templated. If
+your draft has 6 scenes, that's 6 distinct types (or 5 distinct
++ 1 repeat at most). Variety reads as professionally edited.
 
-A good 18-22s script (template):
+**EVERY REEL REQUIRES exactly ONE hero-photo OR ONE split-frame
+scene** — both use the AI photo pipeline and provide the
+real-world atmospheric anchor. Pick one, place at scene 2 by
+default. Don't ship both in the same reel (two AI photos = a
+slideshow, not a reel).
+
+**TARGET 6-9 scenes / 45-60 seconds total.** 4-5 scenes / 18-22s
+is the OLD short-form default — only acceptable for genuine
+one-liner briefs (a single quote, a single stat). Most briefs
+deserve narrative depth: open → context → claim → evidence →
+counter → resolution → close.
+
+Templates for 6-9 scene reels (45-60s):
+
+A "founder take / opinion piece" (most common):
+  title-card → split-frame → bold-statement → pull-quote →
+  bold-statement → metric-tile-grid → editorial-closer
+
+A "story / case study":
   editorial-opener → hero-photo → bold-statement →
-  metric-tile-grid → editorial-closer
+  phone-mockup → bold-statement → pull-quote → editorial-closer
 
-A "tips / pillars" post:
-  editorial-opener → hero-photo → icon-list →
-  bold-statement → editorial-closer
+A "data / milestone" reel:
+  title-card → metric-tile-grid → hero-photo → bold-statement →
+  pull-quote → editorial-closer
 
-A "show, don't tell" post:
+A "comparison / before-after":
+  editorial-opener → split-frame → bold-statement →
+  metric-tile-grid → bold-statement → editorial-closer
+
+For shorter punchy reels (5 scenes / 18-22s) ONLY when the brief
+is a bare one-liner:
   editorial-opener → hero-photo → bold-statement →
-  bold-statement → editorial-closer
-
-A "data / milestone" post:
-  editorial-opener → hero-photo → metric-tile-grid →
   bold-statement → editorial-closer
 
 ALWAYS scene 1 = editorial-opener.
@@ -780,19 +888,25 @@ Pick a narrativeArc first; let the arc determine which scenes you
 emit. This is the structural variety lever. Without it every reel
 converges on claim_then_proof.
 
-  claim_then_proof    — opener → bold thesis → 2 supporting beats → closer
-  before_after        — opener → setup state → turn moment → outcome → closer
-  list_walk           — opener → icon-list → bold-statement → closer
-                        (or: opener → numbered-diagram → list scene)
-  scene_to_data       — opener → phone-mockup → metric-tile-grid →
-                        bold-statement → closer
-  data_to_scene       — opener → metric-tile-grid → phone-mockup →
-                        bold-statement → closer
-  argument_unfolds    — opener → statement A → counter B → resolution → closer
-  milestone_reveal    — opener → build-up → metric-tile-grid →
-                        celebration line → closer
-  process_walkthrough — opener → icon-list → bold-statement →
-                        metric-tile-grid → closer
+  claim_then_proof    — title-card → split-frame → bold-statement
+                        thesis → pull-quote → bold-statement evidence →
+                        metric-tile-grid → editorial-closer
+  before_after        — editorial-opener → split-frame setup →
+                        bold-statement turn → pull-quote → metric-tile-grid
+                        outcome → editorial-closer
+  list_walk           — title-card → bold-statement → pull-quote →
+                        bold-statement → split-frame → editorial-closer
+  scene_to_data       — editorial-opener → split-frame → phone-mockup →
+                        metric-tile-grid → pull-quote → editorial-closer
+  data_to_scene       — title-card → metric-tile-grid → split-frame →
+                        bold-statement → pull-quote → editorial-closer
+  argument_unfolds    — editorial-opener → bold-statement → pull-quote
+                        counter → split-frame → bold-statement resolution
+                        → editorial-closer
+  milestone_reveal    — title-card → build-up → metric-tile-grid →
+                        pull-quote → split-frame → editorial-closer
+  process_walkthrough — editorial-opener → split-frame → bold-statement →
+                        metric-tile-grid → pull-quote → editorial-closer
 
 If recent reels for THIS brand used claim_then_proof (you'll see this
 in the user message via STRUCTURAL FINGERPRINTS), pick a DIFFERENT
@@ -1086,11 +1200,12 @@ export async function backfillImagesForVideoScript(args: {
   const stylize = (raw: string): string =>
     args.imageStyle ? `${args.imageStyle} ${raw}` : raw;
 
-  // Collect hero-photo scene indices that need an image.
+  // Collect photo-bearing scenes that need an image generated.
+  // hero-photo and split-frame both use imagePrompt → imageUrl.
   const indices: number[] = [];
   args.script.scenes.forEach((scene, i) => {
     if (
-      scene.type === "hero-photo" &&
+      (scene.type === "hero-photo" || scene.type === "split-frame") &&
       "imagePrompt" in scene &&
       scene.imagePrompt &&
       !("imageUrl" in scene && scene.imageUrl)
@@ -1114,13 +1229,20 @@ export async function backfillImagesForVideoScript(args: {
       const sceneIndex = indices[k]!;
       const scene = args.script.scenes[sceneIndex] as { imagePrompt?: string };
       if (!scene.imagePrompt) continue;
+      const sceneType = (
+        args.script.scenes[sceneIndex] as { type?: string }
+      ).type;
+      // split-frame uses the photo as half the frame; render at
+      // a near-square aspect to keep the photo readable when
+      // displayed in a vertical column. hero-photo is full-bleed
+      // 9:16 so the photo IS the frame.
+      const aspect = sceneType === "split-frame" ? "4:5" : "9:16";
       const r = await generateImageSafe({
         userId: args.userId,
         draftId: args.draftId ?? "video",
-        slug: `video-hero-${sceneIndex}`,
+        slug: `video-${sceneType ?? "hero"}-${sceneIndex}`,
         prompt: stylize(scene.imagePrompt),
-        // Reels are 9:16 vertical
-        aspectRatio: "9:16",
+        aspectRatio: aspect,
       });
       results[k] = r ? r.url : null;
     }

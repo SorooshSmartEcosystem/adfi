@@ -820,6 +820,68 @@ Strict JSON matching the schema. Every scene has type + duration.
 Every design field required. narrativeArc REQUIRED. viralPotential
 REQUIRED. No prose around the JSON.`;
 
+// ------------------- Inline style override parser -------------------
+// Lets the user pin a specific preset by writing a short directive
+// inside the brief, e.g. "style: dashboard-tech why founders ship
+// the wrong thing first". The directive is stripped from the brief
+// before the agent sees it. Useful for QA (testing each preset
+// without touching business description) and for power-user control
+// when the auto-picker's industry mapping is wrong for them.
+//
+// Accepted syntaxes (case-insensitive):
+//   "style: dashboard-tech"
+//   "style:dashboard-tech"
+//   "style=dashboard-tech"
+//   "[style: dashboard-tech]"
+//   "--style dashboard-tech"
+//
+// Aliases match how a non-technical user would phrase it. "dark" and
+// "tech" both resolve to dashboard-tech; "soft" and "minimal" to
+// soft-minimal; etc.
+const PRESET_ALIASES: Record<string, string> = {
+  "dashboard-tech": "dashboard-tech",
+  dashboard: "dashboard-tech",
+  tech: "dashboard-tech",
+  dark: "dashboard-tech",
+  "editorial-bold": "editorial-bold",
+  editorial: "editorial-bold",
+  bold: "editorial-bold",
+  light: "editorial-bold",
+  "soft-minimal": "soft-minimal",
+  soft: "soft-minimal",
+  minimal: "soft-minimal",
+  luxury: "luxury",
+  "studio-craft": "studio-craft",
+  craft: "studio-craft",
+  documentary: "documentary",
+  doc: "documentary",
+  generic: "generic",
+};
+
+const STYLE_PATTERNS: RegExp[] = [
+  /\[style:\s*([\w-]+)\]/i,
+  /--style[=\s]+([\w-]+)/i,
+  /(?:^|\s)style[:=]\s*([\w-]+)/i,
+];
+
+function parseStyleHint(brief: string): {
+  cleanedBrief: string;
+  presetOverride: string | null;
+} {
+  for (const pat of STYLE_PATTERNS) {
+    const m = brief.match(pat);
+    if (m && m[1]) {
+      const key = m[1].toLowerCase();
+      const resolved = PRESET_ALIASES[key];
+      if (resolved) {
+        const cleanedBrief = brief.replace(pat, "").replace(/\s+/g, " ").trim();
+        return { cleanedBrief, presetOverride: resolved };
+      }
+    }
+  }
+  return { cleanedBrief: brief, presetOverride: null };
+}
+
 // ------------------- Preset picker (mirrors motion-reel/presets/pickPreset) -------------------
 // Local copy because @orb/motion-reel imports React-Remotion which
 // can't be loaded server-side at this point in the API package.
@@ -888,7 +950,14 @@ export type VideoAgentInput = {
 };
 
 export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript> {
-  const lang = detectLanguage(args.brief);
+  // Parse "style: dashboard-tech" / "[style: bold]" / "--style dark"
+  // out of the brief. If found, the preset override wins over the
+  // industry-based picker; the directive is stripped from the text
+  // the agent sees so it doesn't confuse the script.
+  const { cleanedBrief, presetOverride } = parseStyleHint(args.brief);
+  const briefForAgent = cleanedBrief || args.brief;
+
+  const lang = detectLanguage(briefForAgent);
   const langDirective =
     lang.code === "en"
       ? ""
@@ -905,12 +974,16 @@ export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript>
   // Pick a preset deterministically from industry + voice. The picker
   // is in @orb/motion-reel/presets; we duplicate the cheap regex
   // here to avoid a cross-package import inside the API agent.
-  const preset = pickPresetForBrief({
-    industry: args.industry ?? null,
-    brandVoice: args.brandVoice
-      ? JSON.stringify(args.brandVoice).slice(0, 400)
-      : null,
-  });
+  // Inline `style: <name>` directive in the brief beats the picker —
+  // power-user / QA escape hatch shipped 2026-05-08.
+  const preset =
+    presetOverride ??
+    pickPresetForBrief({
+      industry: args.industry ?? null,
+      brandVoice: args.brandVoice
+        ? JSON.stringify(args.brandVoice).slice(0, 400)
+        : null,
+    });
   const presetBlock = `\n\n=== PRESET: ${preset} ===\nUse this scene catalog only: editorial-opener, bold-statement, icon-list, editorial-closer, phone-mockup, metric-tile-grid, hero-photo. The schema does not allow legacy scene types or numbered-diagram (back-compat only — user-editable, not agent-emitted).`;
 
   // Structural-fingerprint guard. Without this the agent kept emitting
@@ -933,7 +1006,7 @@ export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript>
         .join("\n")}\n`
     : "";
 
-  const userMessage = `Content brief:\n${args.brief}${voiceBlock}${businessBlock}${industryBlock}${presetBlock}${fingerprintBlock}${langDirective}`;
+  const userMessage = `Content brief:\n${briefForAgent}${voiceBlock}${businessBlock}${industryBlock}${presetBlock}${fingerprintBlock}${langDirective}`;
 
   const response = await anthropic().messages.create({
     // Haiku is plenty for structured scriptwriting from a fully-

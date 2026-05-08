@@ -102,6 +102,10 @@ export function ScriptPreview({
   // script. The mp4 render still uses the script's actual preset
   // field (which gets sent to Lambda) — preview override is browser-only.
   const [previewPreset, setPreviewPreset] = useState<string | null>(null);
+  // Fullscreen preview toggle. Default off (drawer-sized 320px-wide
+  // Player). When on, the Player blows up to fill the viewport so
+  // you can actually see motion details that get lost at small size.
+  const [fullscreen, setFullscreen] = useState(false);
   const utils = trpc.useUtils();
 
   // ALL HOOKS MUST RUN BEFORE ANY EARLY RETURN (React rules of hooks).
@@ -227,10 +231,22 @@ export function ScriptPreview({
           ) : null}
         </div>
 
-        {/* Player + Scene list side by side on desktop, stacked on mobile */}
-        <div className="grid md:grid-cols-[320px_1fr] gap-lg items-start">
+        {/* Player + Scene list side by side on desktop, stacked on mobile.
+            Player column was 320px (cramped). Bumped to 480px on md+
+            and 560px on lg+ so the new motion primitives — masks,
+            particles, camera moves — are actually visible. Fullscreen
+            toggle blows it up further when you want to QA details. */}
+        <div className="grid md:grid-cols-[480px_1fr] lg:grid-cols-[560px_1fr] gap-lg items-start">
           {/* Player */}
-          <div className="bg-black rounded-md overflow-hidden">
+          <div className="bg-black rounded-md overflow-hidden relative">
+            <button
+              type="button"
+              onClick={() => setFullscreen(true)}
+              className="absolute top-sm right-sm z-10 font-mono text-[10px] text-white/70 hover:text-white bg-black/40 backdrop-blur-sm rounded px-sm py-[3px]"
+              title="open fullscreen preview"
+            >
+              ⛶ fullscreen
+            </button>
             <Player
               component={ScriptReel}
               durationInFrames={totalFrames}
@@ -301,6 +317,57 @@ export function ScriptPreview({
           </div>
         ) : null}
       </div>
+
+      {/* Fullscreen preview overlay — blows the Player up to fill the
+          viewport so motion primitives are actually visible. Same
+          inputProps as the small Player; same preset preview override
+          applies. */}
+      {fullscreen ? (
+        <div
+          className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
+          onClick={() => setFullscreen(false)}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullscreen(false);
+            }}
+            className="absolute top-md right-md font-mono text-xs text-white/80 hover:text-white bg-white/10 backdrop-blur-sm rounded-full px-md py-[8px] z-10"
+          >
+            close fullscreen · esc
+          </button>
+          <div
+            className="h-[92vh] aspect-[9/16] bg-black"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Player
+              component={ScriptReel}
+              durationInFrames={totalFrames}
+              fps={FPS}
+              compositionWidth={1080}
+              compositionHeight={1920}
+              inputProps={
+                {
+                  tokens: applyPresetTokens(
+                    tokens as never,
+                    previewPreset ??
+                      (editedScript as { preset?: string }).preset,
+                  ),
+                  script: previewPreset
+                    ? { ...editedScript, preset: previewPreset }
+                    : editedScript,
+                } as never
+              }
+              controls
+              loop
+              autoPlay
+              clickToPlay={false}
+              style={{ width: "100%", height: "100%" }}
+            />
+          </div>
+        </div>
+      ) : null}
     </Drawer>
   );
 }

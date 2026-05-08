@@ -291,37 +291,35 @@ const HeroPhotoSchema = z.object({
 // "opener → bold-statement × 2 → closer".
 //
 // TitleCardScene — film-style title card with letterbox bars +
-// slow zoom. Use as a chapter break or major pivot.
+// slow zoom. AGENT zod is minimal (under Anthropic's 24-optional
+// grammar cap) — caption and withPeriod dropped from agent emission;
+// renderer + types still support them for user-edited scripts.
 const TitleCardSchema = z.object({
   type: z.literal("title-card"),
   headline: trim(80),
   kicker: trimOpt(40).optional(),
-  caption: trimOpt(80).optional(),
   emphasis: trimOpt(40).optional(),
-  withPeriod: z.boolean().optional(),
   duration: z.number(),
 });
 
-// SplitFrameScene — half photo / half text. AI photo on one side,
-// stacked editorial text on the other. Backfilled by
-// backfillImagesForVideoScript like hero-photo.
+// SplitFrameScene — half photo / half text. AGENT zod minimal:
+// photoSide dropped (renderer rotates by index for variety),
+// support + kicker dropped (the headline carries the message,
+// matches editorial-magazine spread aesthetic).
 const SplitFrameSchema = z.object({
   type: z.literal("split-frame"),
-  photoSide: trimOpt(8).optional(),
   imagePrompt: trim(400),
-  kicker: trimOpt(40).optional(),
   headline: trim(80),
-  support: trimOpt(140).optional(),
   emphasis: trimOpt(40).optional(),
   duration: z.number(),
 });
 
-// PullQuoteScene — magazine pull quote with serif glyph + ornament
-// + attribution. Different gravity than QuoteScene/punchline.
+// PullQuoteScene — magazine pull quote. AGENT zod minimal:
+// emphasis dropped (pull quotes work best in one color);
+// attribution kept as the only optional.
 const PullQuoteSchema = z.object({
   type: z.literal("pull-quote"),
   quote: trim(220),
-  emphasis: trimOpt(40).optional(),
   attribution: trimOpt(80).optional(),
   duration: z.number(),
 });
@@ -501,30 +499,25 @@ back-compat with old persisted scripts.
     rather than a slide. Use ONE per reel max — usually as scene 1
     (replacing editorial-opener for a more cinematic open) OR
     mid-reel as a major pivot ("THE TURN", "SIX MONTHS LATER").
-    { type: "title-card", headline, kicker?, caption?, emphasis?, withPeriod?, duration }
+    { type: "title-card", headline, kicker?, emphasis?, duration }
     - headline: ≤80 chars. The chapter / title text.
     - kicker: optional uppercase mono ≤40 chars above headline.
       e.g. "CHAPTER ONE", "PART TWO", "JANUARY 2026".
-    - caption: optional lowercase mono ≤80 chars below headline.
-      e.g. "two years before the launch", "in the back of the studio".
     - emphasis: optional word from headline to color in accent.
       Most title cards work better in one color — use sparingly.
-    - withPeriod: append "." after headline (movie-title affectation).
     - duration: 3-5s. Title cards earn a beat of silence.
 
 5c. split-frame — Half AI photo / half stacked editorial text.
     Vertical hairline divider. Photo Ken-Burns zooms while text
     reveals line-by-line on the other side. Reads as a magazine
     spread, not a slide. Backfilled by image-gen pipeline like
-    hero-photo.
-    { type: "split-frame", photoSide?, imagePrompt, kicker?, headline, support?, emphasis?, duration }
-    - photoSide: "left" | "right". Renderer rotates by index when
-      omitted (recommended — gives reels variety automatically).
+    hero-photo. Photo side alternates automatically by scene index
+    so consecutive split-frames mirror.
+    { type: "split-frame", imagePrompt, headline, emphasis?, duration }
     - imagePrompt: same rules as hero-photo. Specific subject,
       framing, light. ≤400 chars.
-    - kicker: optional uppercase mono ≤40 chars.
-    - headline: ≤80 chars. Heavy display.
-    - support: optional ≤140-char regular paragraph below headline.
+    - headline: ≤80 chars. Heavy display, lands as the editorial
+      column on the non-photo side.
     - emphasis: word from headline to color in accent.
     - duration: 4-6s. Both photo and text need time.
 
@@ -533,10 +526,9 @@ back-compat with old persisted scripts.
     optional ornament rule + small-caps mono attribution below.
     Different gravity than ordinary text scenes — use when ONE
     statement carries the whole moment.
-    { type: "pull-quote", quote, emphasis?, attribution?, duration }
+    { type: "pull-quote", quote, attribution?, duration }
     - quote: ≤220 chars. Don't include surrounding quote marks —
       renderer adds typographic ones.
-    - emphasis: word from quote to color in accent. Use sparingly.
     - attribution: small-caps mono ≤80 chars after the ornament.
       e.g. "FOUNDER, ATELIER NORD", "CHURN POSTMORTEM, JAN 2026".
     - duration: 4-6s. Pull quotes need to land.

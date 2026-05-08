@@ -503,9 +503,34 @@ export async function generateDailyContent(
     select: { metrics: true, draft: { select: { content: true } } },
   });
 
-  const recentCaptions = recentPosts
-    .map((p) => extractCaption(p.draft.content))
-    .filter(Boolean);
+  // Pull the last 8 DRAFTS too — beta users have no published posts
+  // yet, so the structural-fingerprint guard was running with an
+  // empty recentCaptions array and the model had no signal that it
+  // was repeating itself. Drafts give the same DO-NOT-REUSE pressure
+  // even before anything is live.
+  const recentDrafts = await db.contentDraft.findMany({
+    where: businessId ? { businessId } : { userId },
+    orderBy: { createdAt: "desc" },
+    take: 8,
+    select: { content: true },
+  });
+
+  const seen = new Set<string>();
+  const recentCaptions: string[] = [];
+  for (const p of recentPosts) {
+    const c = extractCaption(p.draft.content);
+    if (c && !seen.has(c)) {
+      seen.add(c);
+      recentCaptions.push(c);
+    }
+  }
+  for (const d of recentDrafts) {
+    const c = extractCaption(d.content);
+    if (c && !seen.has(c)) {
+      seen.add(c);
+      recentCaptions.push(c);
+    }
+  }
 
   const performance = await summarizePerformance(userId, 90);
   const chosenFormat = await pickFormatForPlatform(userId, platform, format);
@@ -874,10 +899,31 @@ export async function regenerateDraftContent(
     take: 10,
     select: { metrics: true, draft: { select: { content: true } } },
   });
+  const recentDrafts = await db.contentDraft.findMany({
+    where: draftBusinessId
+      ? { businessId: draftBusinessId, NOT: { id: draftId } }
+      : { userId: draft.userId, NOT: { id: draftId } },
+    orderBy: { createdAt: "desc" },
+    take: 8,
+    select: { content: true },
+  });
 
-  const recentCaptions = recentPosts
-    .map((p) => extractCaption(p.draft.content))
-    .filter(Boolean);
+  const seen = new Set<string>();
+  const recentCaptions: string[] = [];
+  for (const p of recentPosts) {
+    const c = extractCaption(p.draft.content);
+    if (c && !seen.has(c)) {
+      seen.add(c);
+      recentCaptions.push(c);
+    }
+  }
+  for (const d of recentDrafts) {
+    const c = extractCaption(d.content);
+    if (c && !seen.has(c)) {
+      seen.add(c);
+      recentCaptions.push(c);
+    }
+  }
 
   const performance = await summarizePerformance(draft.userId, 90);
 
@@ -1037,9 +1083,28 @@ export async function draftPlanItem(
     take: 10,
     select: { metrics: true, draft: { select: { content: true } } },
   });
-  const recentCaptions = recentPosts
-    .map((p) => extractCaption(p.draft.content))
-    .filter(Boolean);
+  const recentDrafts = await db.contentDraft.findMany({
+    where: planBusinessId ? { businessId: planBusinessId } : { userId: user.id },
+    orderBy: { createdAt: "desc" },
+    take: 8,
+    select: { content: true },
+  });
+  const seen = new Set<string>();
+  const recentCaptions: string[] = [];
+  for (const p of recentPosts) {
+    const c = extractCaption(p.draft.content);
+    if (c && !seen.has(c)) {
+      seen.add(c);
+      recentCaptions.push(c);
+    }
+  }
+  for (const d of recentDrafts) {
+    const c = extractCaption(d.content);
+    if (c && !seen.has(c)) {
+      seen.add(c);
+      recentCaptions.push(c);
+    }
+  }
   const performance = await summarizePerformance(user.id, 90);
 
   // Stitch the plan-item brief into a hint that Echo can use directly.

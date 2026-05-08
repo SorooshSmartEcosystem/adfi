@@ -236,7 +236,7 @@ export function ScriptPreview({
             and 560px on lg+ so the new motion primitives — masks,
             particles, camera moves — are actually visible. Fullscreen
             toggle blows it up further when you want to QA details. */}
-        <div className="grid md:grid-cols-[480px_1fr] lg:grid-cols-[560px_1fr] gap-lg items-start">
+        <div className="grid md:grid-cols-[400px_1fr] lg:grid-cols-[440px_1fr] gap-lg items-start">
           {/* Player */}
           <div className="bg-black rounded-md overflow-hidden relative">
             <button

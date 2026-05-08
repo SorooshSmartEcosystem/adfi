@@ -8,12 +8,17 @@
 
 "use client";
 
-import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Easing } from "remotion";
 import { Icon } from "../../primitives/Icon";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { fitText } from "../../motion/fitText";
 import { brandSignature } from "../../motion/brandSignature";
 import { getMoodConfig, adjustSaturation } from "../../motion/mood";
+import {
+  CameraMove,
+  ParticleField,
+  composeMotion,
+} from "../../motion/primitives";
 import { isIconName } from "../../icons";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { EditorialClosingShape } from "../types";
@@ -24,20 +29,34 @@ type Props = {
   tokens: BrandTokens;
   scene: EditorialClosingShape;
   design: Required<VideoDesign>;
+  // Used by composeMotion for seeded variety. Defaults to 999 so
+  // closer recipes are picked from a different point in the
+  // hash-rotation than the opener (sceneIndex 0) — they don't
+  // mirror each other.
+  sceneIndex?: number;
 };
 
 export const EditorialClosingScene: React.FC<Props> = ({
   tokens,
   scene,
   design,
+  sceneIndex = 999,
 }) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const baseEasing = paceEasing(design.pace);
   const baseStagger = paceStaggerFrames(design.pace);
   const mood = getMoodConfig(design.mood);
   const sig = brandSignature(tokens.businessName);
   const easing = baseEasing;
   const stagger = Math.round(baseStagger * mood.paceFactor);
+
+  const recipe = composeMotion({
+    brandSeed: sig.seed,
+    sceneIndex,
+    sceneType: "bold-statement",
+    mood: design.mood,
+  });
 
   const rawAccent = accentColor(design.accent, tokens);
   const accent = adjustSaturation(rawAccent, mood.accentSaturation);
@@ -97,7 +116,7 @@ export const EditorialClosingScene: React.FC<Props> = ({
     containerWidth: 920,
   });
 
-  return (
+  const inner = (
     <AbsoluteFill
       style={{
         background: bg,
@@ -155,6 +174,38 @@ export const EditorialClosingScene: React.FC<Props> = ({
         ) : null}
       </div>
     </AbsoluteFill>
+  );
+
+  // Compose with seeded primitives so closer doesn't render
+  // identically every video. Mirrors EditorialOpenerScene's pattern.
+  const cameraStyle = recipe.cameraStyle ?? "none";
+  const particleFlavor = recipe.particleFlavor ?? "none";
+
+  const composed = (
+    <AbsoluteFill>
+      {particleFlavor !== "none" ? (
+        <ParticleField
+          flavor={particleFlavor}
+          seed={recipe.seed}
+          opacity={0.3}
+        />
+      ) : null}
+      <div style={{ position: "absolute", inset: 0, zIndex: 2 }}>
+        {inner}
+      </div>
+    </AbsoluteFill>
+  );
+
+  return cameraStyle !== "none" ? (
+    <CameraMove
+      style={cameraStyle}
+      totalFrames={durationInFrames}
+      intensity={mood.paceFactor}
+    >
+      {composed}
+    </CameraMove>
+  ) : (
+    composed
   );
 };
 

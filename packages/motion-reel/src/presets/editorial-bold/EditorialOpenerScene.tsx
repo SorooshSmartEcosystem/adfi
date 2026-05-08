@@ -20,12 +20,18 @@
 
 "use client";
 
-import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Easing } from "remotion";
 import { Icon } from "../../primitives/Icon";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { fitText } from "../../motion/fitText";
 import { brandSignature } from "../../motion/brandSignature";
 import { getMoodConfig, adjustSaturation } from "../../motion/mood";
+import {
+  CameraMove,
+  ParticleField,
+  AccentRule,
+  composeMotion,
+} from "../../motion/primitives";
 import { isIconName } from "../../icons";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { EditorialOpenerShape } from "../types";
@@ -36,20 +42,38 @@ type Props = {
   tokens: BrandTokens;
   scene: EditorialOpenerShape;
   design: Required<VideoDesign>;
+  // Used by composeMotion to seed per-render variety. Default 0
+  // (the opener is almost always scene 0 in the reel anyway, but
+  // this lets the same brand cycle different opener treatments
+  // across drafts).
+  sceneIndex?: number;
 };
 
 export const EditorialOpenerScene: React.FC<Props> = ({
   tokens,
   scene,
   design,
+  sceneIndex = 0,
 }) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const baseEasing = paceEasing(design.pace);
   const baseStagger = paceStaggerFrames(design.pace);
   const mood = getMoodConfig(design.mood);
   const sig = brandSignature(tokens.businessName);
   const easing = baseEasing;
   const stagger = Math.round(baseStagger * mood.paceFactor);
+
+  // Seeded recipe — gives the opener variety across renders.
+  // Uses the bold-statement pool (camera + particles) since opener
+  // and closer are structurally similar to body scenes for these
+  // primitives.
+  const recipe = composeMotion({
+    brandSeed: sig.seed,
+    sceneIndex,
+    sceneType: "bold-statement",
+    mood: design.mood,
+  });
 
   const rawAccent = accentColor(design.accent, tokens);
   const accent = adjustSaturation(rawAccent, mood.accentSaturation);
@@ -94,7 +118,7 @@ export const EditorialOpenerScene: React.FC<Props> = ({
     maxLines: 3,
   });
 
-  return (
+  const inner = (
     <AbsoluteFill
       style={{
         background: bg,
@@ -197,6 +221,41 @@ export const EditorialOpenerScene: React.FC<Props> = ({
         })}
       </div>
     </AbsoluteFill>
+  );
+
+  // Compose inner scene with seeded primitives. Particles below
+  // text (zIndex 1 vs 2). CameraMove wraps the whole composition
+  // for cinematic open. Without this every reel opens with the
+  // same static frame — the user feedback "all primitives for
+  // start and ending the video are same" was about exactly this.
+  const cameraStyle = recipe.cameraStyle ?? "none";
+  const particleFlavor = recipe.particleFlavor ?? "none";
+
+  const composed = (
+    <AbsoluteFill>
+      {particleFlavor !== "none" ? (
+        <ParticleField
+          flavor={particleFlavor}
+          seed={recipe.seed}
+          opacity={0.3}
+        />
+      ) : null}
+      <div style={{ position: "absolute", inset: 0, zIndex: 2 }}>
+        {inner}
+      </div>
+    </AbsoluteFill>
+  );
+
+  return cameraStyle !== "none" ? (
+    <CameraMove
+      style={cameraStyle}
+      totalFrames={durationInFrames}
+      intensity={mood.paceFactor}
+    >
+      {composed}
+    </CameraMove>
+  ) : (
+    composed
   );
 };
 

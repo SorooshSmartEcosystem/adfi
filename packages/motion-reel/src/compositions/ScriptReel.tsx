@@ -140,11 +140,21 @@ const SceneSwitch: React.FC<{
       );
     case "editorial-opener":
       return (
-        <EditorialOpenerScene tokens={tokens} scene={scene} design={design} />
+        <EditorialOpenerScene
+          tokens={tokens}
+          scene={scene}
+          design={design}
+          sceneIndex={sceneIndex}
+        />
       );
     case "editorial-closer":
       return (
-        <EditorialClosingScene tokens={tokens} scene={scene} design={design} />
+        <EditorialClosingScene
+          tokens={tokens}
+          scene={scene}
+          design={design}
+          sceneIndex={sceneIndex}
+        />
       );
     // ── Phase 3 — structural variety ─────────────────────────────
     case "phone-mockup":

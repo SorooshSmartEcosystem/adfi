@@ -17,9 +17,11 @@
 
 "use client";
 
-import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Easing } from "remotion";
 import { fitText } from "../../motion/fitText";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
+import { brandSignature } from "../../motion/brandSignature";
+import { ParticleField, MaskedReveal, composeMotion } from "../../motion/primitives";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { HeroPhotoShape } from "../types";
 
@@ -27,6 +29,10 @@ type Props = {
   tokens: BrandTokens;
   scene: HeroPhotoShape;
   design: Required<VideoDesign>;
+  // Stable index for seeded composition. ScriptReel passes this so
+  // consecutive hero-photo renders pick different particle layouts +
+  // mask reveals.
+  sceneIndex?: number;
 };
 
 const ANCHOR_STYLES: Record<string, React.CSSProperties> = {
@@ -86,9 +92,24 @@ function treatmentOverlay(
   }
 }
 
-export const HeroPhotoScene: React.FC<Props> = ({ tokens, scene, design }) => {
+export const HeroPhotoScene: React.FC<Props> = ({
+  tokens,
+  scene,
+  design,
+  sceneIndex,
+}) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const totalFrames = Math.max(60, Math.round(scene.duration * 30));
+
+  // Seeded recipe — particles and mask reveal on the photo.
+  const sig = brandSignature(tokens.businessName);
+  const recipe = composeMotion({
+    brandSeed: sig.seed,
+    sceneIndex: sceneIndex ?? 0,
+    sceneType: "bold-statement", // reuse bold-statement's recipe pool
+    mood: design.mood,
+  });
 
   const anchor = scene.textAnchor ?? "bottom-left";
   const treatment = scene.treatment ?? "darken";
@@ -127,7 +148,7 @@ export const HeroPhotoScene: React.FC<Props> = ({ tokens, scene, design }) => {
   const anchorStyle: React.CSSProperties =
     ANCHOR_STYLES[anchor] ?? ANCHOR_STYLES["bottom-left"]!;
 
-  return (
+  const content = (
     <AbsoluteFill style={{ background: tokens.surface ?? "#0F0F0F" }}>
       {scene.imageUrl ? (
         <img
@@ -234,6 +255,37 @@ export const HeroPhotoScene: React.FC<Props> = ({ tokens, scene, design }) => {
           </div>
         ) : null}
       </div>
+
+      {/* Seeded particle field — variety knob across consecutive
+          hero-photo renders. Calm moods skip particles entirely. */}
+      {recipe.particleFlavor && recipe.particleFlavor !== "none" ? (
+        <ParticleField
+          flavor={recipe.particleFlavor}
+          seed={recipe.seed}
+          opacity={0.5}
+          color={
+            // White particles read on a darkened photo; ink particles
+            // on a lightened photo.
+            treatment === "lighten" ? undefined : "rgba(255,255,255,0.5)"
+          }
+        />
+      ) : null}
     </AbsoluteFill>
+  );
+
+  // Wrap with mask reveal when the recipe calls for one.
+  return recipe.maskShape && recipe.maskShape !== "none" ? (
+    <AbsoluteFill style={{ background: tokens.surface ?? "#0F0F0F" }}>
+      <MaskedReveal
+        shape={recipe.maskShape}
+        origin={recipe.maskOrigin}
+        direction={recipe.maskDirection}
+        durationFrames={Math.min(28, Math.round(durationInFrames * 0.35))}
+      >
+        {content}
+      </MaskedReveal>
+    </AbsoluteFill>
+  ) : (
+    content
   );
 };

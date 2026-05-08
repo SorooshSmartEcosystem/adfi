@@ -165,7 +165,12 @@ const SceneSwitch: React.FC<{
       );
     case "hero-photo":
       return (
-        <HeroPhotoScene tokens={tokens} scene={scene} design={design} />
+        <HeroPhotoScene
+          tokens={tokens}
+          scene={scene}
+          design={design}
+          sceneIndex={sceneIndex}
+        />
       );
     case "title-card":
       return (

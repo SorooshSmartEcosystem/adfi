@@ -23,11 +23,17 @@
 
 "use client";
 
-import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, Easing, useVideoConfig } from "remotion";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { fitText } from "../../motion/fitText";
 import { brandSignature } from "../../motion/brandSignature";
 import { getMoodConfig, adjustSaturation } from "../../motion/mood";
+import {
+  CameraMove,
+  MaskedReveal,
+  ParticleField,
+  composeMotion,
+} from "../../motion/primitives";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { BoldStatementShape as BaseShape } from "../types";
 
@@ -56,10 +62,24 @@ export const BoldStatementScene: React.FC<Props> = ({
   sceneIndex,
 }) => {
   const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
   const baseEasing = paceEasing(design.pace);
   const baseStagger = paceStaggerFrames(design.pace);
   const mood = getMoodConfig(design.mood);
   const sig = brandSignature(tokens.businessName);
+
+  // Compose a motion recipe deterministically from brand seed +
+  // sceneIndex. Same draft re-renders identically; consecutive
+  // bold-statement scenes in one reel get visibly different
+  // motion (camera move + mask reveal + optional particle field).
+  // This breaks "every bold-statement looks the same" — the
+  // architectural change Path A is built around.
+  const recipe = composeMotion({
+    brandSeed: sig.seed,
+    sceneIndex: sceneIndex ?? 0,
+    sceneType: "bold-statement",
+    mood: design.mood,
+  });
 
   // Mood adjusts accent saturation + stagger pacing.
   const rawAccent = accentColor(design.accent, tokens);
@@ -165,7 +185,14 @@ export const BoldStatementScene: React.FC<Props> = ({
   const heroAlign =
     layout === "centered" ? ("center" as const) : ("left" as const);
 
-  return (
+  // Inner scene content factored so we can wrap it with the recipe's
+  // CameraMove + ParticleField + MaskedReveal without indenting the
+  // existing JSX three levels deep.
+  const cameraStyle = recipe.cameraStyle ?? "none";
+  const maskShape = recipe.maskShape ?? "none";
+  const particleFlavor = recipe.particleFlavor ?? "none";
+
+  const inner = (
     <AbsoluteFill
       style={{
         background: bg,
@@ -370,6 +397,50 @@ export const BoldStatementScene: React.FC<Props> = ({
         ) : null}
       </div>
     </AbsoluteFill>
+  );
+
+  // Layered composition: ParticleField on top of inner, MaskedReveal
+  // wrapping inner+particles, CameraMove wrapping the whole thing.
+  // Particles are intentionally on top so they read as foreground
+  // dust/embers/geometric elements, not background.
+  const withParticles =
+    particleFlavor !== "none" ? (
+      <>
+        {inner}
+        <ParticleField
+          flavor={particleFlavor}
+          seed={recipe.seed}
+          opacity={mood.paceFactor < 1 ? 0.6 : 1}
+        />
+      </>
+    ) : (
+      inner
+    );
+
+  const withMask =
+    maskShape !== "none" ? (
+      <MaskedReveal
+        shape={maskShape}
+        origin={recipe.maskOrigin}
+        direction={recipe.maskDirection}
+        durationFrames={Math.min(28, Math.round(durationInFrames * 0.35))}
+      >
+        {withParticles}
+      </MaskedReveal>
+    ) : (
+      withParticles
+    );
+
+  return cameraStyle !== "none" ? (
+    <CameraMove
+      style={cameraStyle}
+      totalFrames={durationInFrames}
+      intensity={mood.paceFactor}
+    >
+      {withMask}
+    </CameraMove>
+  ) : (
+    <AbsoluteFill>{withMask}</AbsoluteFill>
   );
 };
 

@@ -74,6 +74,20 @@ type Props = {
   pending?: boolean;
 };
 
+// Preset names the dropdown can flip to. Two are real (editorial-bold
+// and dashboard-tech ship live token overrides); the other four are
+// placeholders that currently fall through to editorial-bold's tokens.
+// Listed anyway so the user can verify "yes, soft-minimal does NOT
+// look different yet" instead of wondering whether it's broken.
+const PRESETS_FOR_PREVIEW = [
+  { value: "editorial-bold", label: "editorial-bold (white, heavy black) — live" },
+  { value: "dashboard-tech", label: "dashboard-tech (dark, cyan/amber) — live" },
+  { value: "soft-minimal", label: "soft-minimal — falls back to editorial-bold" },
+  { value: "luxury", label: "luxury — falls back to editorial-bold" },
+  { value: "studio-craft", label: "studio-craft — falls back to editorial-bold" },
+  { value: "documentary", label: "documentary — falls back to editorial-bold" },
+] as const;
+
 export function ScriptPreview({
   draftId,
   script,
@@ -83,6 +97,11 @@ export function ScriptPreview({
   pending,
 }: Props) {
   const [editedScript, setEditedScript] = useState<Script | null>(script);
+  // Preview-only preset override. Lets the user flip the in-browser
+  // Player between styles with one click, without regenerating the
+  // script. The mp4 render still uses the script's actual preset
+  // field (which gets sent to Lambda) — preview override is browser-only.
+  const [previewPreset, setPreviewPreset] = useState<string | null>(null);
   const utils = trpc.useUtils();
 
   // ALL HOOKS MUST RUN BEFORE ANY EARLY RETURN (React rules of hooks).
@@ -172,6 +191,42 @@ export function ScriptPreview({
           </button>
         </div>
 
+        {/* Style preview selector. Dev/QA tool that lets the user flip
+            the Player between presets WITHOUT regenerating the script.
+            Two options ship real visual overrides today (editorial-bold,
+            dashboard-tech); the other four currently fall back to
+            editorial-bold tokens — listed so users can verify they
+            don't yet differ. */}
+        <div className="flex items-center gap-sm flex-wrap">
+          <span className="font-mono text-[10px] text-ink4 tracking-[0.18em]">
+            STYLE PREVIEW
+          </span>
+          <select
+            value={
+              previewPreset ??
+              (editedScript as { preset?: string }).preset ??
+              "editorial-bold"
+            }
+            onChange={(e) => setPreviewPreset(e.target.value)}
+            className="font-mono text-[11px] bg-bg border-hairline border-border rounded px-sm py-[5px] text-ink2 cursor-pointer"
+          >
+            {PRESETS_FOR_PREVIEW.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          {previewPreset ? (
+            <button
+              type="button"
+              onClick={() => setPreviewPreset(null)}
+              className="font-mono text-[10px] text-ink4 hover:text-ink underline"
+            >
+              reset to script default
+            </button>
+          ) : null}
+        </div>
+
         {/* Player + Scene list side by side on desktop, stacked on mobile */}
         <div className="grid md:grid-cols-[320px_1fr] gap-lg items-start">
           {/* Player */}
@@ -184,11 +239,16 @@ export function ScriptPreview({
               compositionHeight={1920}
               inputProps={
                 {
+                  // Preview-override beats the script's stored preset so
+                  // the dropdown lets users compare styles instantly.
                   tokens: applyPresetTokens(
                     tokens as never,
-                    (editedScript as { preset?: string }).preset,
+                    previewPreset ??
+                      (editedScript as { preset?: string }).preset,
                   ),
-                  script: editedScript,
+                  script: previewPreset
+                    ? { ...editedScript, preset: previewPreset }
+                    : editedScript,
                 } as never
               }
               controls

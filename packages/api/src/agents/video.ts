@@ -1049,14 +1049,14 @@ export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript>
 
   const raw = JSON.parse(textBlock.text);
   const parsed = VideoScriptSchema.parse(raw);
-  // Belt-and-suspenders: ensure the picked preset is on the script
-  // output even if the agent omitted it. Renderer keys off this
-  // field for token overrides — without it dashboard-tech reels
-  // would render as editorial-bold.
-  if (!parsed.preset) {
-    return { ...parsed, preset: preset as VideoScript["preset"] };
-  }
-  return parsed;
+  // FORCE the picked preset onto the script. The picker (or the
+  // user's `style:` directive) is the source of truth for the visual
+  // world; the agent's `preset` output is advisory and Haiku
+  // sometimes ignores the PRESET directive in the user message and
+  // emits a different one. Without forcing here, a "style:
+  // dashboard-tech" override would still render editorial-bold
+  // because the agent stamped its own preference into the script.
+  return { ...parsed, preset: preset as VideoScript["preset"] };
 }
 
 // ------------------- Image backfill -------------------

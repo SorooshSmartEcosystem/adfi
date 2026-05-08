@@ -280,10 +280,16 @@ const RouterPresetNameZ = z.enum([
   "generic",
 ]);
 
+// narrativeArc + viralPotential added 2026-05-07. Both optional in the
+// router validator so legacy persisted scripts (no arc, no score) keep
+// rendering. Fresh agent output always emits them; user-edited scripts
+// can omit them without breaking the render path.
 const VideoScriptSchema = z.object({
   scenes: z.array(SceneSchema).min(2).max(10),
   design: VideoDesignSchema,
   preset: RouterPresetNameZ.optional(),
+  narrativeArc: z.string().optional(),
+  viralPotential: z.number().optional(),
 });
 
 // =============================================================

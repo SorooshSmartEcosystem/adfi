@@ -327,10 +327,30 @@ const PresetNameZ = z.enum([
   "generic",
 ]);
 
+// Narrative arc — forces the agent to commit to a SHAPE before
+// picking scene types. Without this every reel converged on
+// "opener → bold-statement → bold-statement → closer" because
+// bold-statement is the highest-prior body scene. Echo had the
+// same lock-in problem before bodyShape; same fix applies here.
+const NarrativeArcZ = z.enum([
+  "claim_then_proof",   // bold thesis → 2 supporting beats → closer
+  "before_after",       // setup state → turn → outcome
+  "list_walk",          // icon-list or numbered-diagram heavy
+  "scene_to_data",      // phone-mockup or scene → metric-tile-grid
+  "data_to_scene",      // metric-tile-grid → phone-mockup → bold-statement
+  "argument_unfolds",   // statement → counter → resolution
+  "milestone_reveal",   // build-up → metric-tile-grid celebration
+  "process_walkthrough",// numbered-diagram → icon-list → punchline
+]);
+
 const VideoScriptSchema = z.object({
   scenes: z.array(SceneSchema).min(3).max(8),
   design: VideoDesignSchema,
   preset: PresetNameZ.optional(),
+  narrativeArc: NarrativeArcZ,
+  // Echo's hunch on whether this lands above the brand's baseline.
+  // 0–1, default range 0.3–0.6, 0.7+ requires real distinctiveness.
+  viralPotential: z.number(),
 });
 
 export type VideoScript = z.infer<typeof VideoScriptSchema>;
@@ -639,11 +659,83 @@ Match the brief's language. Mono labels too — no English fallback.
 If the brief is in Farsi, every string in your output is in Farsi.
 
 ==============================================================
+ANTI-PATTERNS — never ship these
+==============================================================
+
+These are the templates the agent defaults to when uncertain. Every
+one of them reads as "AI generated reel" no matter how specific the
+brief is. Do not use them.
+
+- "editorial-opener → bold-statement → bold-statement → editorial-closer"
+  — the most-overused 4-scene shape. If you write two bold-statements
+  back-to-back, replace one with a structural scene (phone-mockup,
+  metric-tile-grid, numbered-diagram) or with icon-list.
+- Two consecutive scenes of the same type, ever. Even three
+  bold-statements in a 5-scene reel reads like a slide deck.
+- Hero text always landing on the same word position. Mix where the
+  emphasis word sits — start, middle, end — across scenes within ONE
+  reel and across reels for ONE brand.
+- Every reel having the SAME structural beat at the SAME index. If
+  this brand's last reel had a metric-tile-grid at scene 3, this
+  reel's metric-tile-grid (if any) goes elsewhere — or skip it.
+- Rhetorical "X. Then Y." constructions in every hero. Vary syntax.
+- All-uppercase mono labels that are generic ("TODAY'S NOTE",
+  "BIG NEWS", "WEEKLY UPDATE"). If the brand voice doesn't naturally
+  speak that way, write a label that names a SPECIFIC thing
+  ("Q3 NUMBERS", "FIVE YEARS IN", "ON A TUESDAY").
+- "Editorial closer" CTAs that say "share this" / "tag someone" /
+  "more coming" — those are filler. Write a CTA that's specific to
+  THIS post or omit cta entirely (closer renders fine without one).
+- ANY phrase from the brief copy-pasted verbatim into the hero. Echo
+  the brief's information, not its sentences.
+
+==============================================================
+NARRATIVE ARC — pick BEFORE picking scenes
+==============================================================
+
+Pick a narrativeArc first; let the arc determine which scenes you
+emit. This is the structural variety lever. Without it every reel
+converges on claim_then_proof.
+
+  claim_then_proof    — opener → bold thesis → 2 supporting beats → closer
+  before_after        — opener → setup state → turn moment → outcome → closer
+  list_walk           — opener → icon-list → bold-statement → closer
+                        (or: opener → numbered-diagram → list scene)
+  scene_to_data       — opener → phone-mockup → metric-tile-grid →
+                        bold-statement → closer
+  data_to_scene       — opener → metric-tile-grid → phone-mockup →
+                        bold-statement → closer
+  argument_unfolds    — opener → statement A → counter B → resolution → closer
+  milestone_reveal    — opener → build-up → metric-tile-grid →
+                        celebration line → closer
+  process_walkthrough — opener → numbered-diagram → icon-list →
+                        punchline → closer
+
+If recent reels for THIS brand used claim_then_proof (you'll see this
+in the user message via STRUCTURAL FINGERPRINTS), pick a DIFFERENT
+arc. Variety reel-to-reel is more important than picking the
+"perfect" arc per reel.
+
+==============================================================
+VIRAL POTENTIAL
+==============================================================
+
+Score 0–1 your honest read of whether this reel lands above the
+brand's baseline reach. Be skeptical. Default range 0.3–0.6.
+- 0.7+ requires (a) a hook that's truly distinctive — not a
+  template — AND (b) one structural scene that earns surprise AND
+  (c) the reel says one thing, sharply.
+- 0.9+ requires real surprise: a specific number, a counterintuitive
+  claim, a scene only this brand could authentically deliver.
+- If you'd swipe past it on your own feed, score below 0.5.
+
+==============================================================
 OUTPUT
 ==============================================================
 
 Strict JSON matching the schema. Every scene has type + duration.
-Every design field required. No prose around the JSON.`;
+Every design field required. narrativeArc REQUIRED. viralPotential
+REQUIRED. No prose around the JSON.`;
 
 // ------------------- Preset picker (mirrors motion-reel/presets/pickPreset) -------------------
 // Local copy because @orb/motion-reel imports React-Remotion which
@@ -705,6 +797,11 @@ export type VideoAgentInput = {
   // agent pick design knobs. Often absent — agent infers from voice.
   industry?: string;
   userId?: string;
+  // Recent reels for this brand. Used to surface structural fingerprints
+  // (narrativeArc + scene-type sequence + opener headline) so the agent
+  // sees the lock-in pattern and picks something different. Pass at most
+  // the 3-5 most recent; older context dilutes the signal.
+  recentScripts?: VideoScript[];
 };
 
 export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript> {
@@ -733,7 +830,27 @@ export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript>
   });
   const presetBlock = `\n\n=== PRESET: ${preset} ===\nUse the editorial-bold scene catalog only: editorial-opener, bold-statement, icon-list, numbered-diagram, editorial-closer. The schema does not allow legacy scene types.`;
 
-  const userMessage = `Content brief:\n${args.brief}${voiceBlock}${businessBlock}${industryBlock}${presetBlock}${langDirective}`;
+  // Structural-fingerprint guard. Without this the agent kept emitting
+  // "opener → bold-statement → bold-statement → closer" reel after reel
+  // because bold-statement is the highest-prior body scene. Surfacing
+  // the LAST reels' arc + scene sequence + opener headline forces a
+  // visible deviation.
+  const fingerprintBlock = args.recentScripts && args.recentScripts.length > 0
+    ? `\n\n=== STRUCTURAL FINGERPRINTS — DO NOT REPEAT ===\nThis brand's last reels used these arcs and scene sequences. Pick a DIFFERENT narrativeArc and a DIFFERENT scene-type sequence:\n${args.recentScripts
+        .slice(0, 5)
+        .map((s, i) => {
+          const opener = s.scenes[0];
+          const openerHeadline =
+            opener && "headline" in opener && typeof opener.headline === "string"
+              ? opener.headline.slice(0, 60)
+              : "(no headline)";
+          const sequence = s.scenes.map((sc) => sc.type).join(" → ");
+          return `  ${i + 1}. arc=${s.narrativeArc ?? "?"} | sequence=${sequence} | opener="${openerHeadline}"`;
+        })
+        .join("\n")}\n`
+    : "";
+
+  const userMessage = `Content brief:\n${args.brief}${voiceBlock}${businessBlock}${industryBlock}${presetBlock}${fingerprintBlock}${langDirective}`;
 
   const response = await anthropic().messages.create({
     // Haiku is plenty for structured scriptwriting from a fully-

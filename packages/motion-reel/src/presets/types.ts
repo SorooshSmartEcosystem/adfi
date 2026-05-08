@@ -26,7 +26,8 @@ export type PresetSceneName =
   | "numbered-diagram"
   | "icon-list"
   | "editorial-opener"
-  | "editorial-closer";
+  | "editorial-closer"
+  | "hero-photo";
 
 // ── editorial-bold scene shapes ────────────────────────────────
 // Defined here (not in the .tsx scene files) so packages without JSX
@@ -134,6 +135,53 @@ export type ChatThreadShape = {
     sender: string;
     text: string;
   }>;
+  duration: number;
+};
+
+// Hero photo — full-bleed AI-generated photo with a heavy display
+// text overlay. The biggest visual unlock available without an audio
+// layer. Uses Echo's existing Replicate Flux Schnell pipeline; the
+// API package fills `imageUrl` after the agent returns the script.
+//
+// The agent emits `imagePrompt` (the visual brief — specific subject,
+// framing, light, palette) but NOT `imageUrl`. The backfill step
+// generates the image from the prompt and patches the URL into the
+// script before render. If imageUrl is missing at render time, the
+// scene falls back to a solid-color frame with the overlay text —
+// still ships, just without the photo.
+//
+// Agent rules (in VIDEO_SYSTEM_PROMPT): use hero-photo for moments
+// that benefit from real-world atmosphere — opening establishing
+// shots, "show, don't tell" moments, scene-setting beats. Avoid
+// hero-photo for data-heavy or list scenes; the photo competes
+// with the information.
+export type HeroPhotoShape = {
+  type: "hero-photo";
+  // The on-screen text overlay. ≤80 chars; longer truncates.
+  // Heavy display, ink color (or white if photo is dark).
+  headline: string;
+  // Optional small support line under headline. ≤120 chars.
+  subhead?: string;
+  // Optional one word from headline to colorize as accent. Default:
+  // last word.
+  emphasis?: string;
+  // Visual brief the image-gen pipeline runs. Specific subject,
+  // framing, light, palette. e.g. "hands centering wet clay on wheel
+  // mid-throw, golden window light from left, neutral linen apron".
+  // Avoid logos, text-on-image, and people's faces unless the niche
+  // requires them.
+  imagePrompt: string;
+  // Filled by the API's backfill step before render. Agent never
+  // emits this. Renderer falls back to a solid frame if missing.
+  imageUrl?: string;
+  // Where the headline sits on the photo. Default "bottom-left".
+  // Loosely typed (string) to match the agent's permissive zod —
+  // renderer's switch falls back to "bottom-left" for unknown values.
+  textAnchor?: string;
+  // Photo treatment. Default "darken" — adds a 25% black overlay so
+  // white text reads. "lighten" inverts for dark text on bright photos.
+  // Loosely typed for the same reason as textAnchor.
+  treatment?: string;
   duration: number;
 };
 

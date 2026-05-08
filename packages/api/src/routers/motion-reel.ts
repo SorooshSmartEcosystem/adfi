@@ -5,7 +5,8 @@ import {
   renderScriptForDraft,
   renderDirectiveForDraft,
 } from "../services/motion-reel";
-import { runVideoAgent } from "../agents/video";
+import { runVideoAgent, backfillImagesForVideoScript } from "../agents/video";
+import { db } from "@orb/db";
 import { getActiveAgentContextForUser } from "../services/agent-context";
 import type { BrandVoice } from "../agents/strategist";
 import { notifyAdminOfError } from "../services/admin-notify";
@@ -248,6 +249,20 @@ const SceneSchema = z.discriminatedUnion("type", [
     ),
     duration: z.number(),
   }),
+  // Hero photo (Phase 2.5) — agent emits imagePrompt, API backfills
+  // imageUrl before render. Renderer falls back to solid frame if
+  // URL missing.
+  z.object({
+    type: z.literal("hero-photo"),
+    headline: longish(120),
+    subhead: longish(180).optional(),
+    emphasis: longish(60).optional(),
+    imagePrompt: longish(500),
+    imageUrl: z.string().url().optional(),
+    textAnchor: longish(20).optional(),
+    treatment: longish(20).optional(),
+    duration: z.number().min(1).max(10),
+  }),
 ]);
 
 const VideoDesignSchema = z.object({
@@ -348,7 +363,20 @@ export const motionReelRouter = router({
           industry: businessRow?.description ?? undefined,
           userId: ctx.user.id,
         });
-        return script;
+        // If the agent emitted hero-photo scenes, generate the photos
+        // before returning. Backfill is best-effort — if Replicate
+        // fails the scene renders without a photo (HeroPhotoScene
+        // falls back to a solid frame).
+        const kit = await db.brandKit.findFirst({
+          where: { userId: ctx.user.id },
+          select: { imageStyle: true },
+        });
+        const filled = await backfillImagesForVideoScript({
+          script,
+          userId: ctx.user.id,
+          imageStyle: kit?.imageStyle ?? undefined,
+        });
+        return filled;
       } catch (err) {
         await notifyAdminOfError({
           source: "motionReel.draftScript",
@@ -409,13 +437,25 @@ export const motionReelRouter = router({
           industry: businessRow?.description ?? undefined,
           userId: ctx.user.id,
         });
+        // Backfill hero-photo images before rendering. Non-blocking
+        // failures handled inside backfillImagesForVideoScript.
+        const kit = await db.brandKit.findFirst({
+          where: { userId: ctx.user.id },
+          select: { imageStyle: true },
+        });
+        const filled = await backfillImagesForVideoScript({
+          script,
+          userId: ctx.user.id,
+          draftId: input.draftId,
+          imageStyle: kit?.imageStyle ?? undefined,
+        });
         const result = await renderScriptForDraft({
           userId: ctx.user.id,
           draftId: input.draftId,
-          script,
+          script: filled,
           cookieHeader: ctx.headers.get("cookie") ?? "",
         });
-        return { script, ...result };
+        return { script: filled, ...result };
       } catch (err) {
         await notifyAdminOfError({
           source: "motionReel.generateAndRender",

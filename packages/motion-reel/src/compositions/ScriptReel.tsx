@@ -38,6 +38,7 @@ import { PhoneMockupScene } from "../presets/editorial-bold/PhoneMockupScene";
 import { MetricTileGridScene } from "../presets/editorial-bold/MetricTileGridScene";
 import { ChatThreadScene } from "../presets/editorial-bold/ChatThreadScene";
 import { TerminalScene } from "../presets/editorial-bold/TerminalScene";
+import { HeroPhotoScene } from "../presets/editorial-bold/HeroPhotoScene";
 import { GrainOverlay } from "../primitives/GrainOverlay";
 import { WipeReveal } from "../transitions/WipeReveal";
 import { ColorFlash } from "../transitions/ColorFlash";
@@ -158,6 +159,10 @@ const SceneSwitch: React.FC<{
     case "terminal":
       return (
         <TerminalScene tokens={tokens} scene={scene} design={design} />
+      );
+    case "hero-photo":
+      return (
+        <HeroPhotoScene tokens={tokens} scene={scene} design={design} />
       );
     default:
       // Unknown scene type — render an empty frame rather than crashing.

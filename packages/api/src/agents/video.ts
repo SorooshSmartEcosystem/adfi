@@ -18,6 +18,7 @@ import {
   MODELS,
   recordAnthropicUsage,
 } from "../services/anthropic";
+import { generateImageSafe } from "../services/replicate";
 import { detectLanguage } from "./language";
 import type { BrandVoice } from "./strategist";
 
@@ -264,6 +265,26 @@ const TerminalSchema = z.object({
   duration: z.number(),
 });
 
+// HeroPhotoScene — full-bleed AI-generated photo with a heavy display
+// text overlay. The agent emits `imagePrompt` (visual brief); the
+// API package's backfillImagesForVideoScript runs Replicate Flux
+// Schnell on every hero-photo scene and patches `imageUrl` into the
+// script before render. Render-time fallback if URL missing.
+//
+// `textAnchor` and `treatment` are left as plain strings so the
+// agent's grammar stays small. Renderer falls back to defaults
+// ("bottom-left", "darken") for unrecognised values.
+const HeroPhotoSchema = z.object({
+  type: z.literal("hero-photo"),
+  headline: trim(80),
+  subhead: trimOpt(120).optional(),
+  emphasis: trimOpt(40).optional(),
+  imagePrompt: trim(400),
+  textAnchor: trimOpt(20).optional(),
+  treatment: trimOpt(20).optional(),
+  duration: z.number(),
+});
+
 // AGENT scene schema — editorial-bold scenes only. Anthropic's
 // structured output has a 24-optional-parameter cap; including the
 // 9 legacy scenes pushes us to 27. Keeping the agent schema small
@@ -283,16 +304,25 @@ const TerminalSchema = z.object({
 // terminal keeps us under the cap. They stay in the RENDERER and
 // the ROUTER schema for user-edited scripts, just not emitted by
 // the agent.
+// AGENT scene schema — 7 scenes. Anthropic's grammar compiler caps
+// us at ~7 union members with nested optional fields. Adding
+// hero-photo (Phase 2.5) means dropping numbered-diagram from the
+// AGENT union; numbered-diagram stays in the renderer + router so
+// legacy scripts and user-edited scripts still work — the agent
+// just won't emit it. icon-list covers most "structured argument"
+// territory and the photo lift is bigger than the diagram lift for
+// brand differentiation.
 const SceneSchema = z.discriminatedUnion("type", [
-  // editorial-bold preset (5 scenes)
+  // editorial-bold preset (4 scenes — numbered-diagram dropped from agent)
   EditorialOpenerSchema,
   BoldStatementSchema,
   IconListSchema,
-  NumberedDiagramSchema,
   EditorialClosingSchema,
   // structural variety (2 scenes — most universal of the 4 built)
   PhoneMockupSchema,
   MetricTileGridSchema,
+  // photo (Phase 2.5)
+  HeroPhotoSchema,
 ]);
 
 
@@ -419,19 +449,6 @@ back-compat with old persisted scripts.
       accent panel. Use sparingly — at most one row per scene.
     - duration: 4-7s. More items needs more time.
 
-4. numbered-diagram — Concept diagram with 2-3 numbered callouts
-    pointing at a center concept. Used for explainers where the
-    argument has a clear structure ("two things matter", "three
-    forces", etc).
-    { type: "numbered-diagram", title?, center, callouts: [{label}], duration }
-    - title: optional header above the diagram.
-    - center: the central concept the callouts point at.
-      ≤24 chars displays cleanly.
-    - callouts: 2-3 entries. Each is a short label (≤60 chars).
-      Order matters — callout 1 is top-right, 2 is bottom-right,
-      3 is bottom-left.
-    - duration: 4-6s.
-
 5. editorial-closer — The closing beat. Brand motif sits at the
     center, business name in heavy display type below, optional CTA
     pill. ALWAYS last scene when using editorial-bold preset.
@@ -466,6 +483,43 @@ Pick by content type:
    - caption: optional headline above the phone
    - duration: 4-6s.
 
+7b. hero-photo — Full-bleed AI-generated photo with heavy text overlay.
+    Adds real-world atmosphere to reels that would otherwise be all-text
+    editorial. The biggest single visual upgrade available without an
+    audio layer. Use ONE per reel max (usually scene 2 or scene 3).
+    { type: "hero-photo", headline, subhead?, emphasis?, imagePrompt,
+      textAnchor?, treatment?, duration }
+    - headline: ≤80 chars on-screen text. Same constraints as
+      bold-statement hero — concrete, branded, one accent word.
+    - subhead: optional ≤120-char support line in mono type.
+    - emphasis: optional word from headline to color in accent. Default:
+      last word.
+    - imagePrompt: the visual brief the image-gen pipeline runs.
+      Specific subject, framing, light, palette. e.g. "hands centering
+      wet clay on wheel mid-throw, golden window light from left,
+      neutral linen apron, top-third framing". Avoid logos,
+      text-on-image, and people's faces unless the niche requires
+      them. Avoid invented people / brands / products — describe a
+      generic subject the photo gen handles cleanly.
+    - textAnchor: "top-left" | "bottom-left" | "bottom-right" | "center".
+      Default "bottom-left". Pick to leave the photo's subject visible.
+    - treatment: "darken" | "lighten" | "vignette" | "none". Default
+      "darken" (white text on darkened photo). Use "lighten" only if
+      the imagePrompt produces a dark scene where black text reads.
+    - duration: 4-6s. Photos need time to land; don't rush.
+
+    USE hero-photo for:
+    - Opening establishing shots ("the studio", "the kitchen at 6am")
+    - Scene-setting beats ("a quiet morning", "the dashboard glow")
+    - Show-don't-tell moments where a photo says more than text
+    - Brand moments — products, materials, environments
+    DO NOT use hero-photo for:
+    - Data, lists, comparisons (use metric-tile-grid / icon-list)
+    - Customer testimonials (use phone-mockup kind="message")
+    - Quick punchlines (the photo competes with the text)
+    NEVER emit more than ONE hero-photo per reel — multiple AI photos
+    in a row reads as a slideshow.
+
 7. metric-tile-grid — KPI dashboard with 2-4 tiles. Use when the
    brief has multiple comparable numbers ("we hit X traders, Y
    volume, Z markets") or "by-the-numbers" content.
@@ -489,8 +543,9 @@ Picking rules:
 
 Editorial-bold composition arc:
   scene 1: editorial-opener  (mark + spotlight + headline)
-  scenes 2..N-1: bold-statement, icon-list, numbered-diagram, or any
-                 mix of those (avoid same scene type twice in a row)
+  scenes 2..N-1: bold-statement, icon-list, phone-mockup,
+                 metric-tile-grid, OR hero-photo (max 1 per reel) —
+                 avoid same scene type twice in a row
   scene N: editorial-closer  (mark + business name + CTA)
 
 ==============================================================
@@ -535,20 +590,21 @@ Every reel follows this 4–6 scene arc:
   [editorial-opener → 2-4 body scenes → editorial-closer]
 
 Body scenes are picked from: bold-statement, icon-list,
-numbered-diagram, phone-mockup, metric-tile-grid. **At LEAST one
-body scene MUST be a structural scene (phone-mockup or
-metric-tile-grid)** — back-to-back text scenes read as a slide deck.
+phone-mockup, metric-tile-grid, hero-photo. **At LEAST one body
+scene MUST be a structural OR photo scene (phone-mockup,
+metric-tile-grid, or hero-photo)** — back-to-back bold-statement
+scenes read as a slide deck.
 
 A good 18-22s script:
-  editorial-opener  → bold-statement  → bold-statement  →
-  numbered-diagram  → editorial-closer
+  editorial-opener  → bold-statement  → hero-photo  →
+  bold-statement  → editorial-closer
 
 A "tips / pillars" post:
   editorial-opener → icon-list → bold-statement → editorial-closer
 
-A "structured argument" post:
-  editorial-opener → bold-statement → numbered-diagram →
-  bold-statement → editorial-closer
+A "show, don't tell" post:
+  editorial-opener → hero-photo → bold-statement →
+  metric-tile-grid → editorial-closer
 
 ALWAYS scene 1 = editorial-opener.
 ALWAYS last scene = editorial-closer.
@@ -708,8 +764,8 @@ converges on claim_then_proof.
   argument_unfolds    — opener → statement A → counter B → resolution → closer
   milestone_reveal    — opener → build-up → metric-tile-grid →
                         celebration line → closer
-  process_walkthrough — opener → numbered-diagram → icon-list →
-                        punchline → closer
+  process_walkthrough — opener → icon-list → bold-statement →
+                        metric-tile-grid → closer
 
 If recent reels for THIS brand used claim_then_proof (you'll see this
 in the user message via STRUCTURAL FINGERPRINTS), pick a DIFFERENT
@@ -828,7 +884,7 @@ export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript>
       ? JSON.stringify(args.brandVoice).slice(0, 400)
       : null,
   });
-  const presetBlock = `\n\n=== PRESET: ${preset} ===\nUse the editorial-bold scene catalog only: editorial-opener, bold-statement, icon-list, numbered-diagram, editorial-closer. The schema does not allow legacy scene types.`;
+  const presetBlock = `\n\n=== PRESET: ${preset} ===\nUse this scene catalog only: editorial-opener, bold-statement, icon-list, editorial-closer, phone-mockup, metric-tile-grid, hero-photo. The schema does not allow legacy scene types or numbered-diagram (back-compat only — user-editable, not agent-emitted).`;
 
   // Structural-fingerprint guard. Without this the agent kept emitting
   // "opener → bold-statement → bold-statement → closer" reel after reel
@@ -893,4 +949,88 @@ export async function runVideoAgent(args: VideoAgentInput): Promise<VideoScript>
 
   const raw = JSON.parse(textBlock.text);
   return VideoScriptSchema.parse(raw);
+}
+
+// ------------------- Image backfill -------------------
+// Walks a VideoScript, finds every hero-photo scene that's missing
+// imageUrl, runs Replicate Flux Schnell on each scene's imagePrompt,
+// and returns a new script with URLs patched in. Bounded concurrency
+// so we don't trip Replicate's 429 storms (same cap Echo uses for
+// reel beats — 2 in flight per draft).
+//
+// Cost: ~$0.003 per generated image. A reel emitting one hero-photo
+// adds ~0.3¢ to the per-video cost. Total per-video ceiling stays
+// well under the 10¢ user target even with the script + render.
+//
+// Failures are silent — if image gen fails for a scene, the scene
+// renders without a photo (HeroPhotoScene falls back to a solid
+// frame with the overlay text). Don't break the whole reel for one
+// bad image gen.
+export async function backfillImagesForVideoScript(args: {
+  script: VideoScript;
+  userId: string;
+  draftId?: string;
+  // Optional brand-kit imageStyle prefix that gets prepended to every
+  // imagePrompt (matches Echo's behavior so video photos look like
+  // post photos for the same brand).
+  imageStyle?: string;
+}): Promise<VideoScript> {
+  const stylize = (raw: string): string =>
+    args.imageStyle ? `${args.imageStyle} ${raw}` : raw;
+
+  // Collect hero-photo scene indices that need an image.
+  const indices: number[] = [];
+  args.script.scenes.forEach((scene, i) => {
+    if (
+      scene.type === "hero-photo" &&
+      "imagePrompt" in scene &&
+      scene.imagePrompt &&
+      !("imageUrl" in scene && scene.imageUrl)
+    ) {
+      indices.push(i);
+    }
+  });
+  if (indices.length === 0) return args.script;
+
+  // Bounded concurrency — 2 in flight max. Replicate's burst limiter
+  // returns 429s above ~3 concurrent jobs from one client, and the
+  // backoff stacks so retries fail in cascade. Echo learned this the
+  // hard way; mirror its `runWithConcurrency` pattern here.
+  const limit = 2;
+  const results = new Array<string | null>(indices.length).fill(null);
+  let cursor = 0;
+  async function worker(): Promise<void> {
+    while (true) {
+      const k = cursor++;
+      if (k >= indices.length) return;
+      const sceneIndex = indices[k]!;
+      const scene = args.script.scenes[sceneIndex] as { imagePrompt?: string };
+      if (!scene.imagePrompt) continue;
+      const r = await generateImageSafe({
+        userId: args.userId,
+        draftId: args.draftId ?? "video",
+        slug: `video-hero-${sceneIndex}`,
+        prompt: stylize(scene.imagePrompt),
+        // Reels are 9:16 vertical
+        aspectRatio: "9:16",
+      });
+      results[k] = r ? r.url : null;
+    }
+  }
+  const workers = Array.from(
+    { length: Math.min(limit, indices.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+
+  // Patch URLs back into a new scenes array (immutable; renderer reads
+  // the script object as-is).
+  const nextScenes = args.script.scenes.map((s, i) => {
+    const slot = indices.indexOf(i);
+    if (slot < 0) return s;
+    const url = results[slot];
+    if (!url) return s;
+    return { ...s, imageUrl: url };
+  });
+  return { ...args.script, scenes: nextScenes };
 }

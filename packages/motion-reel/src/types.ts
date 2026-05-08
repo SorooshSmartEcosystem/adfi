@@ -300,6 +300,7 @@ export type {
   MetricTileGridShape,
   ChatThreadShape,
   TerminalShape,
+  HeroPhotoShape,
 } from "./presets/types";
 
 import type {
@@ -312,6 +313,7 @@ import type {
   MetricTileGridShape,
   ChatThreadShape,
   TerminalShape,
+  HeroPhotoShape,
 } from "./presets/types";
 
 export type Scene =
@@ -334,7 +336,9 @@ export type Scene =
   | PhoneMockupShape
   | MetricTileGridShape
   | ChatThreadShape
-  | TerminalShape;
+  | TerminalShape
+  // photo scenes (Phase 2.5 — uses Echo's image-gen pipeline)
+  | HeroPhotoShape;
 
 // The whole script. Persisted on ContentDraft.motion (alongside the
 // older single-template `MotionDirective` for backward compat — both

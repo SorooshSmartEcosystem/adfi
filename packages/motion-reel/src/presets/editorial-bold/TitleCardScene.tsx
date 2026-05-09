@@ -21,10 +21,18 @@
 
 "use client";
 
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { fitText } from "../../motion/fitText";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { getMoodConfig, adjustSaturation } from "../../motion/mood";
+import { brandSignature } from "../../motion/brandSignature";
+import {
+  CameraMove,
+  ParticleField,
+  VignettePulse,
+  GradientSweep,
+  composeMotion,
+} from "../../motion/primitives";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { TitleCardShape } from "../types";
 
@@ -32,6 +40,7 @@ type Props = {
   tokens: BrandTokens;
   scene: TitleCardShape;
   design: Required<VideoDesign>;
+  sceneIndex?: number;
 };
 
 function accentFor(accent: VideoDesign["accent"], tokens: BrandTokens): string {
@@ -48,12 +57,29 @@ function accentFor(accent: VideoDesign["accent"], tokens: BrandTokens): string {
   }
 }
 
-export const TitleCardScene: React.FC<Props> = ({ tokens, scene, design }) => {
+export const TitleCardScene: React.FC<Props> = ({
+  tokens,
+  scene,
+  design,
+  sceneIndex = 0,
+}) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const totalFrames = Math.max(60, Math.round(scene.duration * 30));
   const mood = getMoodConfig(design.mood);
   const easing = paceEasing(design.pace);
   const stagger = Math.round(paceStaggerFrames(design.pace) * mood.paceFactor);
+
+  // Seeded recipe — title cards inherit the bold-statement pool
+  // since their composition needs are similar (no nested grids,
+  // pure text + decoration).
+  const sig = brandSignature(tokens.businessName);
+  const recipe = composeMotion({
+    brandSeed: sig.seed,
+    sceneIndex,
+    sceneType: "bold-statement",
+    mood: design.mood,
+  });
 
   const bg = tokens.bg || "#FFFFFF";
   const ink = tokens.ink || "#0F0F0F";
@@ -117,7 +143,7 @@ export const TitleCardScene: React.FC<Props> = ({ tokens, scene, design }) => {
 
   const emphasisLower = (scene.emphasis ?? "").toLowerCase().trim();
 
-  return (
+  const inner = (
     <AbsoluteFill style={{ background: bg, color: ink }}>
       {/* Top letterbox bar */}
       <div
@@ -245,5 +271,41 @@ export const TitleCardScene: React.FC<Props> = ({ tokens, scene, design }) => {
         ) : null}
       </div>
     </AbsoluteFill>
+  );
+
+  // Compose with primitives — title cards rarely use particles
+  // (they should feel cinematic + clean), but vignette + gradient
+  // sweep + camera move add dynamism.
+  const cameraStyle = recipe.cameraStyle ?? "none";
+  const vignette = recipe.vignette ?? "none";
+  const gradientSweep = recipe.gradientSweep ?? "none";
+
+  const composed = (
+    <AbsoluteFill>
+      {vignette !== "none" ? (
+        <VignettePulse static={vignette === "static"} intensity={0.3} />
+      ) : null}
+      <div style={{ position: "absolute", inset: 0, zIndex: 10 }}>{inner}</div>
+      {gradientSweep !== "none" ? (
+        <GradientSweep
+          direction={gradientSweep}
+          color={`${accent}44`}
+          intensity={0.2}
+          speed={0.7}
+        />
+      ) : null}
+    </AbsoluteFill>
+  );
+
+  return cameraStyle !== "none" ? (
+    <CameraMove
+      style={cameraStyle}
+      totalFrames={durationInFrames}
+      intensity={mood.paceFactor}
+    >
+      {composed}
+    </CameraMove>
+  ) : (
+    composed
   );
 };

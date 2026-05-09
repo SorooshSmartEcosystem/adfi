@@ -159,11 +159,21 @@ const SceneSwitch: React.FC<{
     // ── Phase 3 — structural variety ─────────────────────────────
     case "phone-mockup":
       return (
-        <PhoneMockupScene tokens={tokens} scene={scene} design={design} />
+        <PhoneMockupScene
+          tokens={tokens}
+          scene={scene}
+          design={design}
+          sceneIndex={sceneIndex}
+        />
       );
     case "metric-tile-grid":
       return (
-        <MetricTileGridScene tokens={tokens} scene={scene} design={design} />
+        <MetricTileGridScene
+          tokens={tokens}
+          scene={scene}
+          design={design}
+          sceneIndex={sceneIndex}
+        />
       );
     case "chat-thread":
       return (
@@ -184,7 +194,12 @@ const SceneSwitch: React.FC<{
       );
     case "title-card":
       return (
-        <TitleCardScene tokens={tokens} scene={scene} design={design} />
+        <TitleCardScene
+          tokens={tokens}
+          scene={scene}
+          design={design}
+          sceneIndex={sceneIndex}
+        />
       );
     case "split-frame":
       return (
@@ -197,7 +212,12 @@ const SceneSwitch: React.FC<{
       );
     case "pull-quote":
       return (
-        <PullQuoteScene tokens={tokens} scene={scene} design={design} />
+        <PullQuoteScene
+          tokens={tokens}
+          scene={scene}
+          design={design}
+          sceneIndex={sceneIndex}
+        />
       );
     default:
       // Unknown scene type — render an empty frame rather than crashing.

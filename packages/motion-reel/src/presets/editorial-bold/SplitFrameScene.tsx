@@ -21,10 +21,16 @@
 
 "use client";
 
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { fitText } from "../../motion/fitText";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { getMoodConfig, adjustSaturation } from "../../motion/mood";
+import { brandSignature } from "../../motion/brandSignature";
+import {
+  ParticleField,
+  VignettePulse,
+  composeMotion,
+} from "../../motion/primitives";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { SplitFrameShape } from "../types";
 
@@ -60,6 +66,14 @@ export const SplitFrameScene: React.FC<Props> = ({
   const mood = getMoodConfig(design.mood);
   const easing = paceEasing(design.pace);
   const stagger = Math.round(paceStaggerFrames(design.pace) * mood.paceFactor);
+
+  const sig = brandSignature(tokens.businessName);
+  const recipe = composeMotion({
+    brandSeed: sig.seed,
+    sceneIndex,
+    sceneType: "bold-statement",
+    mood: design.mood,
+  });
 
   const bg = tokens.bg || "#FFFFFF";
   const ink = tokens.ink || "#0F0F0F";
@@ -148,7 +162,7 @@ export const SplitFrameScene: React.FC<Props> = ({
     textAlign: photoOnLeft ? "left" : "right",
   };
 
-  return (
+  const inner = (
     <AbsoluteFill style={{ background: bg }}>
       {/* Photo column */}
       <div style={photoColumn}>
@@ -271,6 +285,28 @@ export const SplitFrameScene: React.FC<Props> = ({
           </div>
         ) : null}
       </div>
+    </AbsoluteFill>
+  );
+
+  // Compose: split-frame already has Ken-Burns on the photo, so a
+  // CameraMove on top would compound. Skip CameraMove; add subtle
+  // particles + vignette only.
+  const particleFlavor = recipe.particleFlavor ?? "none";
+  const vignette = recipe.vignette ?? "none";
+
+  return (
+    <AbsoluteFill>
+      {vignette !== "none" ? (
+        <VignettePulse static={vignette === "static"} intensity={0.2} />
+      ) : null}
+      <div style={{ position: "absolute", inset: 0, zIndex: 10 }}>{inner}</div>
+      {particleFlavor !== "none" ? (
+        <ParticleField
+          flavor={particleFlavor}
+          seed={recipe.seed}
+          opacity={0.25}
+        />
+      ) : null}
     </AbsoluteFill>
   );
 };

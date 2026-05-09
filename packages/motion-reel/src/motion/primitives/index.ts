@@ -44,9 +44,14 @@ import type { MaskShape } from "./MaskedReveal";
 // MotionRecipe — the composer's output. A scene reads this object
 // and applies whichever primitives the recipe calls for.
 //
-// Future expansion: more flags + parameter slots as the primitive
-// library grows. Adding a new primitive means adding a new optional
-// slot here without breaking existing scenes.
+// Expanded 2026-05-09 to pick from MORE primitives so every scene
+// can layer multiple visible effects (was: cameraStyle + particles
+// only). Now: gradient sweep, vignette pulse, bracket corners,
+// halftone, grid pattern, accent rule — all seeded.
+//
+// Adding a new primitive means adding a new optional slot here
+// without breaking existing scenes (they ignore slots they don't
+// know about).
 export type MotionRecipe = {
   // Cinematic camera move applied to the whole scene composition.
   cameraStyle?:
@@ -74,6 +79,27 @@ export type MotionRecipe = {
     | "rotate-in"
     | "directional"
     | "none";
+  // Diagonal gradient sweep across the frame. "none" = no sweep.
+  gradientSweep?:
+    | "diagonal-tl-br"
+    | "diagonal-tr-bl"
+    | "horizontal"
+    | "vertical"
+    | "none";
+  // Soft radial vignette breathing in/out. "none" = off.
+  vignette?: "pulse" | "static" | "none";
+  // Bracket corners framing the scene (technical aesthetic).
+  // "none" = off.
+  brackets?: "all-corners" | "top-only" | "none";
+  // Halftone dot pattern overlay. "none" = off.
+  halftone?: "static" | "rotate" | "none";
+  // Grid pattern backdrop (dashboard-tech preset's natural backdrop).
+  // "none" = off.
+  gridBackdrop?: "static-fade" | "drift" | "none";
+  // Accent rule decoration above hero text. "none" = off (the
+  // accent rule above bold-statement headlines is hardcoded; this
+  // recipe slot lets OTHER scenes opt-in).
+  accentRule?: "draw-h" | "dot-rule" | "dashed" | "double" | "tick-marks" | "none";
   // Per-render seed — passed to primitives that need determinism
   // (ParticleField, KineticLetters with "directional"/"scramble").
   seed: number;
@@ -106,6 +132,10 @@ export function composeMotion(args: {
     args.mood === "energetic" ||
     args.mood === "urgent" ||
     args.mood === "celebratory";
+
+  const r4 = (Math.sin(seed * 5.9) * 10000) % 1;
+  const r5 = (Math.sin(seed * 7.3) * 10000) % 1;
+  const r6 = (Math.sin(seed * 9.1) * 10000) % 1;
 
   // Scene-type-specific recipe pools.
   if (args.sceneType === "bold-statement") {
@@ -140,6 +170,25 @@ export function composeMotion(args: {
             ? ["scramble", "directional", "rotate-in", "scale-in"] as const
             : ["cascade", "rise", "scale-in", "rotate-in", "directional", "none"] as const,
         r3,
+      ),
+      // New slots — picked sparingly. Most reels don't need every
+      // primitive layered; the recipe biases toward "none" so scenes
+      // stay readable.
+      gradientSweep: pick(
+        ["none", "none", "none", "diagonal-tl-br", "horizontal"] as const,
+        r4,
+      ),
+      vignette: calm
+        ? pick(["pulse", "static", "none"] as const, r5)
+        : pick(["none", "none", "static"] as const, r5),
+      brackets: energetic
+        ? pick(["none", "none", "all-corners", "top-only"] as const, r6)
+        : "none",
+      halftone: pick(["none", "none", "none", "static"] as const, r4),
+      gridBackdrop: "none",
+      accentRule: pick(
+        ["none", "none", "draw-h", "dot-rule", "dashed"] as const,
+        r5,
       ),
       seed: Math.abs(seed),
     };

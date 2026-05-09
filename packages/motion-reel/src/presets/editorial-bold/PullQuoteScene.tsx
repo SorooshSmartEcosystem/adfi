@@ -23,10 +23,17 @@
 
 "use client";
 
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { fitText } from "../../motion/fitText";
 import { paceEasing } from "../../motion/pace";
 import { getMoodConfig, adjustSaturation } from "../../motion/mood";
+import { brandSignature } from "../../motion/brandSignature";
+import {
+  CameraMove,
+  ParticleField,
+  VignettePulse,
+  composeMotion,
+} from "../../motion/primitives";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { PullQuoteShape } from "../types";
 
@@ -34,6 +41,7 @@ type Props = {
   tokens: BrandTokens;
   scene: PullQuoteShape;
   design: Required<VideoDesign>;
+  sceneIndex?: number;
 };
 
 function accentFor(accent: VideoDesign["accent"], tokens: BrandTokens): string {
@@ -54,8 +62,10 @@ export const PullQuoteScene: React.FC<Props> = ({
   tokens,
   scene,
   design,
+  sceneIndex = 0,
 }) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const totalFrames = Math.max(60, Math.round(scene.duration * 30));
   const mood = getMoodConfig(design.mood);
   const easing = paceEasing(design.pace);
@@ -68,6 +78,14 @@ export const PullQuoteScene: React.FC<Props> = ({
     accentFor(design.accent, tokens),
     mood.accentSaturation,
   );
+
+  const sig = brandSignature(tokens.businessName);
+  const recipe = composeMotion({
+    brandSeed: sig.seed,
+    sceneIndex,
+    sceneType: "bold-statement",
+    mood: design.mood,
+  });
 
   // Open-quote glyph fade-in over first 14 frames.
   const glyphOpacity = interpolate(frame, [0, 14], [0, 0.18], {
@@ -128,7 +146,7 @@ export const PullQuoteScene: React.FC<Props> = ({
   const emphasisLower = (scene.emphasis ?? "").toLowerCase().trim();
   const quoteWords = scene.quote.split(/\s+/).filter(Boolean);
 
-  return (
+  const inner = (
     <AbsoluteFill style={{ background: bg }}>
       {/* Open-quote glyph backdrop */}
       <div
@@ -244,5 +262,39 @@ export const PullQuoteScene: React.FC<Props> = ({
         ) : null}
       </div>
     </AbsoluteFill>
+  );
+
+  // Compose: pull quotes are reflective scenes — vignette + soft
+  // particles + slow camera. Skip particles for calm moods.
+  const cameraStyle = recipe.cameraStyle ?? "none";
+  const particleFlavor = recipe.particleFlavor ?? "none";
+  const vignette = recipe.vignette ?? "none";
+
+  const composed = (
+    <AbsoluteFill>
+      {vignette !== "none" ? (
+        <VignettePulse static={vignette === "static"} intensity={0.25} />
+      ) : null}
+      {particleFlavor !== "none" ? (
+        <ParticleField
+          flavor={particleFlavor}
+          seed={recipe.seed}
+          opacity={0.25}
+        />
+      ) : null}
+      <div style={{ position: "absolute", inset: 0, zIndex: 10 }}>{inner}</div>
+    </AbsoluteFill>
+  );
+
+  return cameraStyle !== "none" ? (
+    <CameraMove
+      style={cameraStyle}
+      totalFrames={durationInFrames}
+      intensity={mood.paceFactor * 0.7} // gentler for reflective scenes
+    >
+      {composed}
+    </CameraMove>
+  ) : (
+    composed
   );
 };

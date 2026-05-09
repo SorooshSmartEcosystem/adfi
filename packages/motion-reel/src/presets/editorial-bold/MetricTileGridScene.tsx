@@ -12,11 +12,18 @@
 
 "use client";
 
-import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Easing } from "remotion";
 import { CounterNumber } from "../../primitives/CounterNumber";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { getMoodConfig, adjustSaturation } from "../../motion/mood";
 import { fitText } from "../../motion/fitText";
+import { brandSignature } from "../../motion/brandSignature";
+import {
+  CameraMove,
+  GridPattern,
+  ParticleField,
+  composeMotion,
+} from "../../motion/primitives";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { MetricTileGridShape } from "../types";
 
@@ -24,15 +31,27 @@ type Props = {
   tokens: BrandTokens;
   scene: MetricTileGridShape;
   design: Required<VideoDesign>;
+  sceneIndex?: number;
 };
 
 export const MetricTileGridScene: React.FC<Props> = ({
   tokens,
   scene,
   design,
+  sceneIndex = 0,
 }) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const mood = getMoodConfig(design.mood);
+
+  const sig = brandSignature(tokens.businessName);
+  const recipe = composeMotion({
+    brandSeed: sig.seed,
+    sceneIndex,
+    sceneType: "bold-statement",
+    mood: design.mood,
+  });
+
   const stagger = Math.round(paceStaggerFrames(design.pace) * mood.paceFactor);
   const easing = paceEasing(design.pace);
 
@@ -51,7 +70,7 @@ export const MetricTileGridScene: React.FC<Props> = ({
     extrapolateRight: "clamp",
   });
 
-  return (
+  const inner = (
     <AbsoluteFill
       style={{
         background: bg,
@@ -202,6 +221,45 @@ export const MetricTileGridScene: React.FC<Props> = ({
         </div>
       </div>
     </AbsoluteFill>
+  );
+
+  // Compose: metric tiles love a grid backdrop (engineering aesthetic)
+  // and benefit from a subtle camera move to keep the dashboard
+  // feeling alive instead of static.
+  const cameraStyle = recipe.cameraStyle ?? "none";
+  const gridBackdrop = recipe.gridBackdrop ?? "none";
+  const particleFlavor = recipe.particleFlavor ?? "none";
+
+  const composed = (
+    <AbsoluteFill style={{ background: bg }}>
+      {gridBackdrop !== "none" ? (
+        <GridPattern
+          flavor={gridBackdrop === "drift" ? "drift" : "static-fade"}
+          color={`${ink}22`}
+          opacity={0.18}
+        />
+      ) : null}
+      {particleFlavor !== "none" ? (
+        <ParticleField
+          flavor={particleFlavor}
+          seed={recipe.seed}
+          opacity={0.2}
+        />
+      ) : null}
+      <div style={{ position: "absolute", inset: 0, zIndex: 10 }}>{inner}</div>
+    </AbsoluteFill>
+  );
+
+  return cameraStyle !== "none" ? (
+    <CameraMove
+      style={cameraStyle}
+      totalFrames={durationInFrames}
+      intensity={mood.paceFactor * 0.6}
+    >
+      {composed}
+    </CameraMove>
+  ) : (
+    composed
   );
 };
 

@@ -32,6 +32,10 @@ import {
   CameraMove,
   MaskedReveal,
   ParticleField,
+  GradientSweep,
+  VignettePulse,
+  BracketCorners,
+  HalftoneOverlay,
   composeMotion,
 } from "../../motion/primitives";
 import type { BrandTokens, VideoDesign } from "../../types";
@@ -428,27 +432,72 @@ export const BoldStatementScene: React.FC<Props> = ({
     </AbsoluteFill>
   );
 
-  // Layered composition fix 2026-05-08: particles MUST render BELOW
-  // text or they obscure content. Old order ({inner}, then particles)
-  // put particles on top → covered text. New order: particles first
-  // (background layer), inner content second (foreground layer with
-  // explicit z-index). Same fix in inner: text gets z-index above
-  // any backdrop element so it's always readable.
-  const withParticles =
-    particleFlavor !== "none" ? (
-      <AbsoluteFill>
+  // Layered composition. Order matters: each layer renders ABOVE
+  // the previous, with text always at the highest z-index so
+  // it's never obscured.
+  //
+  // Stack (bottom → top):
+  //   1. Halftone overlay (vintage texture)
+  //   2. Grid pattern (dashboard-tech bg) — not used by bold-statement
+  //   3. Particles (drift behind text)
+  //   4. Vignette pulse (subtle darkening at edges)
+  //   5. Gradient sweep (cinematic accent stripe)
+  //   6. Inner text content (zIndex 10, always on top)
+  //   7. Bracket corners (technical frame, above content)
+  //   8. CameraMove wraps the whole stack
+  const gradientSweep = recipe.gradientSweep ?? "none";
+  const vignette = recipe.vignette ?? "none";
+  const brackets = recipe.brackets ?? "none";
+  const halftone = recipe.halftone ?? "none";
+
+  const withLayers = (
+    <AbsoluteFill>
+      {halftone !== "none" ? (
+        <HalftoneOverlay
+          rotate={halftone === "rotate"}
+          opacity={0.12}
+          color="rgba(0, 0, 0, 0.6)"
+          blend="multiply"
+        />
+      ) : null}
+      {particleFlavor !== "none" ? (
         <ParticleField
           flavor={particleFlavor}
           seed={recipe.seed}
           opacity={0.35}
         />
-        <div style={{ position: "absolute", inset: 0, zIndex: 2 }}>
-          {inner}
-        </div>
-      </AbsoluteFill>
-    ) : (
-      inner
-    );
+      ) : null}
+      {vignette !== "none" ? (
+        <VignettePulse
+          static={vignette === "static"}
+          intensity={0.35}
+          innerRadius={50}
+        />
+      ) : null}
+      {gradientSweep !== "none" ? (
+        <GradientSweep
+          direction={gradientSweep}
+          color={`${accent}55`}
+          intensity={0.25}
+          speed={0.8}
+        />
+      ) : null}
+      <div style={{ position: "absolute", inset: 0, zIndex: 10 }}>
+        {inner}
+      </div>
+      {brackets !== "none" ? (
+        <BracketCorners
+          color={accent}
+          armLength={48}
+          thickness={3}
+          inset={64}
+          bottomCorners={brackets === "all-corners"}
+        />
+      ) : null}
+    </AbsoluteFill>
+  );
+
+  const withParticles = withLayers;
 
   // MaskedReveal removed from bold-statement composition 2026-05-08.
   // The mask was clipping text mid-animation — user feedback "text

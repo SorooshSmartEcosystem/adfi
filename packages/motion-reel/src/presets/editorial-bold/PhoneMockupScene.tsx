@@ -12,10 +12,16 @@
 
 "use client";
 
-import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Easing } from "remotion";
 import { paceEasing, paceStaggerFrames } from "../../motion/pace";
 import { getMoodConfig, adjustSaturation } from "../../motion/mood";
 import { fitText } from "../../motion/fitText";
+import { brandSignature } from "../../motion/brandSignature";
+import {
+  CameraMove,
+  ParticleField,
+  composeMotion,
+} from "../../motion/primitives";
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { PhoneMockupShape } from "../types";
 
@@ -23,15 +29,27 @@ type Props = {
   tokens: BrandTokens;
   scene: PhoneMockupShape;
   design: Required<VideoDesign>;
+  sceneIndex?: number;
 };
 
 export const PhoneMockupScene: React.FC<Props> = ({
   tokens,
   scene,
   design,
+  sceneIndex = 0,
 }) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const mood = getMoodConfig(design.mood);
+
+  const sig = brandSignature(tokens.businessName);
+  const recipe = composeMotion({
+    brandSeed: sig.seed,
+    sceneIndex,
+    sceneType: "bold-statement",
+    mood: design.mood,
+  });
+
   const stagger = Math.round(paceStaggerFrames(design.pace) * mood.paceFactor);
   const easing = paceEasing(design.pace);
 
@@ -69,7 +87,7 @@ export const PhoneMockupScene: React.FC<Props> = ({
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
   );
 
-  return (
+  const inner = (
     <AbsoluteFill
       style={{
         background: bg,
@@ -185,6 +203,35 @@ export const PhoneMockupScene: React.FC<Props> = ({
         </div>
       </div>
     </AbsoluteFill>
+  );
+
+  // Compose: phone mockup looks great with subtle camera + particles.
+  const cameraStyle = recipe.cameraStyle ?? "none";
+  const particleFlavor = recipe.particleFlavor ?? "none";
+
+  const composed = (
+    <AbsoluteFill>
+      {particleFlavor !== "none" ? (
+        <ParticleField
+          flavor={particleFlavor}
+          seed={recipe.seed}
+          opacity={0.25}
+        />
+      ) : null}
+      <div style={{ position: "absolute", inset: 0, zIndex: 10 }}>{inner}</div>
+    </AbsoluteFill>
+  );
+
+  return cameraStyle !== "none" ? (
+    <CameraMove
+      style={cameraStyle}
+      totalFrames={durationInFrames}
+      intensity={mood.paceFactor * 0.7}
+    >
+      {composed}
+    </CameraMove>
+  ) : (
+    composed
   );
 };
 

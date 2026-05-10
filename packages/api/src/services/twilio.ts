@@ -50,8 +50,10 @@ export function validateTwilioSignature(args: {
   return validateRequest(authToken, args.signature, args.url, args.params);
 }
 
-// Buys a local phone number and configures its inbound SMS webhook to the
-// ADFI Signal handler. Voice URL is left default until Vapi is wired.
+// Buys a local phone number and configures both inbound SMS and voice
+// webhooks to the ADFI Signal handlers. Voice routes through the
+// /twilio/voice TwiML endpoint which connects callers to the
+// ConversationRelay WS server (apps/voice-relay) for live AI answering.
 export async function provisionNumber(args: {
   webhookBaseUrl: string;
   country?: string;
@@ -78,10 +80,46 @@ export async function provisionNumber(args: {
     phoneNumber: candidate.phoneNumber,
     smsUrl: `${args.webhookBaseUrl}/api/webhooks/twilio/sms`,
     smsMethod: "POST",
+    voiceUrl: `${args.webhookBaseUrl}/api/webhooks/twilio/voice`,
+    voiceMethod: "POST",
   });
 
   return {
     number: purchased.phoneNumber,
     twilioSid: purchased.sid,
   };
+}
+
+// Releases a Twilio number — stops the monthly $1.15 charge. Idempotent:
+// a 404 from Twilio is treated as success (number was already released
+// or was never owned by us). Other errors propagate so the caller can
+// surface them in the admin UI.
+export async function releaseNumber(twilioSid: string): Promise<void> {
+  try {
+    await twilio().incomingPhoneNumbers(twilioSid).remove();
+  } catch (err: unknown) {
+    const status =
+      typeof err === "object" && err && "status" in err
+        ? (err as { status?: number }).status
+        : undefined;
+    if (status === 404) return;
+    throw err;
+  }
+}
+
+// Re-points an existing number's webhooks at our current base URL —
+// useful when the production domain changes or when we add the voice
+// URL to numbers that were provisioned before voice support shipped.
+export async function syncNumberWebhooks(args: {
+  twilioSid: string;
+  webhookBaseUrl: string;
+}): Promise<void> {
+  await twilio()
+    .incomingPhoneNumbers(args.twilioSid)
+    .update({
+      smsUrl: `${args.webhookBaseUrl}/api/webhooks/twilio/sms`,
+      smsMethod: "POST",
+      voiceUrl: `${args.webhookBaseUrl}/api/webhooks/twilio/voice`,
+      voiceMethod: "POST",
+    });
 }

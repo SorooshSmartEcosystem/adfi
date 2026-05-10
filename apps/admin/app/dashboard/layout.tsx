@@ -77,6 +77,12 @@ export default async function DashboardLayout({
           >
             users
           </Link>
+          <Link
+            href="/dashboard/numbers"
+            className="hover:text-ink transition-colors"
+          >
+            numbers
+          </Link>
           <form action="/auth/signout" method="post">
             <button type="submit" className="hover:text-ink transition-colors">
               sign out

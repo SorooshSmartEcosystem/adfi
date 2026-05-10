@@ -1,7 +1,13 @@
 import { z } from "zod";
-import { Agent } from "@orb/db";
+import { TRPCError } from "@trpc/server";
+import { Agent, PhoneNumberStatus } from "@orb/db";
 import { router, adminProc } from "../trpc";
 import { OrbError } from "../errors";
+import {
+  provisionNumber,
+  releaseNumber,
+  syncNumberWebhooks,
+} from "../services/twilio";
 import {
   AVG_EVENT_COST_CENTS,
   BRAND_KIT_GENERATION_CENTS,
@@ -872,4 +878,125 @@ export const adminRouter = router({
       ts: new Date().toISOString(),
     };
   }),
+
+  // ===== Phone numbers (admin-assigned per business, MVP) =====
+  //
+  // Self-serve purchase from the user app is intentionally not wired —
+  // numbers cost ~$1.15/mo per line and we want a human in the loop
+  // for area-code selection until we add a billing flow for it.
+  listPhoneNumbers: adminProc
+    .input(
+      z
+        .object({
+          status: z.nativeEnum(PhoneNumberStatus).optional(),
+          businessId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      return ctx.db.phoneNumber.findMany({
+        where: {
+          ...(input?.status ? { status: input.status } : {}),
+          ...(input?.businessId ? { businessId: input.businessId } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: { select: { id: true, email: true, businessName: true } },
+          business: { select: { id: true, name: true, deletedAt: true } },
+        },
+      });
+    }),
+
+  // Buys a US local number from Twilio and assigns it to a business.
+  // Costs ~$1.15/mo per number — surface this in the admin UI.
+  purchasePhoneNumber: adminProc
+    .input(
+      z.object({
+        businessId: z.string().uuid(),
+        areaCode: z.number().int().min(200).max(999).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const business = await ctx.db.business.findUnique({
+        where: { id: input.businessId },
+        select: { id: true, userId: true, deletedAt: true },
+      });
+      if (!business) throw OrbError.NOT_FOUND("business");
+      if (business.deletedAt) {
+        throw OrbError.VALIDATION(
+          "business is frozen — unfreeze before assigning a number",
+        );
+      }
+
+      const baseUrl = process.env["NEXT_PUBLIC_WEB_URL"];
+      if (!baseUrl) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "NEXT_PUBLIC_WEB_URL must be set to provision Twilio webhooks",
+        });
+      }
+
+      const purchased = await provisionNumber({
+        webhookBaseUrl: baseUrl,
+        areaCode: input.areaCode,
+      });
+
+      return ctx.db.phoneNumber.create({
+        data: {
+          userId: business.userId,
+          businessId: business.id,
+          number: purchased.number,
+          twilioSid: purchased.twilioSid,
+          status: PhoneNumberStatus.ACTIVE,
+        },
+      });
+    }),
+
+  // Releases a number back to Twilio — stops the monthly charge.
+  // We mark the row RELEASED rather than deleting so historical
+  // Call/Message rows still resolve their phone number context.
+  releasePhoneNumber: adminProc
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const row = await ctx.db.phoneNumber.findUnique({
+        where: { id: input.id },
+      });
+      if (!row) throw OrbError.NOT_FOUND("phone_number");
+      if (row.status === PhoneNumberStatus.RELEASED) return row;
+
+      await releaseNumber(row.twilioSid);
+
+      return ctx.db.phoneNumber.update({
+        where: { id: row.id },
+        data: {
+          status: PhoneNumberStatus.RELEASED,
+          releasedAt: new Date(),
+        },
+      });
+    }),
+
+  // Re-points a number's Twilio webhooks at the current base URL.
+  // Useful after the production domain changes, or to backfill the
+  // voice webhook on numbers provisioned before voice shipped.
+  syncPhoneNumberWebhooks: adminProc
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const row = await ctx.db.phoneNumber.findUnique({
+        where: { id: input.id },
+        select: { twilioSid: true },
+      });
+      if (!row) throw OrbError.NOT_FOUND("phone_number");
+      const baseUrl = process.env["NEXT_PUBLIC_WEB_URL"];
+      if (!baseUrl) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "NEXT_PUBLIC_WEB_URL must be set",
+        });
+      }
+      await syncNumberWebhooks({
+        twilioSid: row.twilioSid,
+        webhookBaseUrl: baseUrl,
+      });
+      return { ok: true };
+    }),
 });

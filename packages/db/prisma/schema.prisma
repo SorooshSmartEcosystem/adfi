@@ -195,6 +195,13 @@ model AgentContext {
   //     updatedAt: string }
   // Null until the business has ≥5 published posts with reach data.
   echoPatterns       Json?     @map("echo_patterns")
+  // Free-form FAQ / knowledge text the user pastes in settings —
+  // injected into Signal's system prompt so it can answer customer
+  // questions about hours, pricing, services, policies, etc. without
+  // making things up. Single text blob (no schema, no chunking) is
+  // intentional for v1: keeps the surface tiny and fits comfortably
+  // in Haiku's context.
+  faqText            String?   @map("faq_text") @db.Text
   pausedAgents       Agent[]   @default([]) @map("paused_agents")
   lastManualRun      Json?     @map("last_manual_run")
   lastRefreshedAt    DateTime? @map("last_refreshed_at")

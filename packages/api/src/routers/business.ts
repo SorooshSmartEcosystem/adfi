@@ -293,4 +293,39 @@ export const businessRouter = router({
       }
       return { ok: true as const };
     }),
+
+  // Read the current business's FAQ / knowledge text — the free-form
+  // blob Signal reads when answering customer questions about hours,
+  // pricing, services, policies. Empty when the user hasn't set one.
+  getFaq: authedProc.input(z.void()).query(async ({ ctx }) => {
+    const current = await ensureCurrentBusiness(ctx);
+    const ac = await ctx.db.agentContext.findUnique({
+      where: { businessId: current.id },
+      select: { faqText: true, updatedAt: true },
+    });
+    return {
+      faqText: ac?.faqText ?? "",
+      updatedAt: ac?.updatedAt ?? null,
+    };
+  }),
+
+  // Replace the current business's FAQ / knowledge text. Empty string
+  // clears it (Signal falls back to brand voice + description). Cap
+  // at 8k chars — keeps the Signal prompt under control on Haiku.
+  setFaq: authedProc
+    .input(z.object({ faqText: z.string().max(8000) }))
+    .mutation(async ({ ctx, input }) => {
+      const current = await ensureCurrentBusiness(ctx);
+      const trimmed = input.faqText.trim();
+      await ctx.db.agentContext.upsert({
+        where: { businessId: current.id },
+        create: {
+          userId: ctx.user.id,
+          businessId: current.id,
+          faqText: trimmed || null,
+        },
+        update: { faqText: trimmed || null },
+      });
+      return { ok: true as const };
+    }),
 });

@@ -65,6 +65,7 @@ export async function runSignal(args: {
   brandVoice: unknown;
   businessName?: string | null;
   businessDescription: string;
+  faqText?: string | null;
   threadHistory: ThreadMessage[];
   inboundMessage: string;
   userId?: string;
@@ -92,6 +93,14 @@ export async function runSignal(args: {
       ? "\n\nReply in English."
       : `\n\n=== LANGUAGE LOCK ===\nThe customer wrote to you in ${lang.label}. Reply in ${lang.label}. Do not switch languages mid-reply. Do not write a single word in English (proper nouns the customer used are fine to repeat). The brand voice fingerprint above may be in a different language — that's the brand's preference, but the customer's language wins for this reply. Match the customer's tone and writing style in ${lang.label}.`;
 
+  // Knowledge base — free-form FAQ text the business pasted in settings.
+  // Injected as a clearly-labeled section so the model treats it as
+  // ground truth for hours/pricing/services/policies. When empty,
+  // Signal falls back to brand voice + description (current behavior).
+  const faqBlock = args.faqText?.trim()
+    ? `\n\nKnowledge base (treat as authoritative — quote directly when relevant; do NOT invent details outside this and the business description):\n${args.faqText.trim()}`
+    : "";
+
   const userMessage = `Business name (use this when a customer asks what platform / product / service / app this is):
 ${args.businessName?.trim() || "(not set — ask the customer to hold rather than inventing)"}
 
@@ -99,7 +108,7 @@ Business description:
 ${args.businessDescription || "(not set)"}
 
 Brand voice fingerprint:
-${JSON.stringify(args.brandVoice ?? {}, null, 2)}
+${JSON.stringify(args.brandVoice ?? {}, null, 2)}${faqBlock}
 
 Conversation so far:
 ${historyText || "(this is the first message)"}
@@ -265,6 +274,7 @@ export async function processInboundSms(args: {
     brandVoice: user.agentContexts?.[0]?.strategistOutput ?? {},
     businessName: phoneRecord.business?.name ?? user.businessName,
     businessDescription: user.businessDescription ?? "",
+    faqText: user.agentContexts?.[0]?.faqText ?? null,
     threadHistory: history,
     inboundMessage: args.body,
     userId: user.id,
@@ -540,6 +550,7 @@ export async function processInboundMessenger(args: {
     brandVoice: user.agentContexts?.[0]?.strategistOutput ?? {},
     businessName: account.business?.name ?? user.businessName,
     businessDescription: user.businessDescription ?? "",
+    faqText: user.agentContexts?.[0]?.faqText ?? null,
     threadHistory: history,
     inboundMessage: args.body,
     userId: user.id,
@@ -836,6 +847,7 @@ export async function processInboundTelegram(args: {
       brandVoice: user.agentContexts?.[0]?.strategistOutput,
       businessName: account.business?.name ?? user.businessName,
       businessDescription: user.businessDescription ?? "",
+      faqText: user.agentContexts?.[0]?.faqText ?? null,
       threadHistory: history,
       inboundMessage: args.body,
       userId: user.id,

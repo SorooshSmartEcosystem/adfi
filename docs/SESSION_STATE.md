@@ -15,6 +15,38 @@ pick up by reading this top-to-bottom. Read this BEFORE
 
 ## What's blocked / waiting
 
+- **Signal voice answering — code shipped 2026-05-10, deploy
+  pending.** Five phases on main (97e276c → c21bf2e):
+  - **Phase 1** admin number provisioning (admin/dashboard/numbers,
+    `admin.purchasePhoneNumber` / `releasePhoneNumber` /
+    `syncPhoneNumberWebhooks`).
+  - **Phase 2** minimal KB — `AgentContext.faqText` + editor on
+    /specialist/signal + injected into runSignal user message.
+  - **Phase 3** `/api/webhooks/twilio/voice` returns
+    `<Connect><ConversationRelay ttsProvider=cartesia
+    voice=sonic-english/>` with custom Parameters carrying
+    userId / businessId / phoneNumberId / from / callSid.
+  - **Phase 4** `MONTHLY_VOICE_MINUTES_CAP` (TRIAL 3 / SOLO 60 /
+    TEAM 120 / STUDIO 300 / AGENCY 2500) summed from
+    Call.durationSeconds. Over-cap → voicemail TwiML +
+    `/twilio/voicemail-transcript` writes a Finding.
+  - **Phase 5** `apps/voice-relay/` Fly.io WS server (Dockerfile +
+    fly.toml shipped). Per-call setup → loadCallContext →
+    runSignal per turn → persistCallEnd writes Call +
+    AgentEvent + Finding (when needsHandoff or appointment).
+  - **Locked decisions**: Cartesia TTS over ElevenLabs (margin),
+    runSignal stays on Sonnet (locked-model rule, NOT Haiku),
+    no Appointment row from voice (schema requires concrete
+    scheduledFor, can't reliably extract from 30-second calls).
+  - **TO GO LIVE — 4 steps left**:
+    1. `cd apps/voice-relay && flyctl launch`
+    2. Set Fly secrets: DATABASE_URL, ANTHROPIC_API_KEY,
+       TWILIO_AUTH_TOKEN (everything @orb/db + @orb/api need)
+    3. Set `VOICE_RELAY_WS_URL=wss://<app>.fly.dev` on Vercel
+       (web app — voice webhook reads it)
+    4. Buy a number from /dashboard/numbers and assign to a
+       business. SMS already works on phase 1 alone; voice
+       requires steps 1-3 first or it returns hangup TwiML.
 - **Meta App Review queue** (filed 2026-05-01). 8 scopes submitted.
   Awaiting decision; ETA roughly **2026-05-12 → 05-16**. Test account
   `meta-reviewer@adfi.ca` is provisioned with TEAM-tier through 2027

@@ -340,6 +340,74 @@ export async function processInboundSms(args: {
   return { handled: true };
 }
 
+// Inbound voice call — Twilio's voice webhook hits this synchronously and
+// expects TwiML back in <100ms. We do the cheap lookups + frozen gates here,
+// hand back a "decision" object, and the webhook route turns that into TwiML.
+//
+// We deliberately do NOT create the Call row yet — durationSeconds isn't
+// known until the call ends, and creating a half-populated row before the
+// WS relay has confirmed the call started would leave orphans on dropped
+// calls. The relay (apps/voice-relay) writes the Call row when the
+// conversation actually begins.
+export type CallDecision =
+  | {
+      allow: true;
+      userId: string;
+      businessId: string | null;
+      phoneNumberId: string;
+      faqText: string | null;
+      brandVoice: unknown;
+      businessName: string | null;
+      businessDescription: string;
+    }
+  | {
+      allow: false;
+      reason:
+        | "unknown_destination"
+        | "user_frozen"
+        | "business_frozen"
+        | "no_brand_voice";
+    };
+
+export async function prepareInboundCall(args: {
+  to: string; // dialed number (our Twilio line)
+}): Promise<CallDecision> {
+  const phoneRecord = await db.phoneNumber.findFirst({
+    where: { number: args.to, status: PhoneNumberStatus.ACTIVE },
+    include: {
+      user: { include: { agentContexts: true } },
+      business: true,
+    },
+  });
+
+  if (!phoneRecord) return { allow: false, reason: "unknown_destination" };
+
+  const user = phoneRecord.user;
+  if (user.deletedAt) return { allow: false, reason: "user_frozen" };
+  if (phoneRecord.business?.deletedAt) {
+    return { allow: false, reason: "business_frozen" };
+  }
+
+  const ac = user.agentContexts?.[0];
+  // Without a brand voice Signal can't sound like the business — better to
+  // fail loud than have it answer in a generic voice that breaks the rule
+  // "Signal speaks AS the connected business."
+  if (!ac?.strategistOutput) {
+    return { allow: false, reason: "no_brand_voice" };
+  }
+
+  return {
+    allow: true,
+    userId: user.id,
+    businessId: phoneRecord.businessId ?? user.currentBusinessId ?? null,
+    phoneNumberId: phoneRecord.id,
+    faqText: ac.faqText ?? null,
+    brandVoice: ac.strategistOutput,
+    businessName: phoneRecord.business?.name ?? user.businessName ?? null,
+    businessDescription: user.businessDescription ?? "",
+  };
+}
+
 // Inbound Messenger / Instagram DM. Same shape as processInboundSms — find
 // the user via the page id (entry.id from the meta webhook payload), persist
 // the inbound message, and let Signal generate a reply unless the thread

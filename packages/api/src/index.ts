@@ -8,7 +8,9 @@ export { runStrategist, type BrandVoice } from "./agents/strategist";
 export {
   runSignal,
   processInboundSms,
+  prepareInboundCall,
   type SignalOutput,
+  type CallDecision,
 } from "./agents/signal";
 export {
   runEcho,

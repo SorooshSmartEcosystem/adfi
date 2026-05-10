@@ -45,7 +45,20 @@ function reasonMessage(reason: Extract<CallDecision, { allow: false }>["reason"]
       return "this line isn't taking calls right now. please try again later.";
     case "no_brand_voice":
       return "this line is being set up. please try again in a bit.";
+    case "monthly_voice_cap":
+      // Should never reach here — handled separately as a voicemail flow.
+      return "we're at capacity right now. please leave a message.";
   }
+}
+
+// Voicemail TwiML — the over-cap fallback. Says a short greeting AS
+// the business, records up to 2 minutes, and posts the recording URL
+// + transcript to the voicemail webhook which writes a Finding.
+function voicemailTwiml(businessName: string | null): string {
+  const greeting = businessName?.trim()
+    ? `${businessName.trim()} — i can't pick up right now. leave a quick message after the beep and i'll get back to you.`
+    : "i can't pick up right now. leave a quick message after the beep and i'll get back to you.";
+  return `<Response><Say voice="Polly.Joanna-Neural">${escapeXml(greeting)}</Say><Record action="/api/webhooks/twilio/voicemail" method="POST" maxLength="120" playBeep="true" transcribe="true" transcribeCallback="/api/webhooks/twilio/voicemail-transcript" finishOnKey="#"/><Say voice="Polly.Joanna-Neural">thanks. talk soon.</Say><Hangup/></Response>`;
 }
 
 export async function POST(request: Request) {
@@ -89,6 +102,18 @@ export async function POST(request: Request) {
   }
 
   if (!decision.allow) {
+    if (decision.reason === "monthly_voice_cap") {
+      // Look up the business name for a personalized voicemail greeting.
+      // Cheap second lookup — only fires when over cap, which is rare.
+      const { db } = await import("@orb/db");
+      const phoneRecord = await db.phoneNumber.findFirst({
+        where: { number: to, status: "ACTIVE" },
+        include: { business: true, user: { select: { businessName: true } } },
+      });
+      const name =
+        phoneRecord?.business?.name ?? phoneRecord?.user.businessName ?? null;
+      return twiml(voicemailTwiml(name));
+    }
     return twiml(fallbackSay(reasonMessage(decision.reason)));
   }
 

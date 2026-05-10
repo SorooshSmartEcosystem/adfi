@@ -45,6 +45,28 @@ const DAILY_SIGNAL_CAP: Record<Plan | "TRIAL", number> = {
   AGENCY: 15000,
 };
 
+// Monthly minute cap on inbound voice calls per user. Voice has a real
+// per-minute cost (~$0.06/min all-in: Twilio + Deepgram STT + Claude
+// Haiku + Cartesia TTS) so we meter it harder than the LLM-only signal
+// cap. Locked 2026-05-10 alongside the live voice answering rollout.
+//
+//   TRIAL  3 min   (~$0.18 — covers a quick demo call)
+//   SOLO   60 min  (~$3.60 of the $29 plan)
+//   TEAM   120 min (~$7.20 of the $79 plan)
+//   STUDIO 300 min (~$18 of the $199 plan, two businesses)
+//   AGENCY 2500 min (~$150 of the $499 plan, eight businesses)
+//
+// Over cap → caller gets a "leave a message" voicemail flow instead of
+// a live conversation. The voicemail costs ~$0.02/call total, so the
+// over-cap fallback isn't a margin landmine.
+export const MONTHLY_VOICE_MINUTES_CAP: Record<Plan | "TRIAL", number> = {
+  TRIAL: 3,
+  SOLO: 60,
+  TEAM: 120,
+  STUDIO: 300,
+  AGENCY: 2500,
+};
+
 export type GuardResult =
   | { allow: true }
   | {
@@ -160,6 +182,54 @@ const PLAN_RANK: Record<Plan, number> = {
   STUDIO: 3,
   AGENCY: 4,
 };
+
+// Voice-call guard. Called from prepareInboundCall before we hand
+// the caller off to ConversationRelay. Pure DB read against the Call
+// table summed for the current calendar month — no separate counter.
+//
+// Returns either { allow: true, used, cap } so the caller can log
+// remaining-minutes telemetry, or { allow: false, reason } to trigger
+// the voicemail fallback in TwiML.
+export type VoiceGuardResult =
+  | { allow: true; usedMinutes: number; capMinutes: number }
+  | {
+      allow: false;
+      reason: "monthly_voice_cap";
+      usedMinutes: number;
+      capMinutes: number;
+    };
+
+export async function guardInboundCall(args: {
+  userId: string;
+  plan: Plan | "TRIAL";
+}): Promise<VoiceGuardResult> {
+  const cap = MONTHLY_VOICE_MINUTES_CAP[args.plan];
+  const monthStart = (() => {
+    const d = new Date();
+    d.setUTCDate(1);
+    d.setUTCHours(0, 0, 0, 0);
+    return d;
+  })();
+
+  const agg = await db.call.aggregate({
+    where: { userId: args.userId, startedAt: { gte: monthStart } },
+    _sum: { durationSeconds: true },
+  });
+
+  const usedSeconds = agg._sum.durationSeconds ?? 0;
+  const usedMinutes = Math.floor(usedSeconds / 60);
+
+  if (usedMinutes >= cap) {
+    return {
+      allow: false,
+      reason: "monthly_voice_cap",
+      usedMinutes,
+      capMinutes: cap,
+    };
+  }
+
+  return { allow: true, usedMinutes, capMinutes: cap };
+}
 
 export async function effectivePlan(userId: string): Promise<Plan | "TRIAL"> {
   const subs = await db.subscription.findMany({

@@ -19,7 +19,11 @@ import { sendSms } from "../services/twilio";
 import { getMessengerProfile } from "../services/meta";
 import { getUserAvatarUrl as getTelegramAvatarUrl } from "../services/telegram";
 import { decryptToken } from "../services/crypto";
-import { guardInbound, effectivePlan } from "../services/abuse-guard";
+import {
+  guardInbound,
+  guardInboundCall,
+  effectivePlan,
+} from "../services/abuse-guard";
 import { SIGNAL_SYSTEM_PROMPT } from "./prompts/signal";
 import { detectLanguage } from "./language";
 
@@ -359,6 +363,8 @@ export type CallDecision =
       brandVoice: unknown;
       businessName: string | null;
       businessDescription: string;
+      usedMinutes: number;
+      capMinutes: number;
     }
   | {
       allow: false;
@@ -366,7 +372,10 @@ export type CallDecision =
         | "unknown_destination"
         | "user_frozen"
         | "business_frozen"
-        | "no_brand_voice";
+        | "no_brand_voice"
+        | "monthly_voice_cap";
+      usedMinutes?: number;
+      capMinutes?: number;
     };
 
 export async function prepareInboundCall(args: {
@@ -396,6 +405,20 @@ export async function prepareInboundCall(args: {
     return { allow: false, reason: "no_brand_voice" };
   }
 
+  // Monthly voice-minute cap. Voice has a real per-minute cost so we
+  // meter it harder than text — over cap drops to a voicemail flow
+  // (~$0.02/call) instead of a live conversation (~$0.06/min).
+  const plan = await effectivePlan(user.id);
+  const voiceGuard = await guardInboundCall({ userId: user.id, plan });
+  if (!voiceGuard.allow) {
+    return {
+      allow: false,
+      reason: "monthly_voice_cap",
+      usedMinutes: voiceGuard.usedMinutes,
+      capMinutes: voiceGuard.capMinutes,
+    };
+  }
+
   return {
     allow: true,
     userId: user.id,
@@ -405,6 +428,8 @@ export async function prepareInboundCall(args: {
     brandVoice: ac.strategistOutput,
     businessName: phoneRecord.business?.name ?? user.businessName ?? null,
     businessDescription: user.businessDescription ?? "",
+    usedMinutes: voiceGuard.usedMinutes,
+    capMinutes: voiceGuard.capMinutes,
   };
 }
 

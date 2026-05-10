@@ -41,12 +41,11 @@ import {
 import type { BrandTokens, VideoDesign } from "../../types";
 import type { BoldStatementShape as BaseShape } from "../types";
 
-// Extends the shared shape with editorial-bold-specific fields.
-export type BoldStatementShape = BaseShape & {
-  // Optional layout override. When omitted, renderer picks via index
-  // hash (deterministic — same draft renders identically every time).
-  layout?: "centered" | "left-anchored" | "stacked-bottom";
-};
+// Re-export the canonical shape from presets/types — local override
+// removed 2026-05-09 because BaseShape's layout enum was expanded
+// to 7 variants (added diagonal, full-bleed, vertical-column,
+// asymmetric-corner) and the local override was narrowing the type.
+export type BoldStatementShape = BaseShape;
 
 export type { BoldStatementShape as BaseBoldStatementShape };
 
@@ -101,11 +100,18 @@ export const BoldStatementScene: React.FC<Props> = ({
 
   // Layout rotation seeded by brand signature so two brands cycle
   // variants in different orders. Same brand always renders the
-  // same scene the same way (deterministic).
+  // same scene the same way (deterministic). 7 layouts total now,
+  // 4 of them dramatically different compositions (diagonal,
+  // full-bleed, vertical-column, asymmetric-corner) so consecutive
+  // bold-statement scenes don't all share the same shape.
   const variants: NonNullable<BoldStatementShape["layout"]>[] = [
     "centered",
     "left-anchored",
     "stacked-bottom",
+    "diagonal",
+    "full-bleed",
+    "vertical-column",
+    "asymmetric-corner",
   ];
   const idx =
     sceneIndex ??
@@ -119,13 +125,30 @@ export const BoldStatementScene: React.FC<Props> = ({
   const heroLines = scene.hero.split(/\n/);
   const emphasisLower = (scene.emphasis ?? lastWord(scene.hero)).toLowerCase();
 
-  // Hero font size — fit the whole phrase across at most N lines.
+  // Hero font size — layout-specific. full-bleed uses max-blast type
+  // (frame-edge to frame-edge); vertical-column needs smaller per-line
+  // since each word is its own line; diagonal needs slightly smaller
+  // to fit rotated.
   const heroFontSize = fitText({
     text: scene.hero,
-    maxSize: layout === "stacked-bottom" ? 200 : 220,
-    minSize: 88,
+    maxSize:
+      layout === "full-bleed"
+        ? 320
+        : layout === "vertical-column"
+          ? 160
+          : layout === "diagonal"
+            ? 180
+            : layout === "stacked-bottom"
+              ? 200
+              : 220,
+    minSize: layout === "full-bleed" ? 120 : 88,
     advance: 0.52,
-    maxLines: Math.max(heroLines.length, scene.hero.length > 30 ? 3 : 2),
+    maxLines:
+      layout === "vertical-column"
+        ? scene.hero.split(/\s+/).filter(Boolean).length
+        : layout === "full-bleed"
+          ? 4
+          : Math.max(heroLines.length, scene.hero.length > 30 ? 3 : 2),
   });
 
   const supportFontSize = fitText({
@@ -170,27 +193,76 @@ export const BoldStatementScene: React.FC<Props> = ({
   // the canvas empty; now anchors near the BOTTOM-LEFT (proper
   // documentary lower-third feel). All layouts use justifyContent:
   // center as default so text fills the visual center of the frame.
-  const containerStyle: React.CSSProperties =
-    layout === "left-anchored"
-      ? {
-          alignItems: "flex-start",
-          justifyContent: "center",
-          padding: "120px 96px",
-          textAlign: "left",
-        }
-      : layout === "stacked-bottom"
-        ? {
-            alignItems: "flex-start",
-            justifyContent: "flex-end",
-            padding: "120px 96px 200px 96px",
-            textAlign: "left",
-          }
-        : {
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "120px 96px",
-            textAlign: "center",
-          };
+  // Layout-specific container styles. The 4 new layouts (diagonal,
+  // full-bleed, vertical-column, asymmetric-corner) produce
+  // genuinely different shapes — not just text repositioning but
+  // different visual weight, scale, and composition logic.
+  let containerStyle: React.CSSProperties;
+  switch (layout) {
+    case "left-anchored":
+      containerStyle = {
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding: "120px 96px",
+        textAlign: "left",
+      };
+      break;
+    case "stacked-bottom":
+      containerStyle = {
+        alignItems: "flex-start",
+        justifyContent: "flex-end",
+        padding: "120px 96px 200px 96px",
+        textAlign: "left",
+      };
+      break;
+    case "diagonal":
+      // Hero rotated -7° across the frame. Wide padding to avoid
+      // edges clipping the rotated text.
+      containerStyle = {
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "200px 60px",
+        textAlign: "center",
+      };
+      break;
+    case "full-bleed":
+      // Hero fills the whole frame edge-to-edge. Massive type.
+      containerStyle = {
+        alignItems: "stretch",
+        justifyContent: "center",
+        padding: "60px 40px",
+        textAlign: "left",
+      };
+      break;
+    case "vertical-column":
+      // Each word on its own line, vertical stack hugging left edge.
+      containerStyle = {
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding: "120px 80px",
+        textAlign: "left",
+      };
+      break;
+    case "asymmetric-corner":
+      // Hero anchored to top-right corner with a giant empty
+      // bottom-left. Highly graphic.
+      containerStyle = {
+        alignItems: "flex-end",
+        justifyContent: "flex-start",
+        padding: "120px 96px",
+        textAlign: "right",
+      };
+      break;
+    case "centered":
+    default:
+      containerStyle = {
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "120px 96px",
+        textAlign: "center",
+      };
+      break;
+  }
 
   const heroAlign =
     layout === "centered" ? ("center" as const) : ("left" as const);
@@ -291,19 +363,44 @@ export const BoldStatementScene: React.FC<Props> = ({
             // Mood drives weight; signature flavor adjusts tracking.
             fontWeight: mood.displayWeight,
             letterSpacing:
-              sig.typographyFlavor === "tight"
-                ? "-0.05em"
-                : sig.typographyFlavor === "loose"
-                  ? "-0.02em"
-                  : "-0.04em",
-            lineHeight: 0.95,
+              layout === "diagonal"
+                ? "-0.06em"
+                : sig.typographyFlavor === "tight"
+                  ? "-0.05em"
+                  : sig.typographyFlavor === "loose"
+                    ? "-0.02em"
+                    : "-0.04em",
+            lineHeight: layout === "vertical-column" ? 0.85 : 0.95,
             color: ink,
-            textAlign: heroAlign,
+            textAlign:
+              layout === "asymmetric-corner"
+                ? "right"
+                : layout === "vertical-column"
+                  ? "left"
+                  : heroAlign,
             wordBreak: "break-word",
             overflowWrap: "anywhere",
             maxWidth: "100%",
+            // Layout-specific transforms produce visibly different
+            // shapes per render of the same scene type.
+            ...(layout === "diagonal"
+              ? { transform: "rotate(-7deg)", transformOrigin: "center center" }
+              : {}),
+            ...(layout === "full-bleed"
+              ? { textTransform: "uppercase" as const }
+              : {}),
+            ...(layout === "vertical-column"
+              ? {
+                  display: "flex",
+                  flexDirection: "column" as const,
+                  gap: "0.04em",
+                }
+              : {}),
             ...(layout === "stacked-bottom"
               ? { marginTop: "auto", paddingBottom: 60 }
+              : {}),
+            ...(layout === "asymmetric-corner"
+              ? { maxWidth: "60%", marginLeft: "auto" }
               : {}),
           }}
         >
@@ -450,13 +547,16 @@ export const BoldStatementScene: React.FC<Props> = ({
   const brackets = recipe.brackets ?? "none";
   const halftone = recipe.halftone ?? "none";
 
+  // Intensities cranked 2026-05-09 — user feedback "all primitives
+  // are same" was partly because they were too subtle to perceive
+  // at typical Player size. Now visibly cinematic.
   const withLayers = (
     <AbsoluteFill>
       {halftone !== "none" ? (
         <HalftoneOverlay
           rotate={halftone === "rotate"}
-          opacity={0.12}
-          color="rgba(0, 0, 0, 0.6)"
+          opacity={0.28}
+          color="rgba(0, 0, 0, 0.7)"
           blend="multiply"
         />
       ) : null}
@@ -464,22 +564,22 @@ export const BoldStatementScene: React.FC<Props> = ({
         <ParticleField
           flavor={particleFlavor}
           seed={recipe.seed}
-          opacity={0.35}
+          opacity={0.7}
         />
       ) : null}
       {vignette !== "none" ? (
         <VignettePulse
           static={vignette === "static"}
-          intensity={0.35}
-          innerRadius={50}
+          intensity={0.6}
+          innerRadius={42}
         />
       ) : null}
       {gradientSweep !== "none" ? (
         <GradientSweep
           direction={gradientSweep}
-          color={`${accent}55`}
-          intensity={0.25}
-          speed={0.8}
+          color={`${accent}AA`}
+          intensity={0.55}
+          speed={0.7}
         />
       ) : null}
       <div style={{ position: "absolute", inset: 0, zIndex: 10 }}>
@@ -488,9 +588,9 @@ export const BoldStatementScene: React.FC<Props> = ({
       {brackets !== "none" ? (
         <BracketCorners
           color={accent}
-          armLength={48}
-          thickness={3}
-          inset={64}
+          armLength={64}
+          thickness={4}
+          inset={56}
           bottomCorners={brackets === "all-corners"}
         />
       ) : null}

@@ -161,8 +161,8 @@ export function composeMotion(args: {
         r,
       ),
       particleFlavor: calm
-        ? "none"
-        : pick(["dust", "geometric", "none", "none"] as const, r2),
+        ? pick(["dust", "none"] as const, r2)
+        : pick(["dust", "embers", "geometric", "dust"] as const, r2),
       letterStyle: pick(
         calm
           ? ["cascade", "rise", "scale-in", "none"] as const
@@ -171,23 +171,28 @@ export function composeMotion(args: {
             : ["cascade", "rise", "scale-in", "rotate-in", "directional", "none"] as const,
         r3,
       ),
-      // New slots — picked sparingly. Most reels don't need every
-      // primitive layered; the recipe biases toward "none" so scenes
-      // stay readable.
+      // Visibility-biased 2026-05-09 — user wanted MORE visible
+      // variety. Every scene now picks primitives from pools heavy
+      // on actual options, light on "none".
       gradientSweep: pick(
-        ["none", "none", "none", "diagonal-tl-br", "horizontal"] as const,
+        [
+          "diagonal-tl-br",
+          "diagonal-tr-bl",
+          "horizontal",
+          "vertical",
+          "none",
+        ] as const,
         r4,
       ),
-      vignette: calm
-        ? pick(["pulse", "static", "none"] as const, r5)
-        : pick(["none", "none", "static"] as const, r5),
-      brackets: energetic
-        ? pick(["none", "none", "all-corners", "top-only"] as const, r6)
-        : "none",
-      halftone: pick(["none", "none", "none", "static"] as const, r4),
+      vignette: pick(["pulse", "static", "static", "none"] as const, r5),
+      brackets: pick(
+        ["all-corners", "top-only", "none", "none"] as const,
+        r6,
+      ),
+      halftone: pick(["none", "static", "rotate", "none"] as const, r4),
       gridBackdrop: "none",
       accentRule: pick(
-        ["none", "none", "draw-h", "dot-rule", "dashed"] as const,
+        ["draw-h", "dot-rule", "dashed", "double", "tick-marks", "none"] as const,
         r5,
       ),
       seed: Math.abs(seed),

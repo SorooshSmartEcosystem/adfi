@@ -1,0 +1,10 @@
+{
+  "extends": "@orb/config/tsconfig/base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}
